@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Music, Coins, Shield, Users, Globe, Play, TrendingUp, ArrowRight, Sparkles } from "lucide-react"
+import { Music, Coins, Shield, Users, Globe, Play, TrendingUp, Sparkles } from "lucide-react"
 import Link from "next/link"
 import Navigation from "@/components/navigation"
-import Image from "next/image"
 
 export default function HomePage() {
   return (
@@ -53,7 +53,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Revolutionary Features Section */}
+      {/* Features Section */}
       <section className="py-24 px-4 relative">
         <div className="container mx-auto">
           <div className="text-center mb-20">
@@ -74,204 +74,55 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Feature Cards with Images */}
-          <div className="space-y-16">
-            {/* Fair Royalties */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="order-2 lg:order-1">
-                <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 p-1 rounded-3xl backdrop-blur-sm">
-                  <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 p-8 rounded-3xl">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-2xl">
-                        <Coins className="h-8 w-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-white mb-2">Instant Fair Royalties</h3>
-                        <div className="h-1 w-20 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full"></div>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                      No more waiting months for payments. Get paid instantly when your music is streamed, with
-                      transparent blockchain transactions showing exactly where every cent goes.
-                    </p>
-                    <div className="flex items-center text-purple-400 font-semibold">
-                      <span>Learn more about instant payments</span>
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </div>
-                  </div>
+          {/* Feature Cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            <Card className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-gray-700/50 backdrop-blur-sm hover:bg-gradient-to-br hover:from-purple-900/20 hover:to-gray-800/80 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/10">
+              <CardHeader className="p-8 text-center">
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-2xl w-fit mx-auto mb-6">
+                  <Coins className="h-8 w-8 text-white" />
                 </div>
-              </div>
-              <div className="order-1 lg:order-2">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 to-blue-600/30 rounded-3xl blur-xl"></div>
-                  <Image
-                    src="/images/royalties.jpg"
-                    alt="Instant payments visualization"
-                    width={600}
-                    height={400}
-                    className="relative rounded-3xl shadow-2xl"
-                  />
-                </div>
-              </div>
-            </div>
+                <CardTitle className="text-white text-xl mb-3">Instant Fair Royalties</CardTitle>
+                <CardDescription className="text-gray-400 text-base leading-relaxed">
+                  Get paid instantly when your music is streamed, with transparent blockchain transactions
+                </CardDescription>
+              </CardHeader>
+            </Card>
 
-            {/* Blockchain Security */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="order-1">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600/30 to-cyan-600/30 rounded-3xl blur-xl"></div>
-                  <Image
-                    src="/images/security.jpg"
-                    alt="Blockchain security"
-                    width={600}
-                    height={400}
-                    className="relative rounded-3xl shadow-2xl"
-                  />
+            <Card className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-gray-700/50 backdrop-blur-sm hover:bg-gradient-to-br hover:from-blue-900/20 hover:to-gray-800/80 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/10">
+              <CardHeader className="p-8 text-center">
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-4 rounded-2xl w-fit mx-auto mb-6">
+                  <Shield className="h-8 w-8 text-white" />
                 </div>
-              </div>
-              <div className="order-2">
-                <div className="bg-gradient-to-br from-blue-500/20 to-cyan-600/20 p-1 rounded-3xl backdrop-blur-sm">
-                  <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 p-8 rounded-3xl">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-4 rounded-2xl">
-                        <Shield className="h-8 w-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-white mb-2">Unbreakable Security</h3>
-                        <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full"></div>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                      Your music and earnings are safeguarded by advanced blockchain encryption. No intermediaries, no hidden costs, no lost royalties—just complete, secure ownership.
-                    </p>
-                    <div className="flex items-center text-blue-400 font-semibold">
-                      <span>Discover blockchain protection</span>
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                <CardTitle className="text-white text-xl mb-3">Unbreakable Security</CardTitle>
+                <CardDescription className="text-gray-400 text-base leading-relaxed">
+                  Your music and earnings are protected by advanced blockchain encryption and smart contracts
+                </CardDescription>
+              </CardHeader>
+            </Card>
 
-            {/* Direct Fan Connection */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="order-2 lg:order-1">
-                <div className="bg-gradient-to-br from-cyan-500/20 to-green-600/20 p-1 rounded-3xl backdrop-blur-sm">
-                  <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 p-8 rounded-3xl">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="bg-gradient-to-br from-cyan-500 to-green-600 p-4 rounded-2xl">
-                        <Users className="h-8 w-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-white mb-2">Direct Fan Power</h3>
-                        <div className="h-1 w-20 bg-gradient-to-r from-cyan-500 to-green-600 rounded-full"></div>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                      Build real relationships with your fans through exclusive NFTs, direct tips, and behind-the-scenes
-                      content. No algorithms deciding who sees your music.
-                    </p>
-                    <div className="flex items-center text-cyan-400 font-semibold">
-                      <span>Connect with your audience</span>
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </div>
-                  </div>
+            <Card className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-gray-700/50 backdrop-blur-sm hover:bg-gradient-to-br hover:from-cyan-900/20 hover:to-gray-800/80 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/10">
+              <CardHeader className="p-8 text-center">
+                <div className="bg-gradient-to-br from-cyan-500 to-green-600 p-4 rounded-2xl w-fit mx-auto mb-6">
+                  <Users className="h-8 w-8 text-white" />
                 </div>
-              </div>
-              <div className="order-1 lg:order-2">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/30 to-green-600/30 rounded-3xl blur-xl"></div>
-                  <Image
-                    src="/placeholder.svg?height=400&width=600"
-                    alt="Fan connection"
-                    width={600}
-                    height={400}
-                    className="relative rounded-3xl shadow-2xl"
-                  />
-                </div>
-              </div>
-            </div>
+                <CardTitle className="text-white text-xl mb-3">Direct Fan Connection</CardTitle>
+                <CardDescription className="text-gray-400 text-base leading-relaxed">
+                  Build real relationships with fans through exclusive NFTs, direct tips, and content
+                </CardDescription>
+              </CardHeader>
+            </Card>
 
-            {/* Global Reach */}
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="order-1">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 to-pink-600/30 rounded-3xl blur-xl"></div>
-                  <Image
-                    src="/placeholder.svg?height=400&width=600"
-                    alt="Global reach"
-                    width={600}
-                    height={400}
-                    className="relative rounded-3xl shadow-2xl"
-                  />
+            <Card className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 border-gray-700/50 backdrop-blur-sm hover:bg-gradient-to-br hover:from-purple-900/20 hover:to-gray-800/80 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/10">
+              <CardHeader className="p-8 text-center">
+                <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-4 rounded-2xl w-fit mx-auto mb-6">
+                  <Globe className="h-8 w-8 text-white" />
                 </div>
-              </div>
-              <div className="order-2">
-                <div className="bg-gradient-to-br from-purple-500/20 to-pink-600/20 p-1 rounded-3xl backdrop-blur-sm">
-                  <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 p-8 rounded-3xl">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-4 rounded-2xl">
-                        <Globe className="h-8 w-8 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-3xl font-bold text-white mb-2">Mzansi Goes Global</h3>
-                        <div className="h-1 w-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
-                      </div>
-                    </div>
-                    <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                      Share the soul of Music with the world. From Amapiano to Maskandi, reach listeners
-                      across continents without borders or restrictions.
-                    </p>
-                    <div className="flex items-center text-purple-400 font-semibold">
-                      <span>Expand your reach worldwide</span>
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-24 px-4 bg-gradient-to-r from-gray-900/50 to-purple-900/30 backdrop-blur-sm">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h3 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              The Numbers Speak
-            </h3>
-            <p className="text-gray-400 text-lg">Real impact, real artists, real change</p>
-          </div>
-          <div className="grid md:grid-cols-4 gap-12 text-center">
-            <div className="group">
-              <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 to-purple-300 bg-clip-text text-transparent mb-4 group-hover:scale-110 transition-transform duration-300">
-                10K+
-              </div>
-              <div className="text-gray-400 text-lg font-medium">Active Artists</div>
-              <div className="text-gray-500 text-sm mt-2">Creating daily</div>
-            </div>
-            <div className="group">
-              <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent mb-4 group-hover:scale-110 transition-transform duration-300">
-                1M+
-              </div>
-              <div className="text-gray-400 text-lg font-medium">Songs Streamed</div>
-              <div className="text-gray-500 text-sm mt-2">This month</div>
-            </div>
-            <div className="group">
-              <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent mb-4 group-hover:scale-110 transition-transform duration-300">
-                R2M+
-              </div>
-              <div className="text-gray-400 text-lg font-medium">Paid to Artists</div>
-              <div className="text-gray-500 text-sm mt-2">Instantly</div>
-            </div>
-            <div className="group">
-              <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-green-400 to-green-300 bg-clip-text text-transparent mb-4 group-hover:scale-110 transition-transform duration-300">
-                50+
-              </div>
-              <div className="text-gray-400 text-lg font-medium">Countries</div>
-              <div className="text-gray-500 text-sm mt-2">Worldwide reach</div>
-            </div>
+                <CardTitle className="text-white text-xl mb-3">Mzansi Goes Global</CardTitle>
+                <CardDescription className="text-gray-400 text-base leading-relaxed">
+                  Share South African music with the world. From Amapiano to Maskandi, reach global audiences
+                </CardDescription>
+              </CardHeader>
+            </Card>
           </div>
         </div>
       </section>
@@ -294,7 +145,7 @@ export default function HomePage() {
               >
                 <Link href="/auth" className="flex items-center">
                   Start Your Journey
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <Play className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
             </div>
