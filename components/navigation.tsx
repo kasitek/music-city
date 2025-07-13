@@ -16,7 +16,7 @@ interface NavigationProps {
   currentPage?: string
 }
 
-export default function Navigation({ currentPage }: NavigationProps) {
+function Navigation({ currentPage }: NavigationProps) {
   const { user, isAuthenticated, logout } = useAuth()
 
   const handleLogout = () => {
@@ -130,3 +130,6 @@ export default function Navigation({ currentPage }: NavigationProps) {
     </nav>
   )
 }
+
+export default Navigation
+export { Navigation }
