@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Music, Upload, DollarSign, Users, Play, Coins } from "lucide-react"
 import Link from "next/link"
+import { mockDB } from "@/lib/mock-database"
 
 export default function ArtistDashboard() {
   const [userProfile, setUserProfile] = useState<any>(null)
@@ -22,7 +23,6 @@ export default function ArtistDashboard() {
     // Check authentication and onboarding
     const walletConnected = localStorage.getItem("walletConnected")
     const onboardingComplete = localStorage.getItem("onboardingComplete")
-    const profileData = localStorage.getItem("userProfile")
 
     if (!walletConnected) {
       router.push("/auth")
@@ -34,15 +34,61 @@ export default function ArtistDashboard() {
       return
     }
 
-    if (profileData) {
-      setUserProfile(JSON.parse(profileData))
-    }
+    // Initialize database
+    mockDB.initializeDatabase()
 
-    const address = localStorage.getItem("walletAddress")
-    if (address) {
-      setWalletAddress(address)
+    // Get current user from database
+    const currentUser = mockDB.getCurrentUser()
+    if (currentUser) {
+      setUserProfile(currentUser)
+      setWalletAddress(currentUser.walletAddress)
+    } else {
+      // Fallback to localStorage if database user not found
+      const profileData = localStorage.getItem("userProfile")
+      if (profileData) {
+        setUserProfile(JSON.parse(profileData))
+      }
+
+      const address = localStorage.getItem("walletAddress")
+      if (address) {
+        setWalletAddress(address)
+      }
     }
   }, [router])
+
+  const getUserStats = () => {
+    if (!userProfile) return { earnings: 0, streams: 0, followers: 0, tokens: 0 }
+
+    if (userProfile.userType === "artist") {
+      return {
+        earnings: userProfile.totalEarnings || 0,
+        streams: userProfile.totalStreams || 0,
+        followers: userProfile.followers || 0,
+        tokens: Math.floor((userProfile.totalEarnings || 0) * 10), // Mock MCC tokens
+      }
+    }
+
+    return {
+      earnings: 0,
+      streams: 0,
+      followers: userProfile.followers || 0,
+      tokens: 1247, // Mock tokens for fans
+    }
+  }
+
+  const getUserTracks = () => {
+    if (!userProfile || userProfile.userType !== "artist") return []
+    return mockDB.getTracksByArtist(userProfile.id)
+  }
+
+  const getUserTransactions = () => {
+    if (!userProfile) return []
+    return mockDB.getTransactionsByUser(userProfile.id).slice(0, 3) // Get latest 3
+  }
+
+  const stats = getUserStats()
+  const userTracks = getUserTracks()
+  const userTransactions = getUserTransactions()
 
   if (!userProfile) {
     return (
@@ -87,7 +133,7 @@ export default function ArtistDashboard() {
               <DollarSign className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">$2,847.50</div>
+              <div className="text-2xl font-bold text-white">${stats.earnings.toFixed(2)}</div>
               <p className="text-xs text-green-500">+12.5% from last month</p>
             </CardContent>
           </Card>
@@ -98,7 +144,7 @@ export default function ArtistDashboard() {
               <Play className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">45,231</div>
+              <div className="text-2xl font-bold text-white">{stats.streams.toLocaleString()}</div>
               <p className="text-xs text-blue-500">+8.2% from last week</p>
             </CardContent>
           </Card>
@@ -109,7 +155,7 @@ export default function ArtistDashboard() {
               <Users className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">1,234</div>
+              <div className="text-2xl font-bold text-white">{stats.followers.toLocaleString()}</div>
               <p className="text-xs text-purple-500">+15 new this week</p>
             </CardContent>
           </Card>
@@ -120,7 +166,7 @@ export default function ArtistDashboard() {
               <Coins className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">5,847</div>
+              <div className="text-2xl font-bold text-white">{stats.tokens.toLocaleString()}</div>
               <p className="text-xs text-yellow-500">Available for withdrawal</p>
             </CardContent>
           </Card>
@@ -152,27 +198,31 @@ export default function ArtistDashboard() {
                   <CardDescription className="text-gray-400">Latest uploads and performance</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {[
-                    { title: "Afrobeat Dreams", streams: "12.5K", earnings: "$125.50" },
-                    { title: "Lagos Nights", streams: "8.2K", earnings: "$82.00" },
-                    { title: "Rhythm of the Heart", streams: "15.1K", earnings: "$151.00" },
-                  ].map((track, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                          <Music className="h-5 w-5" />
+                  {userTracks.length > 0 ? (
+                    userTracks.map((track, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                            <Music className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-white">{track.title}</div>
+                            <div className="text-sm text-gray-400">{track.streams.toLocaleString()} streams</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium text-white">{track.title}</div>
-                          <div className="text-sm text-gray-400">{track.streams} streams</div>
+                        <div className="text-right">
+                          <div className="font-medium text-green-400">${track.earnings.toFixed(2)}</div>
+                          <div className="text-sm text-gray-400">Total earned</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-medium text-green-400">{track.earnings}</div>
-                        <div className="text-sm text-gray-400">This month</div>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-400 py-8">
+                      <Music className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No tracks uploaded yet</p>
+                      <p className="text-sm">Upload your first track to get started!</p>
                     </div>
-                  ))}
+                  )}
                 </CardContent>
               </Card>
 
@@ -313,21 +363,22 @@ export default function ArtistDashboard() {
                   <div>
                     <h3 className="text-lg font-semibold text-white mb-4">Recent Transactions</h3>
                     <div className="space-y-3">
-                      {[
-                        { date: "2024-01-15", track: "Afrobeat Dreams", amount: "$12.50", streams: "125" },
-                        { date: "2024-01-14", track: "Lagos Nights", amount: "$8.20", streams: "82" },
-                        { date: "2024-01-13", track: "Rhythm of the Heart", amount: "$15.10", streams: "151" },
-                      ].map((transaction, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
-                          <div>
-                            <div className="font-medium text-white">{transaction.track}</div>
-                            <div className="text-sm text-gray-400">
-                              {transaction.date} • {transaction.streams} streams
+                      {userTransactions.length > 0 ? (
+                        userTransactions.map((transaction, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                            <div>
+                              <div className="font-medium text-white">{transaction.description}</div>
+                              <div className="text-sm text-gray-400">{transaction.date}</div>
                             </div>
+                            <div className="text-green-400 font-medium">${transaction.amount.toFixed(2)}</div>
                           </div>
-                          <div className="text-green-400 font-medium">{transaction.amount}</div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-400 py-8">
+                          <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No transactions yet</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
 

@@ -10,6 +10,7 @@ import { Music, User, ArrowRight, Upload } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { mockDB } from "@/lib/mock-database"
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1)
@@ -56,9 +57,33 @@ export default function OnboardingPage() {
     if (step < 3) {
       setStep(step + 1)
     } else {
-      // Save onboarding data and redirect to dashboard
-      localStorage.setItem("userProfile", JSON.stringify(formData))
+      // Get wallet address from localStorage
+      const walletAddress = localStorage.getItem("walletAddress") || ""
+
+      // Initialize database with sample data
+      mockDB.initializeDatabase()
+
+      // Create new user in mock database
+      const newUser = mockDB.createUser({
+        walletAddress,
+        userType: formData.userType as "artist" | "fan",
+        displayName: formData.displayName,
+        bio: formData.bio,
+        location: formData.location,
+        genres: formData.genres,
+        birthDate: formData.birthDate,
+        profileImage: formData.profileImage,
+        isVerified: false,
+      })
+
+      // Set as current user
+      mockDB.setCurrentUser(newUser)
+
+      // Save onboarding completion
       localStorage.setItem("onboardingComplete", "true")
+      localStorage.setItem("userId", newUser.id)
+
+      // Redirect to dashboard
       router.push("/dashboard")
     }
   }

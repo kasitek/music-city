@@ -6,40 +6,25 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Music, Search, Play, Users, Star, Clock, Globe } from "lucide-react"
 import Link from "next/link"
+import { mockDB } from "@/lib/mock-database"
+import { useState, useEffect } from "react"
 
 export default function DiscoverPage() {
-  const featuredArtists = [
-    {
-      id: 1,
-      name: "Kemi Adebayo",
-      genre: "Afrobeat",
-      followers: "12.5K",
-      monthlyListeners: "45K",
-      topTrack: "Afrobeat Dreams",
-      image: "/placeholder.svg?height=150&width=150",
-      verified: true,
-    },
-    {
-      id: 2,
-      name: "Tunde Okafor",
-      genre: "Afro-fusion",
-      followers: "8.2K",
-      monthlyListeners: "32K",
-      topTrack: "Lagos Nights",
-      image: "/placeholder.svg?height=150&width=150",
-      verified: true,
-    },
-    {
-      id: 3,
-      name: "Amara Nwosu",
-      genre: "R&B",
-      followers: "15.1K",
-      monthlyListeners: "67K",
-      topTrack: "Rhythm of the Heart",
-      image: "/placeholder.svg?height=150&width=150",
-      verified: false,
-    },
-  ]
+  const [featuredArtists, setFeaturedArtists] = useState<any[]>([])
+  const [allTracks, setAllTracks] = useState<any[]>([])
+
+  useEffect(() => {
+    mockDB.initializeDatabase()
+
+    // Get all users who are artists
+    const users = mockDB.getUsers()
+    const artists = users.filter((user) => user.userType === "artist")
+    setFeaturedArtists(artists)
+
+    // Get all tracks
+    const tracks = mockDB.getTracks()
+    setAllTracks(tracks)
+  }, [])
 
   const trendingPlaylists = [
     {
@@ -143,30 +128,32 @@ export default function DiscoverPage() {
                 <CardContent className="p-6 text-center">
                   <div className="relative mb-4">
                     <img
-                      src={artist.image || "/placeholder.svg"}
-                      alt={artist.name}
+                      src={artist.profileImage || "/placeholder.svg"}
+                      alt={artist.displayName}
                       className="w-24 h-24 rounded-full mx-auto object-cover"
                     />
-                    {artist.verified && (
+                    {artist.isVerified && (
                       <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
                         <Star className="h-3 w-3 text-white fill-current" />
                       </div>
                     )}
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-1">{artist.name}</h3>
-                  <Badge className="mb-3 bg-purple-600/20 text-purple-300 border-purple-600/30">{artist.genre}</Badge>
+                  <h3 className="text-lg font-semibold text-white mb-1">{artist.displayName}</h3>
+                  <Badge className="mb-3 bg-purple-600/20 text-purple-300 border-purple-600/30">
+                    {artist.genres[0] || "Music"}
+                  </Badge>
                   <div className="space-y-2 text-sm text-gray-400">
                     <div className="flex items-center justify-center space-x-4">
                       <div className="flex items-center space-x-1">
                         <Users className="h-3 w-3" />
-                        <span>{artist.followers}</span>
+                        <span>{artist.followers.toLocaleString()}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Play className="h-3 w-3" />
-                        <span>{artist.monthlyListeners}</span>
+                        <span>{(artist.monthlyListeners || 0).toLocaleString()}</span>
                       </div>
                     </div>
-                    <p className="text-xs">Top: {artist.topTrack}</p>
+                    <p className="text-xs">{artist.location}</p>
                   </div>
                   <Button className="w-full mt-4 bg-purple-600 hover:bg-purple-700">Follow</Button>
                 </CardContent>

@@ -6,54 +6,31 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Coins, Filter } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { mockDB } from "@/lib/mock-database"
 
 export default function StreamingPage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTrack, setCurrentTrack] = useState(null)
+  const [tracks, setTracks] = useState<any[]>([])
 
-  const tracks = [
-    {
-      id: 1,
-      title: "Afrobeat Dreams",
-      artist: "Kemi Adebayo",
-      genre: "Afrobeat",
-      duration: "3:45",
-      streams: "12.5K",
-      price: "0.1 MCC",
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: 2,
-      title: "Lagos Nights",
-      artist: "Tunde Okafor",
-      genre: "Afro-fusion",
-      duration: "4:12",
-      streams: "8.2K",
-      price: "0.08 MCC",
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: 3,
-      title: "Rhythm of the Heart",
-      artist: "Amara Nwosu",
-      genre: "R&B",
-      duration: "3:28",
-      streams: "15.1K",
-      price: "0.12 MCC",
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: 4,
-      title: "Desert Wind",
-      artist: "Yusuf Musa",
-      genre: "World",
-      duration: "5:03",
-      streams: "6.7K",
-      price: "0.15 MCC",
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-  ]
+  useEffect(() => {
+    mockDB.initializeDatabase()
+    const allTracks = mockDB.getTracks()
+    setTracks(allTracks)
+  }, [])
+
+  const handleStream = (trackId: string) => {
+    // Simulate streaming and earning
+    mockDB.simulateStreamEarning(trackId, 1)
+
+    // Update tracks to reflect new stream count
+    const updatedTracks = mockDB.getTracks()
+    setTracks(updatedTracks)
+
+    // Show some feedback
+    console.log("Track streamed! Artist earned tokens.")
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -167,14 +144,14 @@ export default function StreamingPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-gray-400">{track.duration}</div>
-                          <div className="text-xs text-gray-500">{track.streams} streams</div>
+                          <div className="text-xs text-gray-500">{track.streams.toLocaleString()} streams</div>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <Badge className="bg-gray-700 text-gray-300">{track.genre}</Badge>
-                      <div className="text-sm text-yellow-400">{track.price}</div>
+                      <div className="text-sm text-yellow-400">{track.price} MCC</div>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -184,7 +161,11 @@ export default function StreamingPage() {
                       <Button size="sm" variant="ghost" className="text-gray-400 hover:text-blue-400">
                         <Share2 className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                      <Button
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700"
+                        onClick={() => handleStream(track.id)}
+                      >
                         Stream
                       </Button>
                     </div>

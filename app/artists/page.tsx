@@ -7,83 +7,31 @@ import { Input } from "@/components/ui/input"
 import { Music, Search, Users, DollarSign, TrendingUp, Star, Play, Heart, Share2 } from "lucide-react"
 import Link from "next/link"
 
-export default function ArtistsPage() {
-  const topArtists = [
-    {
-      id: 1,
-      name: "Kemi Adebayo",
-      genre: "Afrobeat",
-      followers: "125K",
-      monthlyEarnings: "$2,847",
-      totalStreams: "1.2M",
-      image: "/placeholder.svg?height=100&width=100",
-      verified: true,
-      trending: true,
-    },
-    {
-      id: 2,
-      name: "Tunde Okafor",
-      genre: "Afro-fusion",
-      followers: "89K",
-      monthlyEarnings: "$1,923",
-      totalStreams: "856K",
-      image: "/placeholder.svg?height=100&width=100",
-      verified: true,
-      trending: false,
-    },
-    {
-      id: 3,
-      name: "Amara Nwosu",
-      genre: "R&B",
-      followers: "156K",
-      monthlyEarnings: "$3,421",
-      totalStreams: "1.8M",
-      image: "/placeholder.svg?height=100&width=100",
-      verified: true,
-      trending: true,
-    },
-    {
-      id: 4,
-      name: "Yusuf Musa",
-      genre: "World Music",
-      followers: "67K",
-      monthlyEarnings: "$1,234",
-      totalStreams: "543K",
-      image: "/placeholder.svg?height=100&width=100",
-      verified: false,
-      trending: false,
-    },
-  ]
+// Add import at the top
+import { mockDB } from "@/lib/mock-database"
+import { useState, useEffect } from "react"
 
-  const newArtists = [
-    {
-      id: 5,
-      name: "Zara Okonkwo",
-      genre: "Afro-pop",
-      followers: "12K",
-      monthlyEarnings: "$234",
-      joinDate: "Jan 2024",
-      image: "/placeholder.svg?height=80&width=80",
-    },
-    {
-      id: 6,
-      name: "Kwame Asante",
-      genre: "Highlife",
-      followers: "8K",
-      monthlyEarnings: "$156",
-      joinDate: "Feb 2024",
-      image: "/placeholder.svg?height=80&width=80",
-    },
-    {
-      id: 7,
-      name: "Fatima Kone",
-      genre: "Afrobeat",
-      followers: "15K",
-      monthlyEarnings: "$345",
-      joinDate: "Jan 2024",
-      image: "/placeholder.svg?height=80&width=80",
-    },
-  ]
+export default function ArtistsPage() {
+  // Add state and useEffect:
+  const [topArtists, setTopArtists] = useState<any[]>([])
+  const [newArtists, setNewArtists] = useState<any[]>([])
+
+  useEffect(() => {
+    mockDB.initializeDatabase()
+
+    const users = mockDB.getUsers()
+    const artists = users.filter((user) => user.userType === "artist")
+
+    // Sort by earnings for top artists
+    const sortedByEarnings = [...artists].sort((a, b) => (b.totalEarnings || 0) - (a.totalEarnings || 0))
+    setTopArtists(sortedByEarnings)
+
+    // Get newest artists (by join date)
+    const sortedByJoinDate = [...artists].sort(
+      (a, b) => new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime(),
+    )
+    setNewArtists(sortedByJoinDate.slice(0, 3))
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -192,11 +140,11 @@ export default function ArtistsPage() {
 
                     <div className="relative">
                       <img
-                        src={artist.image || "/placeholder.svg"}
-                        alt={artist.name}
+                        src={artist.profileImage || "/placeholder.svg"}
+                        alt={artist.displayName}
                         className="w-16 h-16 rounded-full object-cover"
                       />
-                      {artist.verified && (
+                      {artist.isVerified && (
                         <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
                           <Star className="h-3 w-3 text-white fill-current" />
                         </div>
@@ -205,8 +153,8 @@ export default function ArtistsPage() {
 
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-white">{artist.name}</h3>
-                        {artist.trending && (
+                        <h3 className="text-lg font-semibold text-white">{artist.displayName}</h3>
+                        {(artist.totalEarnings || 0) > 2000 && (
                           <Badge className="bg-red-600/20 text-red-300 border-red-600/30">
                             <TrendingUp className="h-3 w-3 mr-1" />
                             Trending
@@ -214,21 +162,23 @@ export default function ArtistsPage() {
                         )}
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-400">
-                        <Badge className="bg-purple-600/20 text-purple-300 border-purple-600/30">{artist.genre}</Badge>
+                        <Badge className="bg-purple-600/20 text-purple-300 border-purple-600/30">
+                          {artist.genres[0] || "Music"}
+                        </Badge>
                         <div className="flex items-center space-x-1">
                           <Users className="h-3 w-3" />
-                          <span>{artist.followers} followers</span>
+                          <span>{artist.followers.toLocaleString()} followers</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <Play className="h-3 w-3" />
-                          <span>{artist.totalStreams} streams</span>
+                          <span>{(artist.totalStreams || 0).toLocaleString()} streams</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-xl font-bold text-green-400">{artist.monthlyEarnings}</div>
-                      <div className="text-sm text-gray-400">This month</div>
+                      <div className="text-xl font-bold text-green-400">${(artist.totalEarnings || 0).toFixed(2)}</div>
+                      <div className="text-sm text-gray-400">Total earned</div>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -260,19 +210,21 @@ export default function ArtistsPage() {
               >
                 <CardContent className="p-6 text-center">
                   <img
-                    src={artist.image || "/placeholder.svg"}
-                    alt={artist.name}
+                    src={artist.profileImage || "/placeholder.svg"}
+                    alt={artist.displayName}
                     className="w-20 h-20 rounded-full mx-auto mb-4 object-cover"
                   />
-                  <h3 className="text-lg font-semibold text-white mb-1">{artist.name}</h3>
-                  <Badge className="mb-3 bg-purple-600/20 text-purple-300 border-purple-600/30">{artist.genre}</Badge>
+                  <h3 className="text-lg font-semibold text-white mb-1">{artist.displayName}</h3>
+                  <Badge className="mb-3 bg-purple-600/20 text-purple-300 border-purple-600/30">
+                    {artist.genres[0] || "Music"}
+                  </Badge>
                   <div className="space-y-2 text-sm text-gray-400 mb-4">
                     <div className="flex items-center justify-center space-x-1">
                       <Users className="h-3 w-3" />
-                      <span>{artist.followers} followers</span>
+                      <span>{artist.followers.toLocaleString()} followers</span>
                     </div>
-                    <div className="text-green-400 font-medium">{artist.monthlyEarnings}/month</div>
-                    <div className="text-xs">Joined {artist.joinDate}</div>
+                    <div className="text-green-400 font-medium">${(artist.totalEarnings || 0).toFixed(2)}/total</div>
+                    <div className="text-xs">Joined {new Date(artist.joinDate).toLocaleDateString()}</div>
                   </div>
                   <Button className="w-full bg-purple-600 hover:bg-purple-700">Follow</Button>
                 </CardContent>

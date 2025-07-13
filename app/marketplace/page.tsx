@@ -6,54 +6,17 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Music, Search, Coins, Crown, Zap, Eye, Heart, Filter, TrendingUp } from "lucide-react"
 import Link from "next/link"
+import { mockDB } from "@/lib/mock-database"
+import { useState, useEffect } from "react"
 
 export default function NFTMarketplace() {
-  const nfts = [
-    {
-      id: 1,
-      title: "Exclusive Studio Session",
-      artist: "Kemi Adebayo",
-      description: "Join me for a private studio session and get early access to my next album",
-      price: "500 MCC",
-      rarity: "Legendary",
-      image: "/placeholder.svg?height=200&width=200",
-      likes: 234,
-      views: 1200,
-    },
-    {
-      id: 2,
-      title: "Limited Edition Cover Art",
-      artist: "Tunde Okafor",
-      description: "Original digital artwork from my latest single 'Lagos Nights'",
-      price: "250 MCC",
-      rarity: "Rare",
-      image: "/placeholder.svg?height=200&width=200",
-      likes: 156,
-      views: 890,
-    },
-    {
-      id: 3,
-      title: "VIP Concert Experience",
-      artist: "Amara Nwosu",
-      description: "Backstage pass and meet & greet for my upcoming tour",
-      price: "1000 MCC",
-      rarity: "Legendary",
-      image: "/placeholder.svg?height=200&width=200",
-      likes: 445,
-      views: 2100,
-    },
-    {
-      id: 4,
-      title: "Unreleased Track",
-      artist: "Yusuf Musa",
-      description: "Get exclusive access to my unreleased track 'Sahara Dreams'",
-      price: "150 MCC",
-      rarity: "Common",
-      image: "/placeholder.svg?height=200&width=200",
-      likes: 89,
-      views: 456,
-    },
-  ]
+  const [nfts, setNfts] = useState<any[]>([])
+
+  useEffect(() => {
+    mockDB.initializeDatabase()
+    const allNFTs = mockDB.getNFTs()
+    setNfts(allNFTs)
+  }, [])
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -241,7 +204,7 @@ export default function NFTMarketplace() {
                     <h3 className="font-semibold text-white group-hover:text-purple-400 transition-colors">
                       {nft.title}
                     </h3>
-                    <p className="text-sm text-gray-400">by {nft.artist}</p>
+                    <p className="text-sm text-gray-400">by {nft.artistName}</p>
                     <p className="text-xs text-gray-500 line-clamp-2">{nft.description}</p>
 
                     <div className="flex items-center justify-between text-xs text-gray-400">
@@ -258,9 +221,13 @@ export default function NFTMarketplace() {
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
-                      <div className="text-lg font-bold text-yellow-400">{nft.price}</div>
-                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                        Buy
+                      <div className="text-lg font-bold text-yellow-400">{nft.price} MCC</div>
+                      <Button
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700"
+                        disabled={nft.status === "Sold Out"}
+                      >
+                        {nft.status === "Sold Out" ? "Sold Out" : "Buy"}
                       </Button>
                     </div>
                   </div>
