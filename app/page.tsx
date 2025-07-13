@@ -24,7 +24,7 @@ export default function HomePage() {
             Fair Music for
             <br />
             <span className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
-              South Africa
+              Africa
             </span>
           </h1>
 
