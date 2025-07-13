@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import Image from "next/image"
 
 interface NavigationProps {
   currentPage?: string
@@ -28,7 +29,7 @@ function Navigation({ currentPage }: NavigationProps) {
     <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/60">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center space-x-2">
-          <Music className="h-8 w-8 text-purple-500" />
+          <Image src="/images/logo_light.png" alt="Music City Logo" width={40} height={40} />
           <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
             Music City
           </span>
