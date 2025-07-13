@@ -105,7 +105,7 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 to-blue-600/30 rounded-3xl blur-xl"></div>
                   <Image
-                    src="/placeholder.svg?height=400&width=600"
+                    src="/images/royalties.jpg"
                     alt="Instant payments visualization"
                     width={600}
                     height={400}
@@ -121,7 +121,7 @@ export default function HomePage() {
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600/30 to-cyan-600/30 rounded-3xl blur-xl"></div>
                   <Image
-                    src="/placeholder.svg?height=400&width=600"
+                    src="/images/security.jpg"
                     alt="Blockchain security"
                     width={600}
                     height={400}
@@ -142,8 +142,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                      Your music and earnings are protected by military-grade blockchain encryption. No middlemen, no
-                      hidden fees, no stolen royalties - just pure, secure ownership.
+                      Your music and earnings are safeguarded by advanced blockchain encryption. No intermediaries, no hidden costs, no lost royalties—just complete, secure ownership.
                     </p>
                     <div className="flex items-center text-blue-400 font-semibold">
                       <span>Discover blockchain protection</span>
@@ -220,7 +219,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                      Share the soul of South African music with the world. From Amapiano to Maskandi, reach listeners
+                      Share the soul of Music with the world. From Amapiano to Maskandi, reach listeners
                       across continents without borders or restrictions.
                     </p>
                     <div className="flex items-center text-purple-400 font-semibold">
