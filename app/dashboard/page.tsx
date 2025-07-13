@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Music, Upload, DollarSign, Users, Play, Coins } from "lucide-react"
-import Link from "next/link"
 import { mockDB } from "@/lib/mock-database"
+import { Navigation } from "@/components/navigation"
 
 export default function ArtistDashboard() {
   const [userProfile, setUserProfile] = useState<any>(null)
@@ -101,22 +101,7 @@ export default function ArtistDashboard() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-purple-500" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Music City
-            </span>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <Badge className="bg-purple-600/20 text-purple-300 border-purple-600/30">Artist Dashboard</Badge>
-            <Button variant="ghost" size="sm">
-              Profile
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentPage="dashboard" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}

@@ -10,6 +10,7 @@ import { Music, User, ArrowRight, Upload } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { mockDB } from "@/lib/mock-database"
 
 export default function OnboardingPage() {
@@ -24,14 +25,21 @@ export default function OnboardingPage() {
     profileImage: "",
   })
   const router = useRouter()
+  const { login, isAuthenticated } = useAuth()
 
   useEffect(() => {
+    // Redirect if already authenticated
+    if (isAuthenticated) {
+      router.push("/dashboard")
+      return
+    }
+
     // Check if wallet is connected
     const walletConnected = localStorage.getItem("walletConnected")
     if (!walletConnected) {
       router.push("/auth")
     }
-  }, [router])
+  }, [isAuthenticated, router])
 
   const genres = [
     "Afrobeat",
@@ -53,7 +61,7 @@ export default function OnboardingPage() {
     }))
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < 3) {
       setStep(step + 1)
     } else {
@@ -76,12 +84,8 @@ export default function OnboardingPage() {
         isVerified: false,
       })
 
-      // Set as current user
-      mockDB.setCurrentUser(newUser)
-
-      // Save onboarding completion
-      localStorage.setItem("onboardingComplete", "true")
-      localStorage.setItem("userId", newUser.id)
+      // Login the user (this will set the auth context)
+      await login(walletAddress)
 
       // Redirect to dashboard
       router.push("/dashboard")

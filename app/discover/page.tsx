@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Music, Search, Play, Users, Star, Clock, Globe } from "lucide-react"
-import Link from "next/link"
 import { mockDB } from "@/lib/mock-database"
 import { useState, useEffect } from "react"
+import { Navigation } from "@/components/navigation"
 
 export default function DiscoverPage() {
   const [featuredArtists, setFeaturedArtists] = useState<any[]>([])
@@ -65,35 +65,7 @@ export default function DiscoverPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-purple-500" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Music City
-            </span>
-          </Link>
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href="/discover" className="text-purple-400 font-medium">
-              Discover
-            </Link>
-            <Link href="/stream" className="text-gray-300 hover:text-white transition-colors">
-              Stream
-            </Link>
-            <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-              Dashboard
-            </Link>
-            <Link href="/marketplace" className="text-gray-300 hover:text-white transition-colors">
-              NFT Marketplace
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" className="text-gray-300 hover:text-white">
-              Profile
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentPage="discover" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}

@@ -8,6 +8,7 @@ import { Music, Search, Coins, Crown, Zap, Eye, Heart, Filter, TrendingUp } from
 import Link from "next/link"
 import { mockDB } from "@/lib/mock-database"
 import { useState, useEffect } from "react"
+import { Navigation } from "@/components/navigation"
 
 export default function NFTMarketplace() {
   const [nfts, setNfts] = useState<any[]>([])
@@ -34,23 +35,7 @@ export default function NFTMarketplace() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-purple-500" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Music City
-            </span>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <Badge className="bg-yellow-600/20 text-yellow-300 border-yellow-600/30">NFT Marketplace</Badge>
-            <div className="flex items-center space-x-2 text-sm">
-              <Coins className="h-4 w-4 text-yellow-500" />
-              <span className="text-yellow-400">1,247 MCC</span>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentPage="marketplace" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}

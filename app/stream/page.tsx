@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Coins, Filter } from "lucide-react"
-import Link from "next/link"
+import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter } from "lucide-react"
 import { useState, useEffect } from "react"
 import { mockDB } from "@/lib/mock-database"
+import { Navigation } from "@/components/navigation"
 
 export default function StreamingPage() {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -35,23 +35,7 @@ export default function StreamingPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-purple-500" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Music City
-            </span>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <Badge className="bg-blue-600/20 text-blue-300 border-blue-600/30">Streaming</Badge>
-            <div className="flex items-center space-x-2 text-sm">
-              <Coins className="h-4 w-4 text-yellow-500" />
-              <span className="text-yellow-400">1,247 MCC</span>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentPage="stream" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}

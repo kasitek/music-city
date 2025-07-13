@@ -3,21 +3,38 @@
 import { Button } from "@/components/ui/button"
 import { Music, Shield, Coins, Users } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import WalletConnect from "@/components/wallet-connect"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function AuthPage() {
   const [isConnected, setIsConnected] = useState(false)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const router = useRouter()
+  const { login, isAuthenticated } = useAuth()
 
-  const handleConnect = (address: string) => {
+  useEffect(() => {
+    // Redirect if already authenticated
+    if (isAuthenticated) {
+      router.push("/dashboard")
+    }
+  }, [isAuthenticated, router])
+
+  const handleConnect = async (address: string) => {
     setIsConnected(true)
     setWalletAddress(address)
-    // Store wallet connection in localStorage
-    localStorage.setItem("walletConnected", "true")
-    localStorage.setItem("walletAddress", address)
+
+    // Try to login with existing user
+    const user = await login(address)
+
+    if (user) {
+      // User exists, redirect to dashboard
+      router.push("/dashboard")
+    } else {
+      // New user, continue to onboarding
+      // login() already set the wallet connection state
+    }
   }
 
   const handleDisconnect = () => {

@@ -3,40 +3,12 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Badge } from "@/components/ui/badge"
 import { Music, Coins, Shield, Users, Zap, Globe } from "lucide-react"
 import Link from "next/link"
+import Navigation from "@/components/navigation"
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Navigation */}
-      <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-gray-900/60">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-purple-500" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Music City
-            </span>
-          </div>
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href="/stream" className="text-gray-300 hover:text-white transition-colors">
-              Discover
-            </Link>
-            <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-              For Artists
-            </Link>
-            <Link href="/marketplace" className="text-gray-300 hover:text-white transition-colors">
-              NFT Marketplace
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" className="text-gray-300 hover:text-white">
-              <Link href="/auth">Sign In</Link>
-            </Button>
-            <Button className="bg-purple-600 hover:bg-purple-700">
-              <Link href="/auth">Get Started</Link>
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Hero Section */}
       <section className="py-20 px-4">
@@ -60,7 +32,7 @@ export default function HomePage() {
               variant="outline"
               className="border-gray-600 text-gray-300 hover:bg-gray-800 text-lg px-8 py-3 bg-transparent"
             >
-              <Link href="/auth">Explore Music</Link>
+              <Link href="/discover">Explore Music</Link>
             </Button>
           </div>
         </div>

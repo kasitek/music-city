@@ -10,6 +10,7 @@ import Link from "next/link"
 // Add import at the top
 import { mockDB } from "@/lib/mock-database"
 import { useState, useEffect } from "react"
+import { Navigation } from "@/components/navigation"
 
 export default function ArtistsPage() {
   // Add state and useEffect:
@@ -36,35 +37,7 @@ export default function ArtistsPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-800 bg-gray-900/95 backdrop-blur">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-purple-500" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Music City
-            </span>
-          </Link>
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href="/discover" className="text-gray-300 hover:text-white transition-colors">
-              Discover
-            </Link>
-            <Link href="/stream" className="text-gray-300 hover:text-white transition-colors">
-              Stream
-            </Link>
-            <Link href="/artists" className="text-purple-400 font-medium">
-              Artists
-            </Link>
-            <Link href="/marketplace" className="text-gray-300 hover:text-white transition-colors">
-              NFT Marketplace
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button className="bg-purple-600 hover:bg-purple-700">
-              <Link href="/dashboard">Join as Artist</Link>
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <Navigation currentPage="artists" />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
