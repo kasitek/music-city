@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Music City - Decentralized Music Platform for Africa",
   description: "A blockchain-powered music streaming platform that ensures artists receive fair royalties directly",
-  
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
