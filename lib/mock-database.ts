@@ -1,496 +1,467 @@
 export interface User {
   id: string
   walletAddress: string
-  userType: "artist" | "fan"
   displayName: string
+  userType: "artist" | "fan"
   bio: string
   location: string
   genres: string[]
-  birthDate: string
   profileImage: string
-  joinDate: string
   isVerified: boolean
   followers: number
   following: number
-  // Artist specific
-  totalEarnings?: number
-  totalStreams?: number
-  monthlyListeners?: number
-  tracks?: Track[]
-  nfts?: NFT[]
-  // Fan specific
-  favoriteArtists?: string[]
-  playlists?: Playlist[]
+  mccBalance: number
+  joinedDate: string
+  birthDate?: string
 }
 
 export interface Track {
   id: string
   title: string
+  artist: string
   artistId: string
-  artistName: string
-  genre: string
   duration: string
-  streams: number
-  earnings: number
-  uploadDate: string
-  description: string
+  genre: string
   coverImage: string
-  audioFile: string
-  price: number // in MCC tokens
+  audioUrl: string
+  plays: number
+  likes: number
+  price: number
+  releaseDate: string
+  description: string
 }
 
 export interface NFT {
   id: string
   title: string
+  artist: string
   artistId: string
-  artistName: string
-  description: string
-  price: number // in MCC tokens
-  rarity: "Common" | "Rare" | "Legendary"
   image: string
-  status: "Active" | "Sold Out"
-  likes: number
-  views: number
-}
-
-export interface Playlist {
-  id: string
-  title: string
+  price: number
+  rarity: "common" | "rare" | "epic" | "legendary"
   description: string
-  tracks: string[]
-  coverImage: string
-  isPublic: boolean
-  createdBy: string
+  owner?: string
+  createdDate: string
 }
 
 export interface Transaction {
   id: string
-  userId: string
-  type: "stream" | "purchase" | "tip" | "nft_sale"
+  type: "stream" | "tip" | "nft_purchase" | "royalty"
   amount: number
+  fromUser?: string
+  toUser: string
   trackId?: string
   nftId?: string
-  date: string
+  timestamp: string
+  status: "completed" | "pending" | "failed"
+}
+
+export interface Playlist {
+  id: string
+  name: string
   description: string
+  coverImage: string
+  tracks: string[]
+  createdBy: string
+  isPublic: boolean
+  createdDate: string
+  plays: number
 }
 
 class MockDatabase {
-  private readonly USERS_KEY = "music_city_users"
-  private readonly TRACKS_KEY = "music_city_tracks"
-  private readonly NFTS_KEY = "music_city_nfts"
-  private readonly TRANSACTIONS_KEY = "music_city_transactions"
-  private readonly CURRENT_USER_KEY = "music_city_current_user"
+  private users: User[] = []
+  private tracks: Track[] = []
+  private nfts: NFT[] = []
+  private transactions: Transaction[] = []
+  private playlists: Playlist[] = []
+  private currentUser: User | null = null
 
-  // Initialize with sample data
   initializeDatabase() {
-    if (!this.getUsers().length) {
-      this.seedDatabase()
+    // Check if data already exists
+    const existingUsers = localStorage.getItem("musiccity_users")
+    if (existingUsers) {
+      this.users = JSON.parse(existingUsers)
+      this.tracks = JSON.parse(localStorage.getItem("musiccity_tracks") || "[]")
+      this.nfts = JSON.parse(localStorage.getItem("musiccity_nfts") || "[]")
+      this.transactions = JSON.parse(localStorage.getItem("musiccity_transactions") || "[]")
+      this.playlists = JSON.parse(localStorage.getItem("musiccity_playlists") || "[]")
+
+      const currentUserId = localStorage.getItem("musiccity_current_user")
+      if (currentUserId) {
+        this.currentUser = this.users.find((u) => u.id === currentUserId) || null
+      }
+      return
     }
-  }
 
-  private seedDatabase() {
-    const sampleUsers: User[] = [
+    // Initialize with sample data
+    this.users = [
       {
-        id: "user_1",
-        walletAddress: "0x1234567890123456789012345678901234567890",
+        id: "1",
+        walletAddress: "0x1234567890abcdef1234567890abcdef12345678",
+        displayName: "Alex Rivera",
         userType: "artist",
-        displayName: "Thabo Mthembu",
-        bio: "Amapiano and Afrobeat artist from Johannesburg. Bringing South African sounds to the world.",
-        location: "Johannesburg, South Africa",
-        genres: ["Amapiano", "Afrobeat", "Kwaito"],
-        birthDate: "1995-03-15",
-        profileImage: "/placeholder.svg?height=150&width=150",
-        joinDate: "2023-01-15",
+        bio: "Pop artist from Los Angeles creating music that connects hearts worldwide.",
+        location: "Los Angeles, USA",
+        genres: ["Pop", "Electronic"],
+        profileImage: "/placeholder-user.jpg",
         isVerified: true,
-        followers: 12500,
+        followers: 15420,
         following: 234,
-        totalEarnings: 2847.5,
-        totalStreams: 125000,
-        monthlyListeners: 45000,
-        tracks: [],
-        nfts: [],
+        mccBalance: 2847,
+        joinedDate: "2024-01-15",
+        birthDate: "1995-03-22",
       },
       {
-        id: "user_2",
-        walletAddress: "0x2345678901234567890123456789012345678901",
+        id: "2",
+        walletAddress: "0xabcdef1234567890abcdef1234567890abcdef12",
+        displayName: "Maya Chen",
         userType: "artist",
-        displayName: "Nomsa Dlamini",
-        bio: "Amapiano producer and songwriter from Cape Town, creating the future sounds of Mzansi.",
-        location: "Cape Town, South Africa",
-        genres: ["Amapiano", "Deep House", "Afro-tech"],
-        birthDate: "1992-07-22",
-        profileImage: "/placeholder.svg?height=150&width=150",
-        joinDate: "2023-02-10",
+        bio: "Electronic music producer and songwriter from Toronto, blending traditional and modern sounds.",
+        location: "Toronto, Canada",
+        genres: ["Electronic", "Dance"],
+        profileImage: "/placeholder-user.jpg",
         isVerified: true,
-        followers: 8200,
+        followers: 8932,
         following: 156,
-        totalEarnings: 1923.0,
-        totalStreams: 85600,
-        monthlyListeners: 32000,
-        tracks: [],
-        nfts: [],
+        mccBalance: 1923,
+        joinedDate: "2024-02-03",
+        birthDate: "1992-07-18",
       },
       {
-        id: "user_3",
-        walletAddress: "0x3456789012345678901234567890123456789012",
+        id: "3",
+        walletAddress: "0x9876543210fedcba9876543210fedcba98765432",
+        displayName: "James Wilson",
         userType: "fan",
-        displayName: "Sipho Ndlovu",
-        bio: "Music lover and supporter of South African artists. Amapiano enthusiast.",
-        location: "Durban, South Africa",
-        genres: ["Amapiano", "Afrobeat", "Maskandi"],
-        birthDate: "1988-11-05",
-        profileImage: "/placeholder.svg?height=150&width=150",
-        joinDate: "2023-03-20",
+        bio: "Music enthusiast and supporter of independent artists from London.",
+        location: "London, UK",
+        genres: ["Hip-Hop", "R&B", "Jazz"],
+        profileImage: "/placeholder-user.jpg",
         isVerified: false,
-        followers: 45,
-        following: 123,
-        favoriteArtists: ["user_1", "user_2"],
-        playlists: [],
+        followers: 234,
+        following: 1247,
+        mccBalance: 156,
+        joinedDate: "2024-03-10",
+        birthDate: "1988-11-05",
       },
     ]
 
-    const sampleTracks: Track[] = [
+    this.tracks = [
       {
-        id: "track_1",
-        title: "Amapiano Dreams",
-        artistId: "user_1",
-        artistName: "Thabo Mthembu",
-        genre: "Amapiano",
-        duration: "3:45",
-        streams: 12500,
-        earnings: 125.5,
-        uploadDate: "2024-01-10",
-        description: "A vibrant celebration of South African amapiano rhythms and modern sounds.",
-        coverImage: "/placeholder.svg?height=300&width=300",
-        audioFile: "/placeholder-audio.mp3",
-        price: 0.1,
+        id: "1",
+        title: "Electric Dreams",
+        artist: "Alex Rivera",
+        artistId: "1",
+        duration: "3:24",
+        genre: "Pop",
+        coverImage: "/placeholder.jpg",
+        audioUrl: "/audio/electric-dreams.mp3",
+        plays: 45230,
+        likes: 3421,
+        price: 0.05,
+        releaseDate: "2024-03-15",
+        description: "An uplifting pop anthem about chasing dreams in the digital age.",
       },
       {
-        id: "track_2",
-        title: "Joburg Nights",
-        artistId: "user_2",
-        artistName: "Nomsa Dlamini",
-        genre: "Amapiano",
+        id: "2",
+        title: "City Nights",
+        artist: "Maya Chen",
+        artistId: "2",
         duration: "4:12",
-        streams: 8200,
-        earnings: 82.0,
-        uploadDate: "2024-01-05",
-        description: "Smooth amapiano vibes inspired by the energy of Johannesburg nightlife.",
-        coverImage: "/placeholder.svg?height=300&width=300",
-        audioFile: "/placeholder-audio.mp3",
-        price: 0.08,
+        genre: "Electronic",
+        coverImage: "/placeholder.jpg",
+        audioUrl: "/audio/city-nights.mp3",
+        plays: 32156,
+        likes: 2847,
+        price: 0.03,
+        releaseDate: "2024-03-08",
+        description: "Electronic beats inspired by the energy of urban nightlife.",
       },
       {
-        id: "track_3",
-        title: "Mzansi Rhythm",
-        artistId: "user_1",
-        artistName: "Thabo Mthembu",
-        genre: "Afrobeat",
-        duration: "3:28",
-        streams: 15100,
-        earnings: 151.0,
-        uploadDate: "2023-12-20",
-        description: "Soulful Afrobeat with authentic South African influences.",
-        coverImage: "/placeholder.svg?height=300&width=300",
-        audioFile: "/placeholder-audio.mp3",
-        price: 0.12,
-      },
-    ]
-
-    const sampleNFTs: NFT[] = [
-      {
-        id: "nft_1",
-        title: "Exclusive Studio Session",
-        artistId: "user_1",
-        artistName: "Thabo Mthembu",
-        description: "Join me for a private studio session in Joburg and get early access to my next album",
-        price: 500,
-        rarity: "Legendary",
-        image: "/placeholder.svg?height=200&width=200",
-        status: "Active",
-        likes: 234,
-        views: 1200,
-      },
-      {
-        id: "nft_2",
-        title: "Limited Edition Cover Art",
-        artistId: "user_2",
-        artistName: "Nomsa Dlamini",
-        description: "Original digital artwork from my latest single Joburg Nights",
-        price: 250,
-        rarity: "Rare",
-        image: "/placeholder.svg?height=200&width=200",
-        status: "Sold Out",
-        likes: 156,
-        views: 890,
+        id: "3",
+        title: "Rhythm of the Heart",
+        artist: "Alex Rivera",
+        artistId: "1",
+        duration: "3:45",
+        genre: "R&B",
+        coverImage: "/placeholder.jpg",
+        audioUrl: "/audio/rhythm-heart.mp3",
+        plays: 28934,
+        likes: 2156,
+        price: 0.04,
+        releaseDate: "2024-02-28",
+        description: "A soulful R&B track about love and connection.",
       },
     ]
 
-    const sampleTransactions: Transaction[] = [
+    this.nfts = [
       {
-        id: "tx_1",
-        userId: "user_1",
+        id: "1",
+        title: "Electric Dreams - Limited Edition",
+        artist: "Alex Rivera",
+        artistId: "1",
+        image: "/placeholder.jpg",
+        price: 0.5,
+        rarity: "rare",
+        description: "Exclusive NFT artwork for the hit single Electric Dreams",
+        createdDate: "2024-03-15",
+      },
+      {
+        id: "2",
+        title: "City Nights Visualizer",
+        artist: "Maya Chen",
+        artistId: "2",
+        image: "/placeholder.jpg",
+        price: 0.3,
+        rarity: "common",
+        description: "Animated visualizer NFT for City Nights track",
+        createdDate: "2024-03-08",
+      },
+    ]
+
+    this.transactions = [
+      {
+        id: "1",
         type: "stream",
-        amount: 12.5,
-        trackId: "track_1",
-        date: "2024-01-15",
-        description: "Stream earnings for Amapiano Dreams",
+        amount: 0.001,
+        toUser: "1",
+        trackId: "1",
+        timestamp: "2024-03-20T10:30:00Z",
+        status: "completed",
       },
       {
-        id: "tx_2",
-        userId: "user_2",
-        type: "stream",
-        amount: 8.2,
-        trackId: "track_2",
-        date: "2024-01-14",
-        description: "Stream earnings for Joburg Nights",
+        id: "2",
+        type: "tip",
+        amount: 0.05,
+        fromUser: "3",
+        toUser: "2",
+        timestamp: "2024-03-19T15:45:00Z",
+        status: "completed",
       },
       {
-        id: "tx_3",
-        userId: "user_1",
-        type: "nft_sale",
-        amount: 500,
-        nftId: "nft_1",
-        date: "2024-01-12",
-        description: "NFT sale: Exclusive Studio Session",
+        id: "3",
+        type: "nft_purchase",
+        amount: 0.3,
+        fromUser: "3",
+        toUser: "2",
+        nftId: "2",
+        timestamp: "2024-03-18T09:20:00Z",
+        status: "completed",
       },
     ]
 
-    this.saveUsers(sampleUsers)
-    this.saveTracks(sampleTracks)
-    this.saveNFTs(sampleNFTs)
-    this.saveTransactions(sampleTransactions)
+    this.playlists = [
+      {
+        id: "1",
+        name: "Global Hits",
+        description: "The best international music from around the world",
+        coverImage: "/placeholder.jpg",
+        tracks: ["1", "2", "3"],
+        createdBy: "system",
+        isPublic: true,
+        createdDate: "2024-03-01",
+        plays: 12450,
+      },
+      {
+        id: "2",
+        name: "Electronic Vibes",
+        description: "Electronic music for every mood",
+        coverImage: "/placeholder.jpg",
+        tracks: ["2"],
+        createdBy: "system",
+        isPublic: true,
+        createdDate: "2024-03-05",
+        plays: 8932,
+      },
+    ]
+
+    this.saveToStorage()
   }
 
-  // User operations
-  getUsers(): User[] {
-    const users = localStorage.getItem(this.USERS_KEY)
-    return users ? JSON.parse(users) : []
+  private saveToStorage() {
+    localStorage.setItem("musiccity_users", JSON.stringify(this.users))
+    localStorage.setItem("musiccity_tracks", JSON.stringify(this.tracks))
+    localStorage.setItem("musiccity_nfts", JSON.stringify(this.nfts))
+    localStorage.setItem("musiccity_transactions", JSON.stringify(this.transactions))
+    localStorage.setItem("musiccity_playlists", JSON.stringify(this.playlists))
   }
 
-  saveUsers(users: User[]): void {
-    localStorage.setItem(this.USERS_KEY, JSON.stringify(users))
-  }
-
-  getUserById(id: string): User | null {
-    const users = this.getUsers()
-    return users.find((user) => user.id === id) || null
-  }
-
-  getUserByWallet(walletAddress: string): User | null {
-    const users = this.getUsers()
-    return users.find((user) => user.walletAddress.toLowerCase() === walletAddress.toLowerCase()) || null
-  }
-
-  createUser(userData: Omit<User, "id" | "joinDate" | "followers" | "following">): User {
-    const users = this.getUsers()
+  // User methods
+  createUser(userData: Partial<User>): User {
     const newUser: User = {
-      ...userData,
-      id: `user_${Date.now()}`,
-      joinDate: new Date().toISOString().split("T")[0],
+      id: Date.now().toString(),
+      walletAddress: userData.walletAddress || "",
+      displayName: userData.displayName || "",
+      userType: userData.userType || "fan",
+      bio: userData.bio || "",
+      location: userData.location || "",
+      genres: userData.genres || [],
+      profileImage: userData.profileImage || "/placeholder-user.jpg",
+      isVerified: false,
       followers: 0,
       following: 0,
-      ...(userData.userType === "artist" && {
-        totalEarnings: 0,
-        totalStreams: 0,
-        monthlyListeners: 0,
-        tracks: [],
-        nfts: [],
-      }),
-      ...(userData.userType === "fan" && {
-        favoriteArtists: [],
-        playlists: [],
-      }),
+      mccBalance: 100, // Starting balance
+      joinedDate: new Date().toISOString().split("T")[0],
+      birthDate: userData.birthDate,
     }
 
-    users.push(newUser)
-    this.saveUsers(users)
+    this.users.push(newUser)
+    this.saveToStorage()
     return newUser
   }
 
-  updateUser(userId: string, updates: Partial<User>): User | null {
-    const users = this.getUsers()
-    const userIndex = users.findIndex((user) => user.id === userId)
-
-    if (userIndex === -1) return null
-
-    users[userIndex] = { ...users[userIndex], ...updates }
-    this.saveUsers(users)
-    return users[userIndex]
+  getUserByWallet(walletAddress: string): User | null {
+    return this.users.find((user) => user.walletAddress === walletAddress) || null
   }
 
-  // Current user session
-  setCurrentUser(user: User): void {
-    localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user))
+  getUserById(id: string): User | null {
+    return this.users.find((user) => user.id === id) || null
+  }
+
+  updateUser(id: string, updates: Partial<User>): User | null {
+    const userIndex = this.users.findIndex((user) => user.id === id)
+    if (userIndex === -1) return null
+
+    this.users[userIndex] = { ...this.users[userIndex], ...updates }
+    this.saveToStorage()
+    return this.users[userIndex]
+  }
+
+  // Current user methods
+  setCurrentUser(user: User) {
+    this.currentUser = user
+    localStorage.setItem("musiccity_current_user", user.id)
   }
 
   getCurrentUser(): User | null {
-    const user = localStorage.getItem(this.CURRENT_USER_KEY)
-    return user ? JSON.parse(user) : null
+    return this.currentUser
   }
 
-  clearCurrentUser(): void {
-    localStorage.removeItem(this.CURRENT_USER_KEY)
+  clearCurrentUser() {
+    this.currentUser = null
+    localStorage.removeItem("musiccity_current_user")
   }
 
-  // Track operations
-  getTracks(): Track[] {
-    const tracks = localStorage.getItem(this.TRACKS_KEY)
-    return tracks ? JSON.parse(tracks) : []
+  // Track methods
+  getAllTracks(): Track[] {
+    return this.tracks
   }
 
-  saveTracks(tracks: Track[]): void {
-    localStorage.setItem(this.TRACKS_KEY, JSON.stringify(tracks))
+  getTrackById(id: string): Track | null {
+    return this.tracks.find((track) => track.id === id) || null
   }
 
   getTracksByArtist(artistId: string): Track[] {
-    const tracks = this.getTracks()
-    return tracks.filter((track) => track.artistId === artistId)
+    return this.tracks.filter((track) => track.artistId === artistId)
   }
 
-  createTrack(trackData: Omit<Track, "id" | "streams" | "earnings" | "uploadDate">): Track {
-    const tracks = this.getTracks()
-    const newTrack: Track = {
-      ...trackData,
-      id: `track_${Date.now()}`,
-      streams: 0,
-      earnings: 0,
-      uploadDate: new Date().toISOString().split("T")[0],
-    }
-
-    tracks.push(newTrack)
-    this.saveTracks(tracks)
-    return newTrack
+  // NFT methods
+  getAllNFTs(): NFT[] {
+    return this.nfts
   }
 
-  // NFT operations
-  getNFTs(): NFT[] {
-    const nfts = localStorage.getItem(this.NFTS_KEY)
-    return nfts ? JSON.parse(nfts) : []
+  getNFTById(id: string): NFT | null {
+    return this.nfts.find((nft) => nft.id === id) || null
   }
 
-  saveNFTs(nfts: NFT[]): void {
-    localStorage.setItem(this.NFTS_KEY, JSON.stringify(nfts))
-  }
-
-  getNFTsByArtist(artistId: string): NFT[] {
-    const nfts = this.getNFTs()
-    return nfts.filter((nft) => nft.artistId === artistId)
-  }
-
-  createNFT(nftData: Omit<NFT, "id" | "likes" | "views">): NFT {
-    const nfts = this.getNFTs()
-    const newNFT: NFT = {
-      ...nftData,
-      id: `nft_${Date.now()}`,
-      likes: 0,
-      views: 0,
-    }
-
-    nfts.push(newNFT)
-    this.saveNFTs(nfts)
-    return newNFT
-  }
-
-  // Transaction operations
-  getTransactions(): Transaction[] {
-    const transactions = localStorage.getItem(this.TRANSACTIONS_KEY)
-    return transactions ? JSON.parse(transactions) : []
-  }
-
-  saveTransactions(transactions: Transaction[]): void {
-    localStorage.setItem(this.TRANSACTIONS_KEY, JSON.stringify(transactions))
-  }
-
-  getTransactionsByUser(userId: string): Transaction[] {
-    const transactions = this.getTransactions()
-    return transactions.filter((tx) => tx.userId === userId)
-  }
-
-  createTransaction(transactionData: Omit<Transaction, "id" | "date">): Transaction {
-    const transactions = this.getTransactions()
+  // Transaction methods
+  addTransaction(transaction: Omit<Transaction, "id" | "timestamp">): Transaction {
     const newTransaction: Transaction = {
-      ...transactionData,
-      id: `tx_${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
+      ...transaction,
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
     }
 
-    transactions.push(newTransaction)
-    this.saveTransactions(transactions)
+    this.transactions.push(newTransaction)
+    this.saveToStorage()
     return newTransaction
   }
 
-  // Utility methods
-  simulateStreamEarning(trackId: string, streams = 1): void {
-    const tracks = this.getTracks()
-    const trackIndex = tracks.findIndex((track) => track.id === trackId)
-
-    if (trackIndex !== -1) {
-      const track = tracks[trackIndex]
-      const earningPerStream = track.price
-
-      tracks[trackIndex] = {
-        ...track,
-        streams: track.streams + streams,
-        earnings: track.earnings + earningPerStream * streams,
-      }
-
-      this.saveTracks(tracks)
-
-      // Update artist earnings
-      const users = this.getUsers()
-      const artistIndex = users.findIndex((user) => user.id === track.artistId)
-
-      if (artistIndex !== -1 && users[artistIndex].userType === "artist") {
-        users[artistIndex] = {
-          ...users[artistIndex],
-          totalStreams: (users[artistIndex].totalStreams || 0) + streams,
-          totalEarnings: (users[artistIndex].totalEarnings || 0) + earningPerStream * streams,
-        }
-
-        this.saveUsers(users)
-      }
-
-      // Create transaction record
-      this.createTransaction({
-        userId: track.artistId,
-        type: "stream",
-        amount: earningPerStream * streams,
-        trackId: trackId,
-        description: `Stream earnings for ${track.title}`,
-      })
-    }
+  getUserTransactions(userId: string): Transaction[] {
+    return this.transactions.filter((transaction) => transaction.fromUser === userId || transaction.toUser === userId)
   }
 
-  followArtist(fanId: string, artistId: string): void {
-    const users = this.getUsers()
-    const fanIndex = users.findIndex((user) => user.id === fanId)
-    const artistIndex = users.findIndex((user) => user.id === artistId)
-
-    if (fanIndex !== -1 && artistIndex !== -1) {
-      // Add to fan's following list
-      if (users[fanIndex].userType === "fan") {
-        const favoriteArtists = users[fanIndex].favoriteArtists || []
-        if (!favoriteArtists.includes(artistId)) {
-          users[fanIndex].favoriteArtists = [...favoriteArtists, artistId]
-          users[fanIndex].following += 1
-        }
-      }
-
-      // Increase artist's followers
-      users[artistIndex].followers += 1
-
-      this.saveUsers(users)
-    }
+  // Playlist methods
+  getAllPlaylists(): Playlist[] {
+    return this.playlists.filter((playlist) => playlist.isPublic)
   }
 
-  // Clear all data (for testing)
-  clearAllData(): void {
-    localStorage.removeItem(this.USERS_KEY)
-    localStorage.removeItem(this.TRACKS_KEY)
-    localStorage.removeItem(this.NFTS_KEY)
-    localStorage.removeItem(this.TRANSACTIONS_KEY)
-    localStorage.removeItem(this.CURRENT_USER_KEY)
+  getPlaylistById(id: string): Playlist | null {
+    return this.playlists.find((playlist) => playlist.id === id) || null
+  }
+
+  // Simulation methods
+  simulateStream(trackId: string, userId: string): boolean {
+    const track = this.getTrackById(trackId)
+    const user = this.getUserById(userId)
+
+    if (!track || !user) return false
+
+    // Update play count
+    track.plays += 1
+
+    // Add royalty transaction
+    const royaltyAmount = 0.001 // Small amount per stream
+    this.addTransaction({
+      type: "royalty",
+      amount: royaltyAmount,
+      toUser: track.artistId,
+      trackId: trackId,
+      status: "completed",
+    })
+
+    // Update artist balance
+    const artist = this.getUserById(track.artistId)
+    if (artist) {
+      artist.mccBalance += royaltyAmount
+    }
+
+    this.saveToStorage()
+    return true
+  }
+
+  simulateFollow(followerId: string, followedId: string): boolean {
+    const follower = this.getUserById(followerId)
+    const followed = this.getUserById(followedId)
+
+    if (!follower || !followed) return false
+
+    follower.following += 1
+    followed.followers += 1
+
+    this.saveToStorage()
+    return true
+  }
+
+  simulateNFTPurchase(nftId: string, buyerId: string): boolean {
+    const nft = this.getNFTById(nftId)
+    const buyer = this.getUserById(buyerId)
+
+    if (!nft || !buyer || buyer.mccBalance < nft.price) return false
+
+    // Update buyer balance
+    buyer.mccBalance -= nft.price
+
+    // Add transaction
+    this.addTransaction({
+      type: "nft_purchase",
+      amount: nft.price,
+      fromUser: buyerId,
+      toUser: nft.artistId,
+      nftId: nftId,
+      status: "completed",
+    })
+
+    // Update artist balance
+    const artist = this.getUserById(nft.artistId)
+    if (artist) {
+      artist.mccBalance += nft.price * 0.9 // 90% to artist, 10% platform fee
+    }
+
+    // Update NFT owner
+    nft.owner = buyerId
+
+    this.saveToStorage()
+    return true
   }
 }
 
