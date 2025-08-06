@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter } from "lucide-react"
+import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter } from 'lucide-react'
 import { useState, useEffect } from "react"
 import { mockDB } from "@/lib/mock-database"
 import { Navigation } from "@/components/navigation"
 
 export default function StreamingPage() {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTrack, setCurrentTrack] = useState(null)
+  const [currentTrack, setCurrentTrack] = useState<any>(null)
   const [tracks, setTracks] = useState<any[]>([])
 
   useEffect(() => {
@@ -37,10 +37,10 @@ export default function StreamingPage() {
       {/* Navigation */}
       <Navigation currentPage="stream" />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-24">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Discover Music</h1>
+          <h1 className="text-3xl font-bold mb-4">Stream Music</h1>
 
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -59,7 +59,7 @@ export default function StreamingPage() {
 
           {/* Genre Tags */}
           <div className="flex flex-wrap gap-2">
-            {["All", "Afrobeat", "Hip-hop", "R&B", "Afro-fusion", "Gospel", "Highlife"].map((genre) => (
+            {["All", "Afrobeat", "Hip-hop", "R&B", "Afro-fusion", "Gospel", "Highlife", "Pop", "Jazz", "Electronic"].map((genre) => (
               <Badge
                 key={genre}
                 variant="outline"
@@ -81,8 +81,8 @@ export default function StreamingPage() {
                   <Music className="h-10 w-10" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white">New Afrobeat Hits</h3>
-                  <p className="text-gray-300">Discover the latest sounds from across Africa</p>
+                  <h3 className="text-xl font-bold text-white">Global Hits Playlist</h3>
+                  <p className="text-gray-300">Discover the latest sounds from around the world</p>
                   <Button className="mt-2 bg-purple-600 hover:bg-purple-700">Explore Playlist</Button>
                 </div>
               </div>
@@ -100,7 +100,7 @@ export default function StreamingPage() {
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <img
-                        src={track.cover || "/placeholder.svg"}
+                        src={track.cover || "/placeholder.svg?height=48&width=48"}
                         alt={track.title}
                         className="w-12 h-12 rounded-lg object-cover"
                       />
@@ -162,11 +162,11 @@ export default function StreamingPage() {
 
         {/* Now Playing Bar */}
         {currentTrack && (
-          <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4">
+          <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 z-40">
             <div className="container mx-auto flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <img
-                  src={currentTrack.cover || "/placeholder.svg"}
+                  src={currentTrack.cover || "/placeholder.svg?height=48&width=48"}
                   alt={currentTrack.title}
                   className="w-12 h-12 rounded-lg object-cover"
                 />

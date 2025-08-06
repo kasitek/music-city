@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Music, Menu, X } from "lucide-react"
+import { Music, Menu, X } from 'lucide-react'
 import Link from "next/link"
 import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
@@ -13,8 +13,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Image from "next/image"
 
-export default function Navigation() {
+interface NavigationProps {
+  currentPage?: string
+}
+
+export default function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { user, isAuthenticated, logout } = useAuth()
 
@@ -29,7 +34,13 @@ export default function Navigation() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <Music className="h-8 w-8 text-purple-500" />
+            <Image 
+              src="/images/logo_light.png" 
+              alt="Music City Logo" 
+              width={32} 
+              height={32}
+              className="h-8 w-8"
+            />
             <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
               Music City
             </span>
@@ -37,13 +48,36 @@ export default function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link href="/discover" className="text-gray-300 hover:text-white transition-colors">
+            <Link 
+              href="/discover" 
+              className={`text-gray-300 hover:text-white transition-colors ${
+                currentPage === 'discover' ? 'text-purple-400' : ''
+              }`}
+            >
               Discover
             </Link>
-            <Link href="/artists" className="text-gray-300 hover:text-white transition-colors">
+            <Link 
+              href="/stream" 
+              className={`text-gray-300 hover:text-white transition-colors ${
+                currentPage === 'stream' ? 'text-purple-400' : ''
+              }`}
+            >
+              Stream
+            </Link>
+            <Link 
+              href="/artists" 
+              className={`text-gray-300 hover:text-white transition-colors ${
+                currentPage === 'artists' ? 'text-purple-400' : ''
+              }`}
+            >
               Artists
             </Link>
-            <Link href="/marketplace" className="text-gray-300 hover:text-white transition-colors">
+            <Link 
+              href="/marketplace" 
+              className={`text-gray-300 hover:text-white transition-colors ${
+                currentPage === 'marketplace' ? 'text-purple-400' : ''
+              }`}
+            >
               Marketplace
             </Link>
           </div>
@@ -110,21 +144,36 @@ export default function Navigation() {
             <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 rounded-lg mt-2">
               <Link
                 href="/discover"
-                className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"
+                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
+                  currentPage === 'discover' ? 'text-purple-400' : ''
+                }`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Discover
               </Link>
               <Link
+                href="/stream"
+                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
+                  currentPage === 'stream' ? 'text-purple-400' : ''
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Stream
+              </Link>
+              <Link
                 href="/artists"
-                className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"
+                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
+                  currentPage === 'artists' ? 'text-purple-400' : ''
+                }`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Artists
               </Link>
               <Link
                 href="/marketplace"
-                className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"
+                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
+                  currentPage === 'marketplace' ? 'text-purple-400' : ''
+                }`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Marketplace

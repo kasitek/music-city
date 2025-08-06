@@ -22,13 +22,13 @@ This project has been integrated with Web3Auth to provide seamless social login 
 
 Update your `.env.local` file with your Web3Auth credentials:
 
-```env
+\`\`\`env
 # Web3Auth Configuration
 NEXT_PUBLIC_WEB3AUTH_CLIENT_ID=your_actual_client_id_here
 
 # For production, use SAPPHIRE_MAINNET
 NEXT_PUBLIC_WEB3AUTH_NETWORK=SAPPHIRE_DEVNET
-```
+\`\`\`
 
 ### 3. Web3Auth Dashboard Configuration
 
@@ -42,18 +42,18 @@ In your Web3Auth dashboard, configure the following:
 
 The integration uses the following packages:
 
-```json
+\`\`\`json
 {
   "@web3auth/modal": "^10.1.0",
   "@web3auth/base": "^10.0.6"
 }
-```
+\`\`\`
 
 ## 🔧 Usage
 
 ### Basic Authentication Flow
 
-```typescript
+\`\`\`typescript
 import { initWeb3Auth, connectWallet, getUserInfo } from '@/lib/web3auth'
 
 // Initialize Web3Auth (done automatically in the component)
@@ -65,13 +65,13 @@ const provider = await connectWallet()
 // Get user information
 const userInfo = await getUserInfo()
 console.log(userInfo.email, userInfo.name)
-```
+\`\`\`
 
 ### Component Integration
 
 The `Web3Auth` component handles the entire authentication flow:
 
-```tsx
+\`\`\`tsx
 <Web3Auth
   onConnect={(address, email, name) => {
     console.log('User connected:', { address, email, name })
@@ -82,7 +82,7 @@ The `Web3Auth` component handles the entire authentication flow:
   isConnected={isConnected}
   address={walletAddress}
 />
-```
+\`\`\`
 
 ## 🔐 Security Features
 
@@ -136,13 +136,13 @@ Web3Auth provides seamless mobile support through:
 
 Enable debug mode in development:
 
-```typescript
+\`\`\`typescript
 // In your Web3Auth configuration
 uiConfig: {
   // ... other config
   logLevel: "debug"
 }
-```
+\`\`\`
 
 ## 📄 License
 

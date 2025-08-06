@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Music, Zap, Shield, Globe, ArrowRight, Sparkles } from "lucide-react"
+import { Music, Zap, Shield, Globe, Play, ArrowRight, Sparkles, TrendingUp } from 'lucide-react'
 import Link from "next/link"
 import { Navigation } from "@/components/navigation"
 
@@ -10,7 +10,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-purple-950 text-white">
       {/* Background Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-blue-900/20" />
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-blue-950/20" />
       <div className="absolute inset-0 backdrop-blur-[1px]" />
 
       {/* Navigation */}
@@ -18,43 +18,36 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-4">
-        <div className="max-w-6xl mx-auto text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center space-x-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-full px-6 py-3 mb-8">
-            <Globe className="h-5 w-5 text-purple-400" />
-            <span className="text-sm font-medium">🌍 Decentralized Music Platform</span>
-          </div>
+           <div className="container mx-auto text-center relative z-10">
 
-          {/* Main Headline */}
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Fair Music for{" "}
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+          <h1 className="text-6xl md:text-8xl font-bold mb-8 bg-gradient-to-r from-purple-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent leading-tight">
+            Fair Music for
+            <br />
+            <span className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent">
               The World
             </span>
           </h1>
 
-          {/* Subheadline */}
           <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Where artists earn fair royalties instantly. No middlemen, just music.
+            Where artists earn fair royalties instantly.
+            <span className="text-purple-300 font-medium"> No middlemen, just music.</span>
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/auth">
-              <Button
-                size="lg"
-                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 rounded-full text-lg font-semibold shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
-              >
-                Start Your Journey
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <Button
-              variant="outline"
               size="lg"
-              className="border-gray-600 text-gray-300 bg-transparent hover:bg-gray-800 px-8 py-4 rounded-full text-lg font-semibold"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-10 py-4 rounded-full shadow-2xl shadow-purple-500/25 transition-all duration-300 hover:scale-105"
             >
-              Explore Music
+              <Play className="mr-2 h-5 w-5" />
+              <Link href="/auth">Start Creating</Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-2 border-gray-600/50 text-gray-200 hover:bg-gray-800/50 text-lg px-10 py-4 rounded-full bg-gray-900/30 backdrop-blur-sm transition-all duration-300 hover:scale-105"
+            >
+              <TrendingUp className="mr-2 h-5 w-5" />
+              <Link href="/discover">Explore Music</Link>
             </Button>
           </div>
         </div>
@@ -159,9 +152,11 @@ export default function LandingPage() {
       <footer className="py-12 px-4 border-t border-gray-800">
         <div className="max-w-6xl mx-auto text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <Music className="h-6 w-6 text-white" />
-            </div>
+            <img 
+              src="/images/logo_light.png" 
+              alt="Music City Logo" 
+              className="w-10 h-10 rounded-xl"
+            />
             <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
               Music City
             </span>

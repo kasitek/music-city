@@ -9,6 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@babel/runtime": "latest",
+    "@coinbase/wallet-sdk": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -37,9 +39,10 @@
     "@radix-ui/react-toggle": "latest",
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
-    "@web3auth/base": "^9.7.0",
+    "@solana/web3.js": "latest",
+    "@web3auth/base": "latest",
     "@web3auth/ethereum-provider": "^9.7.0",
-    "@web3auth/modal": "^10.1.0",
+    "@web3auth/modal": "latest",
     "@web3auth/openlogin-adapter": "^8.12.4",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
@@ -61,6 +64,8 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
+    "viem": "latest",
+    "vue": "latest",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -69,6 +74,6 @@
     "@types/react-dom": "^19",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.9.2"
+    "typescript": "^5"
   }
 }

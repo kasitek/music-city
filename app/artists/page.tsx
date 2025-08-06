@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Music, Search, Users, DollarSign, TrendingUp, Star, Play, Heart, Share2 } from "lucide-react"
+import { Music, Search, Users, DollarSign, TrendingUp, Star, Play, Heart, Share2 } from 'lucide-react'
 import Link from "next/link"
 
 // Add import at the top
@@ -23,13 +23,13 @@ export default function ArtistsPage() {
     const users = mockDB.getUsers()
     const artists = users.filter((user) => user.userType === "artist")
 
-    // Sort by earnings for top artists
-    const sortedByEarnings = [...artists].sort((a, b) => (b.totalEarnings || 0) - (a.totalEarnings || 0))
+    // Sort by mccBalance for top artists (since totalEarnings doesn't exist)
+    const sortedByEarnings = [...artists].sort((a, b) => (b.mccBalance || 0) - (a.mccBalance || 0))
     setTopArtists(sortedByEarnings)
 
-    // Get newest artists (by join date)
+    // Get newest artists (by joinedDate, not joinDate)
     const sortedByJoinDate = [...artists].sort(
-      (a, b) => new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime(),
+      (a, b) => new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime(),
     )
     setNewArtists(sortedByJoinDate.slice(0, 3))
   }, [])
@@ -127,7 +127,7 @@ export default function ArtistsPage() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-white">{artist.displayName}</h3>
-                        {(artist.totalEarnings || 0) > 2000 && (
+                        {(artist.mccBalance || 0) > 2000 && (
                           <Badge className="bg-red-600/20 text-red-300 border-red-600/30">
                             <TrendingUp className="h-3 w-3 mr-1" />
                             Trending
@@ -144,13 +144,13 @@ export default function ArtistsPage() {
                         </div>
                         <div className="flex items-center space-x-1">
                           <Play className="h-3 w-3" />
-                          <span>{(artist.totalStreams || 0).toLocaleString()} streams</span>
+                          <span>Artist</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-xl font-bold text-green-400">${(artist.totalEarnings || 0).toFixed(2)}</div>
+                      <div className="text-xl font-bold text-green-400">${(artist.mccBalance || 0).toFixed(2)}</div>
                       <div className="text-sm text-gray-400">Total earned</div>
                     </div>
 
@@ -196,8 +196,8 @@ export default function ArtistsPage() {
                       <Users className="h-3 w-3" />
                       <span>{artist.followers.toLocaleString()} followers</span>
                     </div>
-                    <div className="text-green-400 font-medium">${(artist.totalEarnings || 0).toFixed(2)}/total</div>
-                    <div className="text-xs">Joined {new Date(artist.joinDate).toLocaleDateString()}</div>
+                    <div className="text-green-400 font-medium">${(artist.mccBalance || 0).toFixed(2)} balance</div>
+                    <div className="text-xs">Joined {new Date(artist.joinedDate).toLocaleDateString()}</div>
                   </div>
                   <Button className="w-full bg-purple-600 hover:bg-purple-700">Follow</Button>
                 </CardContent>

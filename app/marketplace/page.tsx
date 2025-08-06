@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Music, Search, Coins, Crown, Zap, Eye, Heart, Filter, TrendingUp } from "lucide-react"
+import { Music, Search, Coins, Crown, Zap, Eye, Heart, Filter, TrendingUp } from 'lucide-react'
 import Link from "next/link"
 import { mockDB } from "@/lib/mock-database"
 import { useState, useEffect } from "react"
@@ -20,12 +20,14 @@ export default function NFTMarketplace() {
   }, [])
 
   const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case "Legendary":
+    switch (rarity.toLowerCase()) {
+      case "legendary":
         return "bg-yellow-600/20 text-yellow-300 border-yellow-600/30"
-      case "Rare":
+      case "rare":
         return "bg-purple-600/20 text-purple-300 border-purple-600/30"
-      case "Common":
+      case "epic":
+        return "bg-blue-600/20 text-blue-300 border-blue-600/30"
+      case "common":
         return "bg-gray-600/20 text-gray-300 border-gray-600/30"
       default:
         return "bg-gray-600/20 text-gray-300 border-gray-600/30"
@@ -134,7 +136,7 @@ export default function NFTMarketplace() {
                   </Badge>
                   <h3 className="text-2xl font-bold text-white mb-2">Exclusive Album Preview</h3>
                   <p className="text-gray-300 mb-4">
-                    Be among the first 100 people to hear Burna Boy's upcoming album before its official release
+                    Be among the first 100 people to hear Alex Rivera's upcoming album before its official release
                   </p>
                   <div className="flex items-center space-x-4 mb-4">
                     <div className="flex items-center space-x-2 text-sm text-gray-400">
@@ -182,25 +184,27 @@ export default function NFTMarketplace() {
                       alt={nft.title}
                       className="w-full h-48 rounded-lg object-cover"
                     />
-                    <Badge className={`absolute top-2 right-2 ${getRarityColor(nft.rarity)}`}>{nft.rarity}</Badge>
+                    <Badge className={`absolute top-2 right-2 ${getRarityColor(nft.rarity)}`}>
+                      {nft.rarity.charAt(0).toUpperCase() + nft.rarity.slice(1)}
+                    </Badge>
                   </div>
 
                   <div className="space-y-2">
                     <h3 className="font-semibold text-white group-hover:text-purple-400 transition-colors">
                       {nft.title}
                     </h3>
-                    <p className="text-sm text-gray-400">by {nft.artistName}</p>
+                    <p className="text-sm text-gray-400">by {nft.artist}</p>
                     <p className="text-xs text-gray-500 line-clamp-2">{nft.description}</p>
 
                     <div className="flex items-center justify-between text-xs text-gray-400">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center space-x-1">
                           <Eye className="h-3 w-3" />
-                          <span>{nft.views}</span>
+                          <span>1.2K</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <Heart className="h-3 w-3" />
-                          <span>{nft.likes}</span>
+                          <span>89</span>
                         </div>
                       </div>
                     </div>
@@ -210,9 +214,9 @@ export default function NFTMarketplace() {
                       <Button
                         size="sm"
                         className="bg-purple-600 hover:bg-purple-700"
-                        disabled={nft.status === "Sold Out"}
+                        disabled={nft.owner}
                       >
-                        {nft.status === "Sold Out" ? "Sold Out" : "Buy"}
+                        {nft.owner ? "Sold" : "Buy"}
                       </Button>
                     </div>
                   </div>

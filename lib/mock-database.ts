@@ -326,6 +326,10 @@ class MockDatabase {
     return this.users[userIndex]
   }
 
+  getUsers(): User[] {
+    return this.users
+  }
+
   // Current user methods
   setCurrentUser(user: User) {
     this.currentUser = user
@@ -346,6 +350,10 @@ class MockDatabase {
     return this.tracks
   }
 
+  getTracks(): Track[] {
+    return this.tracks
+  }
+
   getTrackById(id: string): Track | null {
     return this.tracks.find((track) => track.id === id) || null
   }
@@ -361,6 +369,10 @@ class MockDatabase {
 
   getNFTById(id: string): NFT | null {
     return this.nfts.find((nft) => nft.id === id) || null
+  }
+
+  getNFTs(): NFT[] {
+    return this.nfts
   }
 
   // Transaction methods
