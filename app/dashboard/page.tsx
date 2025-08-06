@@ -60,11 +60,21 @@ export default function ArtistDashboard() {
     if (!userProfile) return { earnings: 0, streams: 0, followers: 0, tokens: 0 }
 
     if (userProfile.userType === "artist") {
+      // Calculate earnings from transactions
+      const userTransactions = mockDB.getUserTransactions(userProfile.id)
+      const earnings = userTransactions
+        .filter(t => t.toUser === userProfile.id && (t.type === "royalty" || t.type === "tip"))
+        .reduce((sum, t) => sum + t.amount, 0)
+
+      // Calculate total streams from tracks
+      const userTracks = mockDB.getTracksByArtist(userProfile.id)
+      const streams = userTracks.reduce((sum, track) => sum + track.plays, 0)
+
       return {
-        earnings: userProfile.totalEarnings || 0,
-        streams: userProfile.totalStreams || 0,
+        earnings: earnings,
+        streams: streams,
         followers: userProfile.followers || 0,
-        tokens: Math.floor((userProfile.totalEarnings || 0) * 10), // Mock MCC tokens
+        tokens: Math.floor(earnings * 10), // Mock MCC tokens conversion
       }
     }
 
@@ -78,12 +88,48 @@ export default function ArtistDashboard() {
 
   const getUserTracks = () => {
     if (!userProfile || userProfile.userType !== "artist") return []
-    return mockDB.getTracksByArtist(userProfile.id)
+    const tracks = mockDB.getTracksByArtist(userProfile.id)
+    
+    // Add earnings calculation for each track
+    return tracks.map(track => {
+      const trackTransactions = mockDB.getUserTransactions(userProfile.id)
+        .filter(t => t.trackId === track.id && t.type === "royalty")
+      const earnings = trackTransactions.reduce((sum, t) => sum + t.amount, 0)
+      
+      return {
+        ...track,
+        earnings: earnings,
+        streams: track.plays // Use plays as streams
+      }
+    })
   }
 
   const getUserTransactions = () => {
     if (!userProfile) return []
-    return mockDB.getTransactionsByUser(userProfile.id).slice(0, 3) // Get latest 3
+    const transactions = mockDB.getUserTransactions(userProfile.id)
+    
+    // Format transactions for display
+    return transactions
+      .filter(t => t.toUser === userProfile.id) // Only incoming transactions for earnings
+      .slice(0, 3) // Get latest 3
+      .map(t => ({
+        ...t,
+        description: getTransactionDescription(t),
+        date: new Date(t.timestamp).toLocaleDateString()
+      }))
+  }
+
+  const getTransactionDescription = (transaction: any) => {
+    switch (transaction.type) {
+      case "royalty":
+        return "Stream royalty payment"
+      case "tip":
+        return "Fan tip received"
+      case "nft_purchase":
+        return "NFT sale"
+      default:
+        return "Payment received"
+    }
   }
 
   const stats = getUserStats()

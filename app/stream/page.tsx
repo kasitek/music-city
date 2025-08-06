@@ -21,15 +21,22 @@ export default function StreamingPage() {
   }, [])
 
   const handleStream = (trackId: string) => {
-    // Simulate streaming and earning
-    mockDB.simulateStreamEarning(trackId, 1)
+    // Get current user ID from localStorage (mock for now)
+    const walletAddress = localStorage.getItem("walletAddress")
+    const currentUser = mockDB.getCurrentUser()
+    const userId = currentUser?.id || "user_1" // Fallback to default user
 
-    // Update tracks to reflect new stream count
-    const updatedTracks = mockDB.getTracks()
-    setTracks(updatedTracks)
+    // Simulate streaming
+    const success = mockDB.simulateStream(trackId, userId)
 
-    // Show some feedback
-    console.log("Track streamed! Artist earned tokens.")
+    if (success) {
+      // Update tracks to reflect new play count
+      const updatedTracks = mockDB.getTracks()
+      setTracks(updatedTracks)
+
+      // Show some feedback
+      console.log("Track streamed! Artist earned tokens.")
+    }
   }
 
   return (
@@ -100,7 +107,7 @@ export default function StreamingPage() {
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <img
-                        src={track.cover || "/placeholder.svg?height=48&width=48"}
+                        src={track.coverImage || "/placeholder.svg?height=48&width=48"}
                         alt={track.title}
                         className="w-12 h-12 rounded-lg object-cover"
                       />
@@ -123,19 +130,19 @@ export default function StreamingPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold text-white">{track.title}</h3>
-                          <p className="text-sm text-gray-400">{track.artist}</p>
+                          <h3 className="font-semibold text-white">{track.title || "Unknown Track"}</h3>
+                          <p className="text-sm text-gray-400">{track.artist || "Unknown Artist"}</p>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm text-gray-400">{track.duration}</div>
-                          <div className="text-xs text-gray-500">{track.streams.toLocaleString()} streams</div>
+                          <div className="text-sm text-gray-400">{track.duration || "3:45"}</div>
+                          <div className="text-xs text-gray-500">{(track.plays || 0).toLocaleString()} plays</div>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <Badge className="bg-gray-700 text-gray-300">{track.genre}</Badge>
-                      <div className="text-sm text-yellow-400">{track.price} MCC</div>
+                      <Badge className="bg-gray-700 text-gray-300">{track.genre || "Music"}</Badge>
+                      <div className="text-sm text-yellow-400">{track.price || 0} MCC</div>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -166,13 +173,13 @@ export default function StreamingPage() {
             <div className="container mx-auto flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <img
-                  src={currentTrack.cover || "/placeholder.svg?height=48&width=48"}
+                  src={currentTrack.coverImage || "/placeholder.svg?height=48&width=48"}
                   alt={currentTrack.title}
                   className="w-12 h-12 rounded-lg object-cover"
                 />
                 <div>
-                  <div className="font-semibold text-white">{currentTrack.title}</div>
-                  <div className="text-sm text-gray-400">{currentTrack.artist}</div>
+                  <div className="font-semibold text-white">{currentTrack.title || "Unknown Track"}</div>
+                  <div className="text-sm text-gray-400">{currentTrack.artist || "Unknown Artist"}</div>
                 </div>
               </div>
 

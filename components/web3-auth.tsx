@@ -10,7 +10,6 @@ import {
   disconnectWallet as web3authDisconnect, 
   getUserInfo, 
   getAccounts,
-  web3auth 
 } from "@/lib/web3auth"
 
 interface Web3AuthProps {
