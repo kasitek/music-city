@@ -4,38 +4,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Wallet, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
+import { 
+  initWeb3Auth, 
+  connectWallet as web3authConnect, 
+  disconnectWallet as web3authDisconnect, 
+  getUserInfo, 
+  getAccounts,
+  web3auth 
+} from "@/lib/web3auth"
 
 interface Web3AuthProps {
-  onConnect: (address: string, email?: string) => void
+  onConnect: (address: string, email?: string, name?: string) => void
   onDisconnect: () => void
   isConnected: boolean
   address?: string
-}
-
-// Mock Web3Auth implementation
-const mockWeb3Auth = {
-  init: async () => {
-    // Simulate initialization
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    return true
-  },
-
-  connect: async () => {
-    // Simulate connection process
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Mock user data
-    return {
-      address: "0x" + Math.random().toString(16).substr(2, 40),
-      email: "user@example.com",
-      name: "John Doe",
-    }
-  },
-
-  disconnect: async () => {
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    return true
-  },
 }
 
 export default function Web3Auth({ onConnect, onDisconnect, isConnected, address }: Web3AuthProps) {
@@ -45,19 +27,20 @@ export default function Web3Auth({ onConnect, onDisconnect, isConnected, address
   const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
-    const initWeb3Auth = async () => {
+    const initializeWeb3Auth = async () => {
       try {
         setIsInitializing(true)
-        await mockWeb3Auth.init()
+        await initWeb3Auth()
         setIsInitialized(true)
       } catch (err) {
+        console.error("Failed to initialize Web3Auth:", err)
         setError("Failed to initialize Web3Auth")
       } finally {
         setIsInitializing(false)
       }
     }
 
-    initWeb3Auth()
+    initializeWeb3Auth()
   }, [])
 
   const connectWallet = async () => {
@@ -70,9 +53,19 @@ export default function Web3Auth({ onConnect, onDisconnect, isConnected, address
     setError(null)
 
     try {
-      const userData = await mockWeb3Auth.connect()
-      onConnect(userData.address, userData.email)
+      const provider = await web3authConnect()
+      if (provider) {
+        // Get user info and wallet address
+        const [userInfo, accounts] = await Promise.all([
+          getUserInfo(),
+          getAccounts(provider)
+        ])
+        
+        const walletAddress = accounts[0]
+        onConnect(walletAddress, userInfo.email, userInfo.name)
+      }
     } catch (err: any) {
+      console.error("Failed to connect:", err)
       setError("Failed to connect. Please try again.")
     } finally {
       setIsLoading(false)
@@ -82,10 +75,11 @@ export default function Web3Auth({ onConnect, onDisconnect, isConnected, address
   const disconnectWallet = async () => {
     setIsLoading(true)
     try {
-      await mockWeb3Auth.disconnect()
+      await web3authDisconnect()
       onDisconnect()
       setError(null)
     } catch (err) {
+      console.error("Failed to disconnect:", err)
       setError("Failed to disconnect")
     } finally {
       setIsLoading(false)

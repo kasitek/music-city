@@ -22,12 +22,12 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, router])
 
-  const handleConnect = async (address: string, email?: string) => {
+  const handleConnect = async (address: string, email?: string, name?: string) => {
     setIsConnected(true)
     setWalletAddress(address)
 
     // Try to login with existing user
-    const user = await login(address)
+    const user = await login(address, email, name)
 
     if (user) {
       // User exists, redirect to dashboard

@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (walletAddress: string) => Promise<User | null>
+  login: (walletAddress: string, email?: string, name?: string) => Promise<User | null>
   logout: () => void
   updateUser: (updates: Partial<User>) => void
 }
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
-  const login = async (walletAddress: string): Promise<User | null> => {
+  const login = async (walletAddress: string, email?: string, name?: string): Promise<User | null> => {
     try {
       // Check if user exists in database
       const user = mockDB.getUserByWallet(walletAddress)
@@ -62,12 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("walletConnected", "true")
         localStorage.setItem("walletAddress", walletAddress)
         localStorage.setItem("onboardingComplete", "true")
+        if (email) localStorage.setItem("userEmail", email)
+        if (name) localStorage.setItem("userName", name)
         return user
       }
 
       // User doesn't exist, they need to complete onboarding
       localStorage.setItem("walletConnected", "true")
       localStorage.setItem("walletAddress", walletAddress)
+      if (email) localStorage.setItem("userEmail", email)
+      if (name) localStorage.setItem("userName", name)
       return null
     } catch (error) {
       console.error("Login error:", error)
@@ -83,6 +87,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("onboardingComplete")
     localStorage.removeItem("userId")
     localStorage.removeItem("userProfile")
+    localStorage.removeItem("userEmail")
+    localStorage.removeItem("userName")
   }
 
   const updateUser = (updates: Partial<User>) => {
