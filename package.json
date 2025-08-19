@@ -9,6 +9,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "@dfinity/agent": "^0.24.4",
+    "@dfinity/candid": "^0.24.4",
+    "@dfinity/principal": "^0.24.4",
     "@babel/runtime": "latest",
     "@coinbase/wallet-sdk": "latest",
     "@hookform/resolvers": "^3.9.1",

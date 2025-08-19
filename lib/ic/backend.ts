@@ -1,0 +1,155 @@
+import type { ActorSubclass } from '@dfinity/agent'
+import { createActor, getDefaultHost } from './agent'
+import { getBackendCanisterId } from './canister'
+import type { _SERVICE } from './idl'
+
+let actorPromise: Promise<ActorSubclass<_SERVICE>> | null = null
+
+async function getActor(): Promise<ActorSubclass<_SERVICE>> {
+  if (!actorPromise) {
+    const canisterId = await getBackendCanisterId()
+    actorPromise = createActor<_SERVICE>({
+      canisterId,
+      host: getDefaultHost(),
+      fetchRootKey: process.env.NEXT_PUBLIC_DFX_NETWORK !== 'ic',
+    })
+  }
+  return actorPromise
+}
+
+// User APIs
+export async function registerUser(params: {
+  displayName: string
+  userType: { artist?: null; fan?: null }
+  bio: string
+  location: string
+  genres: string[]
+  profileImage: string
+  birthDate?: string | null
+}) {
+  const a = await getActor()
+  const res = await a.registerUser(
+    params.displayName,
+    params.userType as any,
+    params.bio,
+    params.location,
+    params.genres,
+    params.profileImage,
+    params.birthDate ? [params.birthDate] : []
+  )
+  return res
+}
+
+export async function getMyUser() {
+  const a = await getActor()
+  return a.getMyUser()
+}
+
+export async function getUser(principalText: string) {
+  const a = await getActor()
+  const principal = (await import('@dfinity/principal')).Principal.fromText(principalText)
+  return a.getUser(principal)
+}
+
+export async function updateProfile(params: {
+  displayName?: string
+  bio?: string
+  location?: string
+  genres?: string[]
+  profileImage?: string
+}) {
+  const a = await getActor()
+  const opt = <T,>(v: T | undefined) => (v === undefined ? [] : [v])
+  return a.updateProfile(
+    opt(params.displayName),
+    opt(params.bio),
+    opt(params.location),
+    opt(params.genres),
+    opt(params.profileImage)
+  )
+}
+
+// Tracks
+export async function createTrack(params: {
+  title: string
+  duration: string
+  genre: string
+  coverImage: string
+  audioUrl: string
+  price: bigint | number
+  releaseDate: string
+  description: string
+}) {
+  const a = await getActor()
+  return a.createTrack(
+    params.title,
+    params.duration,
+    params.genre,
+    params.coverImage,
+    params.audioUrl,
+    BigInt(params.price as any),
+    params.releaseDate,
+    params.description
+  )
+}
+
+export async function listTracks() {
+  const a = await getActor()
+  return a.listTracks()
+}
+
+export async function getTrack(id: number | bigint) {
+  const a = await getActor()
+  return a.getTrack(BigInt(id as any))
+}
+
+export async function streamTrack(id: number | bigint) {
+  const a = await getActor()
+  return a.streamTrack(BigInt(id as any))
+}
+
+// Tips
+export async function tip(artistPrincipalText: string, amount: number | bigint) {
+  const a = await getActor()
+  const { Principal } = await import('@dfinity/principal')
+  return a.tip(Principal.fromText(artistPrincipalText), BigInt(amount as any))
+}
+
+// NFTs
+export async function mintNFT(params: {
+  title: string
+  image: string
+  price: number | bigint
+  rarity: { common?: null; rare?: null; epic?: null; legendary?: null }
+  description: string
+}) {
+  const a = await getActor()
+  return a.mintNFT(
+    params.title,
+    params.image,
+    BigInt(params.price as any),
+    params.rarity as any,
+    params.description
+  )
+}
+
+export async function purchaseNFT(id: number | bigint) {
+  const a = await getActor()
+  return a.purchaseNFT(BigInt(id as any))
+}
+
+export async function listNFTs() {
+  const a = await getActor()
+  return a.listNFTs()
+}
+
+export async function getNFT(id: number | bigint) {
+  const a = await getActor()
+  return a.getNFT(BigInt(id as any))
+}
+
+// Transactions
+export async function myTransactions() {
+  const a = await getActor()
+  return a.myTransactions()
+}
