@@ -40,7 +40,7 @@ actor {
     birthDate : ?Text
   ) : async Result.Result<T.User, Text> {
     switch (U.registerUser(users, caller, displayName, userType, bio, location, genres, profileImage, birthDate)) {
-      case (#ok((users', u))) { users := users'; #ok(u) };
+      case (#ok((users1, u))) { users := users1; #ok(u) };
       case (#err(e)) { #err(e) };
     }
   };
@@ -56,7 +56,7 @@ actor {
     profileImage : ?Text
   ) : async Result.Result<T.User, Text> {
     switch (U.updateProfile(users, caller, displayName, bio, location, genres, profileImage)) {
-      case (#ok((users', updated))) { users := users'; #ok(updated) };
+      case (#ok((users1, updated))) { users := users1; #ok(updated) };
       case (#err(e)) { #err(e) };
     }
   };
@@ -71,9 +71,12 @@ actor {
     releaseDate : Text,
     description : Text
   ) : async Result.Result<T.Track, Text> {
-    let isArtist = switch (U.getUser(users, caller)) { case (?(u)) { switch (u.userType) { case (#artist) true; case (#fan) false } } case null false };
+    let isArtist = switch (U.getUser(users, caller)) {
+      case (?u) { switch (u.userType) { case (#artist) true; case (#fan) false } };
+      case null false
+    };
     switch (Tr.create(tracks, caller, isArtist, title, duration, genre, coverImage, audioUrl, price, releaseDate, description, nextTrackId)) {
-      case (#ok((tracks', track, nextId))) { tracks := tracks'; nextTrackId := nextId; #ok(track) };
+      case (#ok((tracks1, track, nextId))) { tracks := tracks1; nextTrackId := nextId; #ok(track) };
       case (#err(e)) { #err(e) };
     }
   };
@@ -81,18 +84,29 @@ actor {
   public shared query func listTracks() : async [T.Track] { Tr.list(tracks) };
   public shared query func getTrack(id : Nat) : async ?T.Track { Tr.get(tracks, id) };
 
+  public shared ({ caller }) func setTrackAssets(
+    trackId : Nat,
+    audioAssetId : ?Nat,
+    imageAssetId : ?Nat
+  ) : async Result.Result<T.Track, Text> {
+    switch (Tr.setAssets(tracks, caller, trackId, audioAssetId, imageAssetId)) {
+      case (#err(e)) { #err(e) };
+      case (#ok((tracks1, updated))) { tracks := tracks1; #ok(updated) };
+    }
+  };
+
   public shared ({ caller }) func streamTrack(trackId : Nat) : async Result.Result<Bool, Text> {
     switch (U.getUser(users, caller)) {
       case null { #err("Not registered") };
       case (?_) {
         switch (Tr.incrementPlay(tracks, trackId)) {
           case (#err(e)) { #err(e) };
-          case (#ok((tracks', updatedTrack))) {
-            tracks := tracks';
+          case (#ok((tracks1, updatedTrack))) {
+            tracks := tracks1;
             // credit artist royalty and record tx
             users := U.credit(users, updatedTrack.artist, C.STREAM_ROYALTY);
-            let (txs', _tx, nextId) = Tx.recordRoyaltyTx(txs, updatedTrack.artist, updatedTrack.id, C.STREAM_ROYALTY, now(), nextTxId);
-            txs := txs'; nextTxId := nextId;
+            let (txs1, _tx, nextId) = Tx.recordRoyaltyTx(txs, updatedTrack.artist, updatedTrack.id, C.STREAM_ROYALTY, now(), nextTxId);
+            txs := txs1; nextTxId := nextId;
             #ok(true)
           }
         }
@@ -105,11 +119,11 @@ actor {
     switch (U.getUser(users, caller)) {
       case null { #err("Not registered") };
       case (?_) {
-        let (users', ok) = U.debit(users, caller, amount);
-        if (!ok) { return #err("Insufficient balance") };
-        users := U.credit(users', artist, amount);
-        let (txs', _tx, nextId) = Tx.recordTipTx(txs, caller, artist, amount, now(), nextTxId);
-        txs := txs'; nextTxId := nextId;
+        let (users1, ok) = U.debit(users, caller, amount);
+        if (not ok) { return #err("Insufficient balance") };
+        users := U.credit(users1, artist, amount);
+        let (txs1, _tx, nextId) = Tx.recordTipTx(txs, caller, artist, amount, now(), nextTxId);
+        txs := txs1; nextTxId := nextId;
         #ok(true)
       }
     }
@@ -127,7 +141,7 @@ actor {
       case (?u) {
         let isArtist = switch (u.userType) { case (#artist) true; case (#fan) false };
         switch (N.mint(nfts, caller, isArtist, title, image, price, rarity, description, now(), nextNftId)) {
-          case (#ok((nfts', nft, nextId))) { nfts := nfts'; nextNftId := nextId; #ok(nft) };
+          case (#ok((nfts1, nft, nextId))) { nfts := nfts1; nextNftId := nextId; #ok(nft) };
           case (#err(e)) { #err(e) };
         }
       }
@@ -137,18 +151,18 @@ actor {
   public shared ({ caller }) func purchaseNFT(nftId : Nat) : async Result.Result<Bool, Text> {
     switch (N.purchase(nfts, caller, nftId)) {
       case (#err(e)) { #err(e) };
-      case (#ok((nfts', nftUpdated, price))) {
+      case (#ok((nfts1, nftUpdated, price))) {
         // attempt to debit buyer
-        let (users', ok) = U.debit(users, caller, price);
-        if (!ok) { return #err("Insufficient balance") };
-        users := users';
+        let (users1, ok) = U.debit(users, caller, price);
+        if (not ok) { return #err("Insufficient balance") };
+        users := users1;
         // credit artist
         users := U.credit(users, nftUpdated.artist, N.artistShare(price));
         // persist NFT list
-        nfts := nfts';
+        nfts := nfts1;
         // record tx
-        let (txs', _tx, nextId) = Tx.recordNftPurchaseTx(txs, caller, nftUpdated.artist, nftUpdated.id, price, now(), nextTxId);
-        txs := txs'; nextTxId := nextId;
+        let (txs1, _tx, nextId) = Tx.recordNftPurchaseTx(txs, caller, nftUpdated.artist, nftUpdated.id, price, now(), nextTxId);
+        txs := txs1; nextTxId := nextId;
         #ok(true)
       }
     }

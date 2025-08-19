@@ -30,6 +30,9 @@ module {
     genre : Text;
     coverImage : Text;
     audioUrl : Text;
+    // Optional asset references managed by storage canisters
+    audioAssetId : ?Nat;
+    imageAssetId : ?Nat;
     plays : Nat;
     likes : Nat;
     price : Nat; // per-stream/pay price in token units

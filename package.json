@@ -6,14 +6,16 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "link:storage": "node scripts/link-storage-bucket.mjs"
   },
   "dependencies": {
-    "@dfinity/agent": "^0.24.4",
-    "@dfinity/candid": "^0.24.4",
-    "@dfinity/principal": "^0.24.4",
     "@babel/runtime": "latest",
     "@coinbase/wallet-sdk": "latest",
+    "@dfinity/agent": "latest",
+    "@dfinity/auth-client": "^3.2.1",
+    "@dfinity/candid": "latest",
+    "@dfinity/principal": "latest",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",

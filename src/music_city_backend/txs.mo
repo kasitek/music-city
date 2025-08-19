@@ -58,7 +58,8 @@ module {
 
   public func myTransactions(txs : [T.Transaction], caller : Principal) : [T.Transaction] {
     Array.filter<T.Transaction>(txs, func (t) {
-      switch (t.fromUser) { case (?p) { p == caller } case null { false } } or t.toUser == caller
+      let fromMatches = switch (t.fromUser) { case (?p) { p == caller }; case null { false } };
+      fromMatches or (t.toUser == caller)
     })
   };
 }

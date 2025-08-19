@@ -2,8 +2,16 @@ import type { ActorSubclass } from '@dfinity/agent'
 import { createActor, getDefaultHost } from './agent'
 import { getBackendCanisterId } from './canister'
 import type { _SERVICE } from './idl'
+import type { Identity } from '@dfinity/agent'
 
 let actorPromise: Promise<ActorSubclass<_SERVICE>> | null = null
+let currentIdentity: Identity | undefined
+
+export function setIdentity(identity?: Identity) {
+  currentIdentity = identity
+  // reset so next call builds an actor with the new identity
+  actorPromise = null
+}
 
 async function getActor(): Promise<ActorSubclass<_SERVICE>> {
   if (!actorPromise) {
@@ -12,6 +20,7 @@ async function getActor(): Promise<ActorSubclass<_SERVICE>> {
       canisterId,
       host: getDefaultHost(),
       fetchRootKey: process.env.NEXT_PUBLIC_DFX_NETWORK !== 'ic',
+      identity: currentIdentity,
     })
   }
   return actorPromise
@@ -106,6 +115,12 @@ export async function getTrack(id: number | bigint) {
 export async function streamTrack(id: number | bigint) {
   const a = await getActor()
   return a.streamTrack(BigInt(id as any))
+}
+
+export async function setTrackAssets(params: { trackId: number | bigint; audioAssetId?: number | bigint | null; imageAssetId?: number | bigint | null }) {
+  const a = await getActor()
+  const opt = <T,>(v: T | undefined | null) => (v === undefined || v === null ? [] : [BigInt(v as any)])
+  return a.setTrackAssets(BigInt(params.trackId as any), opt(params.audioAssetId), opt(params.imageAssetId))
 }
 
 // Tips

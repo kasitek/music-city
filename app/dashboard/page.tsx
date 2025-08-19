@@ -13,11 +13,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Music, Upload, DollarSign, Users, Play, Coins } from "lucide-react"
 import { mockDB } from "@/lib/mock-database"
 import { Navigation } from "@/components/navigation"
+import { createTrack, setTrackAssets } from "@/lib/ic/backend"
+import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
 
 export default function ArtistDashboard() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const router = useRouter()
+  // Upload form state
+  const [title, setTitle] = useState("")
+  const [artistName, setArtistName] = useState("")
+  const [genre, setGenre] = useState("")
+  const [description, setDescription] = useState("")
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadMessage, setUploadMessage] = useState<string>("")
 
   useEffect(() => {
     // Check authentication and onboarding
@@ -309,6 +319,8 @@ export default function ArtistDashboard() {
                         id="title"
                         placeholder="Enter track title"
                         className="bg-gray-700 border-gray-600 text-white"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
                       />
                     </div>
                     <div>
@@ -319,6 +331,8 @@ export default function ArtistDashboard() {
                         id="artist"
                         placeholder="Your artist name"
                         className="bg-gray-700 border-gray-600 text-white"
+                        value={artistName}
+                        onChange={(e) => setArtistName(e.target.value)}
                       />
                     </div>
                     <div>
@@ -329,6 +343,8 @@ export default function ArtistDashboard() {
                         id="genre"
                         placeholder="e.g., Afrobeat, Hip-hop"
                         className="bg-gray-700 border-gray-600 text-white"
+                        value={genre}
+                        onChange={(e) => setGenre(e.target.value)}
                       />
                     </div>
                   </div>
@@ -341,6 +357,8 @@ export default function ArtistDashboard() {
                         id="description"
                         placeholder="Tell fans about your track..."
                         className="bg-gray-700 border-gray-600 text-white min-h-[120px]"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
                       />
                     </div>
                   </div>
@@ -351,14 +369,98 @@ export default function ArtistDashboard() {
                   <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <div className="text-lg font-medium text-white mb-2">Drop your audio file here</div>
                   <div className="text-gray-400 mb-4">or click to browse (MP3, WAV, FLAC)</div>
-                  <Button className="bg-purple-600 hover:bg-purple-700">Choose File</Button>
+                  <label className="inline-block">
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null
+                        setFile(f || null)
+                      }}
+                    />
+                    <Button type="button" className="bg-purple-600 hover:bg-purple-700">
+                      {file ? `Selected: ${file.name}` : "Choose File"}
+                    </Button>
+                  </label>
+                  {uploadMessage && (
+                    <div className="mt-3 text-sm text-gray-300">{uploadMessage}</div>
+                  )}
                 </div>
 
                 <div className="flex justify-end space-x-4">
                   <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent">
                     Save as Draft
                   </Button>
-                  <Button className="bg-purple-600 hover:bg-purple-700">Publish Track</Button>
+                  <Button
+                    className="bg-purple-600 hover:bg-purple-700"
+                    disabled={uploading}
+                    onClick={async () => {
+                      setUploadMessage("")
+                      if (!file) { setUploadMessage("Please select an audio file."); return }
+                      if (!title) { setUploadMessage("Please enter a track title."); return }
+                      try {
+                        setUploading(true)
+                        // 1) Create track in backend (placeholder fields for now)
+                        const resultTrack = await createTrack({
+                          title,
+                          duration: "0:00",
+                          genre: genre || "",
+                          coverImage: "",
+                          audioUrl: "",
+                          price: 0,
+                          releaseDate: new Date().toISOString().slice(0, 10),
+                          description: description || "",
+                        })
+                        if ('err' in resultTrack) { throw new Error(resultTrack.err) }
+                        const createdTrack = (resultTrack as any).ok
+                        const trackId: bigint = createdTrack.id
+
+                        // 2) Create storage asset for audio
+                        const ext = file.name.includes('.') ? file.name.split('.').pop() || '' : ''
+                        const resCreate = await createStorageAsset({
+                          mediaType: { audio: null },
+                          ext,
+                          size: file.size,
+                          contentType: file.type || 'application/octet-stream',
+                        })
+                        if ('err' in resCreate) { throw new Error(resCreate.err) }
+                        const tuple = (resCreate as any).ok as [bigint, any]
+                        const assetId = tuple[0]
+                        const bucketPrincipal = tuple[1]
+                        let bucketIdStr: string
+                        try {
+                          bucketIdStr = typeof bucketPrincipal === 'string' ? bucketPrincipal : bucketPrincipal.toText()
+                        } catch {
+                          bucketIdStr = String(bucketPrincipal)
+                        }
+
+                        // 3) Upload blob to bucket
+                        const arrayBuf = await file.arrayBuffer()
+                        const data = new Uint8Array(arrayBuf)
+                        const resUpload = await uploadBlobToBucket(bucketIdStr, assetId as any, data, file.type || 'application/octet-stream')
+                        if ('err' in resUpload) { throw new Error(resUpload.err) }
+
+                        // 4) Link asset to track
+                        const resSet = await setTrackAssets({ trackId: trackId as any, audioAssetId: assetId as any })
+                        if ('err' in resSet) { throw new Error(resSet.err) }
+
+                        setUploadMessage("Track published and audio uploaded successfully.")
+                        // Reset minimal fields
+                        setFile(null)
+                        setTitle("")
+                        setArtistName("")
+                        setGenre("")
+                        setDescription("")
+                      } catch (e: any) {
+                        setUploadMessage(`Upload failed: ${e?.message || e}`)
+                      } finally {
+                        setUploading(false)
+                      }
+                    }}
+                  >
+                    {uploading ? 'Publishing…' : 'Publish Track'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

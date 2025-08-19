@@ -19,7 +19,7 @@ module {
     timestamp : Nat64,
     nextNftId : Nat
   ) : Result.Result<([T.NFT], T.NFT, Nat), Text> {
-    if (!isArtist) { return #err("Only artists can mint NFTs") };
+    if (not isArtist) { return #err("Only artists can mint NFTs") };
     let nft : T.NFT = {
       id = nextNftId; title; artist = caller; image; price; rarity; description; owner = null; createdTimestamp = timestamp
     };
@@ -44,8 +44,8 @@ module {
         let item = nfts[idx];
         if (item.owner != null) { return #err("NFT already sold") };
         let updated = { item with owner = ?caller };
-        let nfts' = Array.tabulate<T.NFT>(nfts.size(), func (i) { if (i == idx) { updated } else { nfts[i] } });
-        #ok((nfts', updated, item.price))
+        let nfts1 = Array.tabulate<T.NFT>(nfts.size(), func (i) { if (i == idx) { updated } else { nfts[i] } });
+        #ok((nfts1, updated, item.price))
       }
     }
   };

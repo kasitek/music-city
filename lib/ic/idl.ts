@@ -24,6 +24,8 @@ export const idlFactory = ({ IDL }: any) => {
     genre: IDL.Text,
     coverImage: IDL.Text,
     audioUrl: IDL.Text,
+    audioAssetId: IDL.Opt(IDL.Nat),
+    imageAssetId: IDL.Opt(IDL.Nat),
     plays: IDL.Nat,
     likes: IDL.Nat,
     price: IDL.Nat,
@@ -70,6 +72,7 @@ export const idlFactory = ({ IDL }: any) => {
     createTrack: IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text], [ResultTrack], []),
     listTracks: IDL.Func([], [IDL.Vec(Track)], ['query']),
     getTrack: IDL.Func([IDL.Nat], [IDL.Opt(Track)], ['query']),
+    setTrackAssets: IDL.Func([IDL.Nat, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)], [ResultTrack], []),
     streamTrack: IDL.Func([IDL.Nat], [ResultBool], []),
 
     tip: IDL.Func([IDL.Principal, IDL.Nat], [ResultBool], []),

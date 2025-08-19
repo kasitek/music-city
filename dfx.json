@@ -4,6 +4,14 @@
     "music_city_backend": {
       "type": "motoko",
       "main": "src/music_city_backend/main.mo"
+    },
+    "storage_index": {
+      "type": "motoko",
+      "main": "src/storage/index.mo"
+    },
+    "storage_bucket": {
+      "type": "motoko",
+      "main": "src/storage/bucket.mo"
     }
   },
   "networks": {

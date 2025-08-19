@@ -43,8 +43,8 @@ module {
           isVerified = false; followers = 0; following = 0; balance = 100_000;
           joinedTimestamp = now(); birthDate
         };
-        let users' = Array.append(users, [(caller, u)]);
-        #ok((users', u))
+        let users1 = Array.append(users, [(caller, u)]);
+        #ok((users1, u))
       }
     }
   };
@@ -74,8 +74,8 @@ module {
           joinedTimestamp = u.joinedTimestamp;
           birthDate = u.birthDate;
         };
-        let users' = upsert(users, caller, updated);
-        #ok((users', updated))
+        let users1 = upsert(users, caller, updated);
+        #ok((users1, updated))
       }
     }
   };

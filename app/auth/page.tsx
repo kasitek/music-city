@@ -7,13 +7,14 @@ import { useRouter } from "next/navigation"
 import Web3Auth from "@/components/web3-auth"
 import { useAuth } from "@/hooks/use-auth"
 import OnboardingModal from "@/components/onboarding-modal"
+import { Button } from "@/components/ui/button"
 
 export default function AuthPage() {
   const [isConnected, setIsConnected] = useState(false)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const [showOnboarding, setShowOnboarding] = useState(false)
   const router = useRouter()
-  const { login, isAuthenticated } = useAuth()
+  const { login, loginWithII, loginWithNFID, isAuthenticated } = useAuth()
 
   useEffect(() => {
     // Redirect if already authenticated
@@ -63,7 +64,7 @@ export default function AuthPage() {
             </span>
           </Link>
           <h1 className="text-3xl font-bold mb-3">Welcome to Music City</h1>
-          <p className="text-gray-400 text-lg">Connect your wallet to start your journey in decentralized music</p>
+          <p className="text-gray-400 text-lg">Connect your wallet or sign in with Internet Identity/NFID</p>
         </div>
 
         {/* Web3Auth Connection */}
@@ -73,6 +74,16 @@ export default function AuthPage() {
           isConnected={isConnected}
           address={walletAddress}
         />
+
+        {/* II / NFID Sign-in */}
+        <div className="grid grid-cols-1 gap-3">
+          <Button variant="default" onClick={() => loginWithII()}>
+            Sign in with Internet Identity
+          </Button>
+          <Button variant="secondary" onClick={() => loginWithNFID()}>
+            Sign in with NFID (email/social)
+          </Button>
+        </div>
 
         {/* Features */}
         <div className="space-y-4">

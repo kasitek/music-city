@@ -7,17 +7,20 @@ export type CreateActorOptions = {
   canisterId: string
   host?: string
   fetchRootKey?: boolean
+  identity?: import('@dfinity/agent').Identity
+  idlFactoryOverride?: any
 }
 
-export async function createActor<T = Service>({ canisterId, host, fetchRootKey }: CreateActorOptions): Promise<ActorSubclass<T>> {
-  const agent = new HttpAgent({ host })
+export async function createActor<T = Service>({ canisterId, host, fetchRootKey, identity, idlFactoryOverride }: CreateActorOptions): Promise<ActorSubclass<T>> {
+  const agent = new HttpAgent({ host, identity })
 
   // Only in local dev: fetch the root key so agent can validate certificates
   if (fetchRootKey) {
     try { await agent.fetchRootKey() } catch (e) { console.warn('fetchRootKey failed', e) }
   }
 
-  return Actor.createActor<T>(idlFactory, {
+  const factory = idlFactoryOverride ?? idlFactory
+  return Actor.createActor<T>(factory, {
     agent,
     canisterId,
   })

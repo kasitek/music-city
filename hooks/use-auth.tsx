@@ -4,12 +4,17 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { mockDB, type User } from "@/lib/mock-database"
+import { isAuthenticated as icIsAuthenticated, loginInternetIdentity, loginNFID, logout as icLogout, getIdentity } from "@/lib/ic/auth"
+import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
+import { setStorageIdentity } from "@/lib/ic/storage"
 
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
   login: (walletAddress: string, email?: string, name?: string) => Promise<User | null>
+  loginWithII: () => Promise<void>
+  loginWithNFID: () => Promise<void>
   logout: () => void
   updateUser: (updates: Partial<User>) => void
 }
@@ -44,6 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
+
+      // Initialize IC identity if already authenticated (II/NFID session)
+      icIsAuthenticated().then((ok) => {
+        if (ok) {
+          const id = getIdentity()
+          if (id) {
+            setBackendIdentity(id)
+            setStorageIdentity(id)
+          }
+        }
+      }).catch(() => {/* ignore */})
       setIsLoading(false)
     }
 
@@ -79,9 +95,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const loginWithII = async () => {
+    const identity = await loginInternetIdentity()
+    setBackendIdentity(identity)
+    setStorageIdentity(identity)
+    // Persist a hint so UI can reflect logged-in state even without wallet
+    localStorage.setItem("icIdentity", "true")
+  }
+
+  const loginWithNFID = async () => {
+    const identity = await loginNFID()
+    setBackendIdentity(identity)
+    setStorageIdentity(identity)
+    localStorage.setItem("icIdentity", "true")
+  }
+
   const logout = () => {
     setUser(null)
     mockDB.clearCurrentUser()
+    // Clear IC identity session
+    icLogout().catch(() => {/* ignore */})
+    setBackendIdentity(undefined)
+    setStorageIdentity(undefined)
     localStorage.removeItem("walletConnected")
     localStorage.removeItem("walletAddress")
     localStorage.removeItem("onboardingComplete")
@@ -89,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("userProfile")
     localStorage.removeItem("userEmail")
     localStorage.removeItem("userName")
+    localStorage.removeItem("icIdentity")
   }
 
   const updateUser = (updates: Partial<User>) => {
@@ -106,6 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !!user,
     isLoading,
     login,
+    loginWithII,
+    loginWithNFID,
     logout,
     updateUser,
   }
