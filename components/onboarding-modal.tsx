@@ -7,9 +7,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Music, User, ArrowRight, Upload, X } from "lucide-react"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { mockDB } from "@/lib/mock-database"
+import { registerUser as registerUserIC } from "@/lib/ic/backend"
+import { getIdentity } from "@/lib/ic/auth"
+import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
+import type { Identity } from "@dfinity/agent"
 
 interface OnboardingModalProps {
   walletAddress: string
@@ -28,7 +32,43 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
     birthDate: "",
     profileImage: "",
   })
-  const { login } = useAuth()
+  const { login, loginWithII } = useAuth()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+
+  const handleImageFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const file = files[0]
+    if (!file.type.startsWith("image/")) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      setFormData((prev) => ({ ...prev, profileImage: String(reader.result || "") }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleImageFiles(e.target.files)
+  }
+
+  const onDropImage = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    handleImageFiles(e.dataTransfer.files)
+  }
+
+  const onDragOverImage = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(true)
+  }
+
+  const onDragLeaveImage = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+  }
 
   const genres = [
     "Pop",
@@ -59,18 +99,61 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
       // Initialize database with sample data
       mockDB.initializeDatabase()
 
-      // Create new user in mock database
-      const newUser = mockDB.createUser({
-        walletAddress,
-        userType: formData.userType as "artist" | "fan",
-        displayName: formData.displayName,
-        bio: formData.bio,
-        location: formData.location,
-        genres: formData.genres,
-        birthDate: formData.birthDate,
-        profileImage: formData.profileImage,
-        isVerified: false,
-      })
+      // Reuse existing user or create one if missing
+      const existing = walletAddress ? mockDB.getUserByWallet(walletAddress) : null
+      const user = existing
+        ? mockDB.updateUser(existing.id, {
+            userType: formData.userType as "artist" | "fan",
+            displayName: formData.displayName || existing.displayName,
+            bio: formData.bio ?? existing.bio,
+            location: formData.location || existing.location,
+            genres: formData.genres?.length ? formData.genres : existing.genres,
+            birthDate: formData.birthDate || existing.birthDate,
+            profileImage: formData.profileImage || existing.profileImage,
+          }) || existing
+        : mockDB.createUser({
+            walletAddress,
+            userType: formData.userType as "artist" | "fan",
+            displayName: formData.displayName,
+            bio: formData.bio,
+            location: formData.location,
+            genres: formData.genres,
+            birthDate: formData.birthDate,
+            profileImage: formData.profileImage,
+            isVerified: false,
+          })
+
+      if (user) {
+        mockDB.setCurrentUser(user)
+      }
+
+      // Register in IC backend so permissions (e.g., createTrack) work under the correct principal
+      try {
+        // Ensure we have an authenticated identity (avoid registering as Anonymous)
+        let id: Identity | null = null
+        try { id = getIdentity() } catch {}
+        if (!id) {
+          try {
+            await loginWithII()
+            id = getIdentity()
+          } catch (e) {
+            console.warn("II login skipped/failed; proceeding may register anonymous principal", e)
+          }
+        }
+        if (id) setBackendIdentity(id)
+        await registerUserIC({
+          displayName: formData.displayName,
+          userType: formData.userType === "artist" ? { artist: null } : { fan: null },
+          bio: formData.bio,
+          location: formData.location,
+          genres: formData.genres,
+          profileImage: formData.profileImage,
+          birthDate: formData.birthDate || null,
+        })
+        console.log("registerUser (IC) success [modal]")
+      } catch (e) {
+        console.warn("registerUser (IC) failed [modal]", e)
+      }
 
       // Login the user (this will set the auth context)
       await login(walletAddress)
@@ -236,12 +319,69 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
 
                   <div>
                     <Label className="text-gray-300">Profile Picture</Label>
-                    <div className="mt-2 border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
-                      <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <div className="text-sm text-gray-400">Drop your image here or click to browse</div>
-                      <Button variant="outline" className="mt-2 border-gray-600 text-gray-300 bg-transparent">
-                        Choose File
-                      </Button>
+                    <div
+                      className={`mt-2 border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                        dragActive ? "border-purple-500 bg-purple-500/10" : "border-gray-600"
+                      }`}
+                      onDrop={onDropImage}
+                      onDragOver={onDragOverImage}
+                      onDragLeave={onDragLeaveImage}
+                      role="button"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {formData.profileImage ? (
+                        <div className="space-y-3">
+                          <img
+                            src={formData.profileImage}
+                            alt="Profile preview"
+                            className="mx-auto h-28 w-28 rounded-full object-cover border border-gray-600"
+                          />
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              variant="outline"
+                              className="border-gray-600 text-gray-300 bg-transparent"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                fileInputRef.current?.click()
+                              }}
+                            >
+                              Change
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="text-red-300 hover:text-red-200"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setFormData((p) => ({ ...p, profileImage: "" }))
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <div className="text-sm text-gray-400">Drop your image here or click to browse</div>
+                          <Button
+                            variant="outline"
+                            className="mt-2 border-gray-600 text-gray-300 bg-transparent"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              fileInputRef.current?.click()
+                            }}
+                          >
+                            Choose File
+                          </Button>
+                        </div>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={onPickImage}
+                      />
                     </div>
                   </div>
                 </div>
