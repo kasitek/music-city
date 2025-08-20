@@ -15,11 +15,13 @@ import { mockDB } from "@/lib/mock-database"
 import { Navigation } from "@/components/navigation"
 import { createTrack, setTrackAssets } from "@/lib/ic/backend"
 import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function ArtistDashboard() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const router = useRouter()
+  const { loginWithII, loginWithNFID } = useAuth()
   // Upload form state
   const [title, setTitle] = useState("")
   const [artistName, setArtistName] = useState("")
@@ -28,6 +30,10 @@ export default function ArtistDashboard() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState<string>("")
+  // Auth prompt state
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
+  const [authInProgress, setAuthInProgress] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   // Drag & Drop state
   const [isDragging, setIsDragging] = useState(false)
@@ -65,17 +71,138 @@ export default function ArtistDashboard() {
     setIsDragging(false)
   }
 
+  // Save a local draft (metadata only, not the file blob). Drafts are stored per-artist in localStorage.
+  const saveDraft = () => {
+    try {
+      if (!userProfile || userProfile.userType !== 'artist') {
+        setUploadMessage('Only artists can save drafts.')
+        return
+      }
+      if (!title) {
+        setUploadMessage('Please enter a track title before saving a draft.')
+        return
+      }
+      const key = `musiccity_drafts_${userProfile.id}`
+      const existing = JSON.parse(localStorage.getItem(key) || '[]') as any[]
+      const draft = {
+        id: Date.now().toString(),
+        title,
+        artistName: artistName || userProfile.displayName || '',
+        genre,
+        description,
+        fileName: file?.name || null,
+        fileType: file?.type || null,
+        fileSize: file?.size || null,
+        createdAt: new Date().toISOString(),
+        status: 'draft',
+      }
+      existing.unshift(draft)
+      localStorage.setItem(key, JSON.stringify(existing))
+      setUploadMessage('Draft saved locally. You can publish it later from this device.')
+    } catch (e: any) {
+      setUploadMessage(`Failed to save draft: ${e?.message || e}`)
+    }
+  }
+
+  // Poll for IC auth completion after popup. Returns true if authenticated within timeout.
+  const waitForIcAuth = async (timeoutMs = 8000, intervalMs = 300): Promise<boolean> => {
+    const start = Date.now()
+    const { isAuthenticated: icIsAuthenticated } = await import("@/lib/ic/auth")
+    while (Date.now() - start < timeoutMs) {
+      const ok = await icIsAuthenticated().catch(() => false)
+      if (ok) return true
+      await new Promise((r) => setTimeout(r, intervalMs))
+    }
+    return false
+  }
+
+  // Core publish pipeline, assumes IC identity is authenticated. Ensures artist role before creating track.
+  const publishWithIc = async () => {
+    // 1) Ensure on-chain user is artist
+    const { getMyUser, becomeArtist } = await import("@/lib/ic/backend")
+    const meRes = await getMyUser()
+    if ('err' in meRes) {
+      setUploadMessage("Please register your profile on-chain before publishing.")
+      return
+    }
+    const me = (meRes as any).ok
+    const isArtist = !!(me?.userType && (me.userType as any).artist !== undefined)
+    if (!isArtist) {
+      const ba = await becomeArtist()
+      if ('err' in ba) {
+        setUploadMessage(`Cannot become artist: ${ba.err}`)
+        return
+      }
+    }
+
+    // 2) Create track in backend (placeholder fields for now)
+    const resultTrack = await createTrack({
+      title,
+      duration: "0:00",
+      genre: genre || "",
+      coverImage: "",
+      audioUrl: "",
+      price: 0,
+      releaseDate: new Date().toISOString().slice(0, 10),
+      description: description || "",
+    })
+    if ('err' in resultTrack) { throw new Error(resultTrack.err) }
+    const createdTrack = (resultTrack as { ok: { id: bigint } }).ok
+    const trackId: bigint = createdTrack.id
+
+    // 3) Create storage asset for audio
+    const ext = file && file.name.includes('.') ? file.name.split('.').pop() || '' : ''
+    if (!file) throw new Error('Missing file in pipeline')
+    const resCreate = await createStorageAsset({
+      mediaType: { audio: null },
+      ext,
+      size: file.size,
+      contentType: file.type || 'application/octet-stream',
+    })
+    if ('err' in resCreate) { throw new Error(resCreate.err) }
+    const tuple = (resCreate as { ok: [bigint, any] }).ok
+    const assetId = tuple[0]
+    const bucketPrincipal = tuple[1]
+    let bucketIdStr: string
+    try {
+      bucketIdStr = typeof bucketPrincipal === 'string' ? bucketPrincipal : bucketPrincipal.toText()
+    } catch {
+      bucketIdStr = String(bucketPrincipal)
+    }
+
+    // 4) Upload blob to bucket
+    const arrayBuf = await file.arrayBuffer()
+    const data = new Uint8Array(arrayBuf)
+    const resUpload = await uploadBlobToBucket(bucketIdStr, assetId, data, file.type || 'application/octet-stream')
+    if ('err' in resUpload) { throw new Error(resUpload.err) }
+
+    // 5) Link asset to track
+    const resSet = await setTrackAssets({ trackId, audioAssetId: assetId })
+    if ('err' in resSet) { throw new Error(resSet.err) }
+
+    setUploadMessage("Track published and audio uploaded successfully.")
+    // Reset minimal fields
+    setFile(null)
+    setTitle("")
+    setArtistName("")
+    setGenre("")
+    setDescription("")
+  }
+
   useEffect(() => {
     // Check authentication and onboarding
     const walletConnected = localStorage.getItem("walletConnected")
     const onboardingComplete = localStorage.getItem("onboardingComplete")
+    const icIdentity = localStorage.getItem("icIdentity")
 
-    if (!walletConnected) {
+    // Allow access if either wallet flow finished onboarding OR IC identity exists (II/NFID login)
+    if (!walletConnected && !icIdentity) {
       router.push("/auth")
       return
     }
 
-    if (!onboardingComplete) {
+    // If user is on wallet flow but hasn't finished onboarding, send to onboarding
+    if (walletConnected && !onboardingComplete) {
       router.push("/onboarding")
       return
     }
@@ -99,8 +226,26 @@ export default function ArtistDashboard() {
       if (address) {
         setWalletAddress(address)
       }
+
+      // If authenticated via II/NFID without wallet onboarding, attach a default fan profile
+      if (!currentUser && icIdentity) {
+        // Prefer a known fan (id "3") else the first fan in users
+        const defaultFan = (mockDB.getUserById("3") || mockDB.getUsers().find((u: any) => u.userType === "fan")) as any
+        if (defaultFan) {
+          mockDB.setCurrentUser(defaultFan)
+          setUserProfile(defaultFan)
+          setWalletAddress(defaultFan.walletAddress || "")
+        }
+      }
     }
   }, [router])
+
+  // Restrict dashboard access to artists only
+  useEffect(() => {
+    if (userProfile && userProfile.userType !== 'artist') {
+      router.replace('/')
+    }
+  }, [userProfile, router])
 
   const getUserStats = () => {
     if (!userProfile) return { earnings: 0, streams: 0, followers: 0, tokens: 0 }
@@ -445,7 +590,12 @@ export default function ArtistDashboard() {
                 </div>
 
                 <div className="flex justify-end space-x-4">
-                  <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-gray-600 text-gray-300 bg-transparent"
+                    onClick={saveDraft}
+                  >
                     Save as Draft
                   </Button>
                   <Button
@@ -457,57 +607,16 @@ export default function ArtistDashboard() {
                       if (!title) { setUploadMessage("Please enter a track title."); return }
                       try {
                         setUploading(true)
-                        // 1) Create track in backend (placeholder fields for now)
-                        const resultTrack = await createTrack({
-                          title,
-                          duration: "0:00",
-                          genre: genre || "",
-                          coverImage: "",
-                          audioUrl: "",
-                          price: 0,
-                          releaseDate: new Date().toISOString().slice(0, 10),
-                          description: description || "",
-                        })
-                        if ('err' in resultTrack) { throw new Error(resultTrack.err) }
-                        const createdTrack = (resultTrack as any).ok
-                        const trackId: bigint = createdTrack.id
-
-                        // 2) Create storage asset for audio
-                        const ext = file.name.includes('.') ? file.name.split('.').pop() || '' : ''
-                        const resCreate = await createStorageAsset({
-                          mediaType: { audio: null },
-                          ext,
-                          size: file.size,
-                          contentType: file.type || 'application/octet-stream',
-                        })
-                        if ('err' in resCreate) { throw new Error(resCreate.err) }
-                        const tuple = (resCreate as any).ok as [bigint, any]
-                        const assetId = tuple[0]
-                        const bucketPrincipal = tuple[1]
-                        let bucketIdStr: string
-                        try {
-                          bucketIdStr = typeof bucketPrincipal === 'string' ? bucketPrincipal : bucketPrincipal.toText()
-                        } catch {
-                          bucketIdStr = String(bucketPrincipal)
+                        // 0) Ensure IC identity is authenticated; if not, show auth prompt
+                        const { isAuthenticated: icIsAuthenticated } = await import("@/lib/ic/auth")
+                        const authed = await icIsAuthenticated().catch(() => false)
+                        if (!authed) {
+                          setUploading(false)
+                          setUploadMessage("Login required: Internet Identity or NFID.")
+                          setShowAuthPrompt(true)
+                          return
                         }
-
-                        // 3) Upload blob to bucket
-                        const arrayBuf = await file.arrayBuffer()
-                        const data = new Uint8Array(arrayBuf)
-                        const resUpload = await uploadBlobToBucket(bucketIdStr, assetId as any, data, file.type || 'application/octet-stream')
-                        if ('err' in resUpload) { throw new Error(resUpload.err) }
-
-                        // 4) Link asset to track
-                        const resSet = await setTrackAssets({ trackId: trackId as any, audioAssetId: assetId as any })
-                        if ('err' in resSet) { throw new Error(resSet.err) }
-
-                        setUploadMessage("Track published and audio uploaded successfully.")
-                        // Reset minimal fields
-                        setFile(null)
-                        setTitle("")
-                        setArtistName("")
-                        setGenre("")
-                        setDescription("")
+                        await publishWithIc()
                       } catch (e: any) {
                         setUploadMessage(`Upload failed: ${e?.message || e}`)
                       } finally {
@@ -632,6 +741,85 @@ export default function ArtistDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+      {/* Auth Prompt Modal */}
+      {showAuthPrompt && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => {
+            // Close on backdrop click
+            setShowAuthPrompt(false)
+            setAuthError(null)
+            setUploading(false)
+          }}
+        >
+          <div
+            className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-lg p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-white text-lg font-semibold mb-1">Login required</div>
+            <div className="text-gray-300 text-sm mb-4">Please authenticate with an Internet Computer identity to publish your track.</div>
+            {authError && <div className="text-red-300 text-sm mb-3">{authError}</div>}
+            <div className="flex gap-3 flex-wrap">
+              <Button disabled={authInProgress} className="bg-purple-600 hover:bg-purple-700" onClick={async () => {
+                setAuthError(null)
+                setAuthInProgress(true)
+                try {
+                  await loginWithII()
+                  const authed = await waitForIcAuth()
+                  if (!authed) {
+                    setAuthError('Internet Identity login was cancelled or timed out. Please try again.')
+                    return
+                  }
+                  setShowAuthPrompt(false)
+                  setUploadMessage('Authenticated. Continuing publish...')
+                  setUploading(true)
+                  await publishWithIc()
+                } catch (e: any) {
+                  setAuthError(e?.message || String(e))
+                } finally {
+                  setAuthInProgress(false)
+                  setUploading(false)
+                }
+              }}>Login with Internet Identity</Button>
+              <Button disabled={authInProgress} variant="outline" className="border-gray-600 text-gray-200" onClick={async () => {
+                setAuthError(null)
+                setAuthInProgress(true)
+                try {
+                  await loginWithNFID()
+                  const authed = await waitForIcAuth()
+                  if (!authed) {
+                    setAuthError('NFID login was cancelled or timed out. Please try again.')
+                    return
+                  }
+                  setShowAuthPrompt(false)
+                  setUploadMessage('Authenticated. Continuing publish...')
+                  setUploading(true)
+                  await publishWithIc()
+                } catch (e: any) {
+                  setAuthError(e?.message || String(e))
+                } finally {
+                  setAuthInProgress(false)
+                  setUploading(false)
+                }
+              }}>Login with NFID</Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-gray-300 hover:text-white ml-auto"
+                onClick={() => {
+                  setShowAuthPrompt(false)
+                  setAuthError(null)
+                  setUploading(false)
+                  setUploadMessage("")
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+            <div className="mt-4 text-xs text-gray-400">You can cancel and try again later.</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import type { ActorSubclass } from '@dfinity/agent'
-import { createActor, getDefaultHost } from './agent'
+import { createActor, getDefaultHost, shouldFetchRootKey } from './agent'
 import { getStorageBucketCanisterId, getStorageIndexCanisterId } from './canister'
 import type { Identity } from '@dfinity/agent'
 import { indexIdlFactory, bucketIdlFactory } from './storage_idl'
@@ -22,10 +22,11 @@ export function setStorageIdentity(identity?: Identity) {
 async function getIndexActor(): Promise<ActorSubclass<IndexService>> {
   if (!indexActorPromise) {
     const canisterId = await getStorageIndexCanisterId()
+    const host = getDefaultHost()
     indexActorPromise = createActor<IndexService>({
       canisterId,
-      host: getDefaultHost(),
-      fetchRootKey: process.env.NEXT_PUBLIC_DFX_NETWORK !== 'ic',
+      host,
+      fetchRootKey: shouldFetchRootKey(host),
       identity: currentIdentity,
       idlFactoryOverride: indexIdlFactory,
     })
@@ -36,10 +37,11 @@ async function getIndexActor(): Promise<ActorSubclass<IndexService>> {
 async function getBucketActor(): Promise<ActorSubclass<BucketService>> {
   if (!bucketActorPromise) {
     const canisterId = await getStorageBucketCanisterId()
+    const host = getDefaultHost()
     bucketActorPromise = createActor<BucketService>({
       canisterId,
-      host: getDefaultHost(),
-      fetchRootKey: process.env.NEXT_PUBLIC_DFX_NETWORK !== 'ic',
+      host,
+      fetchRootKey: shouldFetchRootKey(host),
       identity: currentIdentity,
       idlFactoryOverride: bucketIdlFactory,
     })
@@ -54,7 +56,7 @@ async function getBucketActorFor(canisterId: string): Promise<ActorSubclass<Buck
       createActor<BucketService>({
         canisterId,
         host: getDefaultHost(),
-        fetchRootKey: process.env.NEXT_PUBLIC_DFX_NETWORK !== 'ic',
+        fetchRootKey: shouldFetchRootKey(getDefaultHost()),
         identity: currentIdentity,
         idlFactoryOverride: bucketIdlFactory,
       })

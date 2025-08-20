@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Music, Search, Play, Users, Star, Clock, Globe } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
+import { fromCandidTrack, fromCandidUser } from "@/lib/mappers"
+import type { TrackModel, UserModel } from "@/lib/types"
 
 export default function DiscoverPage() {
-  const [featuredArtists, setFeaturedArtists] = useState<any[]>([])
-  const [allTracks, setAllTracks] = useState<any[]>([])
+  const [featuredArtists, setFeaturedArtists] = useState<UserModel[]>([])
+  const [allTracks, setAllTracks] = useState<TrackModel[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,47 +25,22 @@ export default function DiscoverPage() {
         const { listTracks, getUser } = await import("@/lib/ic/backend")
         const tracksRes = await listTracks()
         if (!mounted) return
-        // Normalize tracks for UI
-        const uiTracks = (tracksRes || []).map((t: any) => ({
-          id: Number(t.id),
-          title: t.title,
-          artist: t.artist, // Principal
-          duration: t.duration,
-          genre: t.genre,
-          coverImage: t.coverImage,
-          audioUrl: t.audioUrl,
-          plays: Number(t.plays ?? 0),
-          likes: Number(t.likes ?? 0),
-          price: Number(t.price ?? 0),
-          releaseDate: t.releaseDate,
-          description: t.description,
-          audioAssetId: t.audioAssetId?.[0],
-          imageAssetId: t.imageAssetId?.[0],
-        }))
+        // Normalize tracks for UI using mappers
+        const uiTracks: TrackModel[] = (tracksRes || []).map((t: any) => fromCandidTrack(t))
         setAllTracks(uiTracks)
 
         // Derive featured artists from unique principals in tracks
-        const principals = Array.from(new Set(uiTracks.map((tr) => tr.artist?.toText?.() ?? String(tr.artist))))
-        const artistUsers: any[] = []
+        const principals = Array.from(new Set(uiTracks.map((tr) => tr.artist)))
+        const artistUsers: UserModel[] = []
         for (const p of principals) {
           try {
             const uOpt = await getUser(p)
-            const u = uOpt?.[0] ?? uOpt // handle candid optional variants
-            if (u && ("artist" in u.userType)) {
-              artistUsers.push({
-                id: u.owner?.toText?.() ?? p,
-                displayName: u.displayName,
-                userType: "artist",
-                bio: u.bio,
-                location: u.location,
-                genres: u.genres,
-                profileImage: u.profileImage,
-                isVerified: Boolean(u.isVerified),
-                followers: Number(u.followers ?? 0),
-                following: Number(u.following ?? 0),
-                mccBalance: Number(u.balance ?? 0),
-                joinedDate: Number(u.joinedTimestamp ?? 0),
-              })
+            const u = (Array.isArray(uOpt) ? uOpt[0] : uOpt) as any | undefined
+            if (u) {
+              const mapped = fromCandidUser(u)
+              if (mapped.userType === 'artist') {
+                artistUsers.push(mapped)
+              }
             }
           } catch {}
         }
@@ -148,7 +125,7 @@ export default function DiscoverPage() {
           <div className="grid md:grid-cols-3 gap-6">
             {featuredArtists.map((artist) => (
               <Card
-                key={artist.id}
+                key={artist.owner}
                 className="bg-gray-800 border-gray-700 hover:border-purple-600/50 transition-colors"
               >
                 <CardContent className="p-6 text-center">
@@ -172,11 +149,11 @@ export default function DiscoverPage() {
                     <div className="flex items-center justify-center space-x-4">
                       <div className="flex items-center space-x-1">
                         <Users className="h-3 w-3" />
-                        <span>{artist.followers.toLocaleString()}</span>
+                        <span>{Number(artist.followers).toLocaleString()}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Play className="h-3 w-3" />
-                        <span>{(artist.monthlyListeners || 0).toLocaleString()}</span>
+                        <span>{0}</span>
                       </div>
                     </div>
                     <p className="text-xs">{artist.location}</p>

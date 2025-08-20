@@ -108,11 +108,13 @@ export default function Navigation({ currentPage }: NavigationProps) {
                       <p className="text-xs text-gray-400 capitalize">{user.userType}</p>
                     </div>
                     <DropdownMenuSeparator className="bg-gray-700" />
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="text-gray-300 hover:text-white">
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
+                    {user.userType === 'artist' && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                          Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => setProfileOpen(true)} className="text-gray-300 focus:text-white">
                       Profile
                     </DropdownMenuItem>
@@ -195,13 +197,15 @@ export default function Navigation({ currentPage }: NavigationProps) {
                         </div>
                       </div>
                     </div>
-                    <Link
-                      href="/dashboard"
-                      className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
+                    {user.userType === 'artist' && (
+                      <Link
+                        href="/dashboard"
+                        className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-3 py-2 text-red-400 hover:text-red-300 transition-colors"

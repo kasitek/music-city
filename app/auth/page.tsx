@@ -83,7 +83,8 @@ export default function AuthPage() {
             onClick={async () => {
               try {
                 await loginWithII()
-                toast.success("Signed in with Internet Identity. Now connect your wallet to continue onboarding.")
+                toast.success("Signed in with Internet Identity")
+                router.push("/dashboard")
               } catch (e) {
                 toast.error("Internet Identity sign-in failed")
               }
@@ -96,7 +97,8 @@ export default function AuthPage() {
             onClick={async () => {
               try {
                 await loginWithNFID()
-                toast.success("Signed in with NFID. Now connect your wallet to continue onboarding.")
+                toast.success("Signed in with NFID")
+                router.push("/dashboard")
               } catch (e) {
                 toast.error("NFID sign-in failed")
               }

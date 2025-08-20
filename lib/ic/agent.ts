@@ -37,3 +37,20 @@ export function getDefaultHost(): string | undefined {
   // Mainnet boundary node
   return 'https://icp0.io'
 }
+
+// Decide whether to fetch the root key for certificate validation in dev.
+// We enable it when connecting to a local replica even if NEXT_PUBLIC_DFX_NETWORK is not set.
+export function shouldFetchRootKey(host?: string): boolean {
+  const net = process.env.NEXT_PUBLIC_DFX_NETWORK
+  if (net && net === 'ic') return false
+  const h = host ?? getDefaultHost() ?? ''
+  // Treat common local dev hosts as requiring root key fetch
+  // Includes 127.0.0.1, localhost, 0.0.0.0, and typical LAN IPs
+  const isLocal = (
+    h.includes('127.0.0.1') ||
+    h.includes('localhost') ||
+    h.includes('0.0.0.0') ||
+    /http:\/\/(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(h)
+  )
+  return isLocal
+}

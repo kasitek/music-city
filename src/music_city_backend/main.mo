@@ -14,7 +14,7 @@ import Tx "./txs";
 import C "./constants";
 
 actor {
-  // Stable storage
+  
   stable var users : [(Principal, T.User)] = [];
   stable var tracks : [T.Track] = [];
   stable var nfts : [T.NFT] = [];

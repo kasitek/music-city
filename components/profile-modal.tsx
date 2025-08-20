@@ -53,13 +53,14 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                     </div>
                     <div className="mt-1 flex items-center gap-4 text-gray-300 text-sm">
                       <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" /> {user.location || "Unknown"}
+                        <MapPin className="h-3.5 w-3.5" /> {(user.location && user.location.trim()) || "Unknown"}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Music2 className="h-3.5 w-3.5" /> {user.genres?.[0] || "Music"}
+                        <Music2 className="h-3.5 w-3.5" />
+                        {Array.isArray(user.genres) && user.genres.length > 0 ? user.genres[0] : "Music"}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Wallet className="h-3.5 w-3.5" /> {user.mccBalance} MCC
+                        <Wallet className="h-3.5 w-3.5" /> {new Intl.NumberFormat().format(user.mccBalance || 0)} MCC
                       </span>
                     </div>
                   </div>
@@ -74,7 +75,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 )}
 
                 {/* Genres */}
-                {user.genres?.length ? (
+                {Array.isArray(user.genres) && user.genres.length ? (
                   <div>
                     <h4 className="text-white font-medium mb-2">Genres</h4>
                     <div className="flex flex-wrap gap-2">
@@ -89,18 +90,18 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="p-3 rounded-lg bg-gray-700/50 border border-gray-700">
                     <div className="text-gray-400">Followers</div>
-                    <div className="text-white font-semibold">{user.followers?.toLocaleString?.() || 0}</div>
+                    <div className="text-white font-semibold">{new Intl.NumberFormat().format(user.followers || 0)}</div>
                   </div>
                   <div className="p-3 rounded-lg bg-gray-700/50 border border-gray-700">
                     <div className="text-gray-400">Following</div>
-                    <div className="text-white font-semibold">{user.following?.toLocaleString?.() || 0}</div>
+                    <div className="text-white font-semibold">{new Intl.NumberFormat().format(user.following || 0)}</div>
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="flex justify-between items-center pt-2">
                   <div className="text-xs text-gray-400">
-                    Joined {new Date(user.joinedDate).toLocaleDateString()}
+                    Joined {new Date(user.joinedDate || Date.now()).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent" onClick={onClose}>

@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState } from "react"
 import { mockDB, type User } from "@/lib/mock-database"
 import { isAuthenticated as icIsAuthenticated, loginInternetIdentity, loginNFID, logout as icLogout, getIdentity } from "@/lib/ic/auth"
 import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
-import { setStorageIdentity } from "@/lib/ic/storage"
+import { setStorageIdentity, setBucketPrincipal } from "@/lib/ic/storage"
 
 interface AuthContextType {
   user: User | null
@@ -57,6 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (id) {
             setBackendIdentity(id)
             setStorageIdentity(id)
+            // Initialize storage index with the bucket canister principal (one-time setup per replica)
+            setBucketPrincipal().catch(() => { /* ignore init errors here; can retry on demand */ })
           }
         }
       }).catch(() => {/* ignore */})
@@ -100,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const identity = await loginInternetIdentity()
       setBackendIdentity(identity)
       setStorageIdentity(identity)
+      await setBucketPrincipal().catch(() => { /* ignore; user can retry uploads */ })
       // Persist a hint so UI can reflect logged-in state even without wallet
       localStorage.setItem("icIdentity", "true")
     } catch (e: any) {
@@ -117,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const identity = await loginNFID()
       setBackendIdentity(identity)
       setStorageIdentity(identity)
+      await setBucketPrincipal().catch(() => { /* ignore; user can retry uploads */ })
       localStorage.setItem("icIdentity", "true")
     } catch (e: any) {
       const msg = e?.message || String(e)

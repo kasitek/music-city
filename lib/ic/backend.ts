@@ -1,11 +1,12 @@
 import type { ActorSubclass } from '@dfinity/agent'
-import { createActor, getDefaultHost } from './agent'
+import { createActor, getDefaultHost, shouldFetchRootKey } from './agent'
 import { getBackendCanisterId } from './canister'
 import type { _SERVICE } from './idl'
 import type { Identity } from '@dfinity/agent'
 
 let actorPromise: Promise<ActorSubclass<_SERVICE>> | null = null
 let currentIdentity: Identity | undefined
+let loggedConfig = false
 
 export function setIdentity(identity?: Identity) {
   currentIdentity = identity
@@ -16,12 +17,17 @@ export function setIdentity(identity?: Identity) {
 async function getActor(): Promise<ActorSubclass<_SERVICE>> {
   if (!actorPromise) {
     const canisterId = await getBackendCanisterId()
+    const host = getDefaultHost()
     actorPromise = createActor<_SERVICE>({
       canisterId,
-      host: getDefaultHost(),
-      fetchRootKey: process.env.NEXT_PUBLIC_DFX_NETWORK !== 'ic',
+      host,
+      fetchRootKey: shouldFetchRootKey(host),
       identity: currentIdentity,
     })
+    if (!loggedConfig) {
+      console.info('[IC backend] creating actor', { canisterId, host, fetchRootKey: shouldFetchRootKey(host) })
+      loggedConfig = true
+    }
   }
   return actorPromise
 }

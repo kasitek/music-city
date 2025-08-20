@@ -9,31 +9,34 @@ import { useEffect, useRef, useState } from "react"
 import { listTracks, streamTrack } from "@/lib/ic/backend"
 import { getData } from "@/lib/ic/storage"
 import { Navigation } from "@/components/navigation"
+import { fromCandidTrack } from "@/lib/mappers"
+import type { TrackModel } from "@/lib/types"
 
 export default function StreamingPage() {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTrack, setCurrentTrack] = useState<any>(null)
-  const [tracks, setTracks] = useState<any[]>([])
+  const [currentTrack, setCurrentTrack] = useState<TrackModel | null>(null)
+  const [tracks, setTracks] = useState<TrackModel[]>([])
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     // Load tracks from backend canister
     listTracks()
-      .then((res: any) => {
-        setTracks(res as any[])
+      .then((res: any[]) => {
+        const mapped = (res || []).map((t: any) => fromCandidTrack(t))
+        setTracks(mapped)
       })
       .catch(() => {
         // leave empty gracefully if backend not available
       })
   }, [])
 
-  const loadAndPlay = async (track: any) => {
+  const loadAndPlay = async (track: TrackModel) => {
     try {
       setCurrentTrack(track)
       setIsPlaying(false)
       // Expect optional audioAssetId on track
-      const assetId = (track as any).audioAssetId?.[0]
+      const assetId = track.audioAssetId
       if (!assetId) {
         console.warn("No audio asset linked to this track")
         return
@@ -153,14 +156,14 @@ export default function StreamingPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-gray-400">{track.duration || "3:45"}</div>
-                          <div className="text-xs text-gray-500">{(track.plays || 0).toLocaleString()} plays</div>
+                          <div className="text-xs text-gray-500">{Number(track.plays || 0).toLocaleString()} plays</div>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <Badge className="bg-gray-700 text-gray-300">{track.genre || "Music"}</Badge>
-                      <div className="text-sm text-yellow-400">{track.price || 0} MCC</div>
+                      <div className="text-sm text-yellow-400">{Number(track.price || 0)} MCC</div>
                     </div>
 
                     <div className="flex items-center space-x-2">

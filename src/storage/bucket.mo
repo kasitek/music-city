@@ -2,8 +2,7 @@ import Array "mo:base/Array";
 import Result "mo:base/Result";
 
 actor {
-  // Minimal bucket storing entire blobs per asset for now (MVP).
-  // We can extend to chunked assembly and HTTP range later.
+  
 
   public type AssetId = Nat;
   public type Blob = [Nat8];
