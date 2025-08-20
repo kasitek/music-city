@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +28,42 @@ export default function ArtistDashboard() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState<string>("")
+
+  // Drag & Drop state
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const handleFiles = (files: FileList | null) => {
+    const f = files?.[0] || null
+    if (!f) { setFile(null); return }
+    if (!f.type.startsWith("audio/")) {
+      setUploadMessage("Invalid file type. Please upload an audio file (MP3, WAV, FLAC).")
+      return
+    }
+    setUploadMessage("")
+    setFile(f)
+  }
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    handleFiles(e.dataTransfer.files)
+  }
+
+  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Explicitly show copy effect
+    e.dataTransfer.dropEffect = "copy"
+    setIsDragging(true)
+  }
+
+  const onDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
 
   useEffect(() => {
     // Check authentication and onboarding
@@ -365,26 +401,46 @@ export default function ArtistDashboard() {
                 </div>
 
                 {/* File Upload */}
-                <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isDragging ? "border-purple-500 bg-purple-500/10" : "border-gray-600"
+                  }`}
+                  onDrop={onDrop}
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Upload audio file by dropping it here or clicking to browse"
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      fileInputRef.current?.click()
+                    }
+                  }}
+                >
                   <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <div className="text-lg font-medium text-white mb-2">Drop your audio file here</div>
+                  <div className="text-lg font-medium text-white mb-2">
+                    {file ? `Selected: ${file.name}` : "Drop your audio file here"}
+                  </div>
                   <div className="text-gray-400 mb-4">or click to browse (MP3, WAV, FLAC)</div>
-                  <label className="inline-block">
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] || null
-                        setFile(f || null)
-                      }}
-                    />
-                    <Button type="button" className="bg-purple-600 hover:bg-purple-700">
-                      {file ? `Selected: ${file.name}` : "Choose File"}
-                    </Button>
-                  </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  <Button type="button" className="bg-purple-600 hover:bg-purple-700" onClick={() => fileInputRef.current?.click()}>
+                    {file ? "Change File" : "Choose File"}
+                  </Button>
+                  {file && (
+                    <div className="mt-3 text-sm text-gray-300">
+                      Size: {(file.size / (1024 * 1024)).toFixed(2)} MB • Type: {file.type || "unknown"}
+                    </div>
+                  )}
                   {uploadMessage && (
-                    <div className="mt-3 text-sm text-gray-300">{uploadMessage}</div>
+                    <div className="mt-3 text-sm text-red-300">{uploadMessage}</div>
                   )}
                 </div>
 

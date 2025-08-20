@@ -7,31 +7,57 @@ import { Input } from "@/components/ui/input"
 import { Music, Search, Users, DollarSign, TrendingUp, Star, Play, Heart, Share2 } from 'lucide-react'
 import Link from "next/link"
 
-// Add import at the top
-import { mockDB } from "@/lib/mock-database"
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
+import { listArtists } from "@/lib/ic/backend"
 
 export default function ArtistsPage() {
   // Add state and useEffect:
   const [topArtists, setTopArtists] = useState<any[]>([])
   const [newArtists, setNewArtists] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    mockDB.initializeDatabase()
+    let mounted = true
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await listArtists()
+        if (!mounted) return
+        const artists = (res || []).map((u: any) => ({
+          id: u.owner?.toText?.() ?? String(u.owner),
+          displayName: u.displayName,
+          userType: "artist",
+          bio: u.bio,
+          location: u.location,
+          genres: u.genres,
+          profileImage: u.profileImage,
+          isVerified: Boolean(u.isVerified),
+          followers: Number(u.followers ?? 0),
+          following: Number(u.following ?? 0),
+          mccBalance: Number(u.balance ?? 0),
+          joinedDate: Number(u.joinedTimestamp ?? 0),
+        }))
 
-    const users = mockDB.getUsers()
-    const artists = users.filter((user) => user.userType === "artist")
+        // Deduplicate by principal/id just in case
+        const uniqueArtists = Array.from(new Map(artists.map((a: any) => [String(a.id).toLowerCase(), a])).values())
 
-    // Sort by mccBalance for top artists (since totalEarnings doesn't exist)
-    const sortedByEarnings = [...artists].sort((a, b) => (b.mccBalance || 0) - (a.mccBalance || 0))
-    setTopArtists(sortedByEarnings)
-
-    // Get newest artists (by joinedDate, not joinDate)
-    const sortedByJoinDate = [...artists].sort(
-      (a, b) => new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime(),
-    )
-    setNewArtists(sortedByJoinDate.slice(0, 3))
+        const sortedByEarnings = [...uniqueArtists].sort((a: any, b: any) => (b.mccBalance || 0) - (a.mccBalance || 0))
+        const sortedByJoin = [...uniqueArtists].sort((a: any, b: any) => (b.joinedDate || 0) - (a.joinedDate || 0))
+        if (!mounted) return
+        setTopArtists(sortedByEarnings)
+        setNewArtists(sortedByJoin.slice(0, 3))
+      } catch (e: any) {
+        if (!mounted) return
+        setError(e?.message || "Failed to load artists")
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    load()
+    return () => { mounted = false }
   }, [])
 
   return (

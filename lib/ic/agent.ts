@@ -27,6 +27,10 @@ export async function createActor<T = Service>({ canisterId, host, fetchRootKey,
 }
 
 export function getDefaultHost(): string | undefined {
+  // If explicit host is provided, use it (helps across Windows/WSL boundary)
+  const explicit = process.env.NEXT_PUBLIC_IC_HOST
+  if (explicit) return explicit
+
   // Use NEXT_PUBLIC_DFX_NETWORK to decide local vs ic
   const net = process.env.NEXT_PUBLIC_DFX_NETWORK
   if (!net || net === 'local') return 'http://127.0.0.1:4943'

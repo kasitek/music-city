@@ -96,18 +96,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const loginWithII = async () => {
-    const identity = await loginInternetIdentity()
-    setBackendIdentity(identity)
-    setStorageIdentity(identity)
-    // Persist a hint so UI can reflect logged-in state even without wallet
-    localStorage.setItem("icIdentity", "true")
+    try {
+      const identity = await loginInternetIdentity()
+      setBackendIdentity(identity)
+      setStorageIdentity(identity)
+      // Persist a hint so UI can reflect logged-in state even without wallet
+      localStorage.setItem("icIdentity", "true")
+    } catch (e: any) {
+      const msg = e?.message || String(e)
+      if (msg.includes("User closed the modal")) {
+        // Silent cancel: user dismissed the login modal. Allow retry without error noise.
+        return
+      }
+      throw e
+    }
   }
 
   const loginWithNFID = async () => {
-    const identity = await loginNFID()
-    setBackendIdentity(identity)
-    setStorageIdentity(identity)
-    localStorage.setItem("icIdentity", "true")
+    try {
+      const identity = await loginNFID()
+      setBackendIdentity(identity)
+      setStorageIdentity(identity)
+      localStorage.setItem("icIdentity", "true")
+    } catch (e: any) {
+      const msg = e?.message || String(e)
+      if (msg.includes("User closed the modal")) {
+        // Silent cancel
+        return
+      }
+      throw e
+    }
   }
 
   const logout = () => {

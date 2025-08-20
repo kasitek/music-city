@@ -5,25 +5,79 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Music, Search, Play, Users, Star, Clock, Globe } from "lucide-react"
-import { mockDB } from "@/lib/mock-database"
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 
 export default function DiscoverPage() {
   const [featuredArtists, setFeaturedArtists] = useState<any[]>([])
   const [allTracks, setAllTracks] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    mockDB.initializeDatabase()
+    let mounted = true
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const { listTracks, getUser } = await import("@/lib/ic/backend")
+        const tracksRes = await listTracks()
+        if (!mounted) return
+        // Normalize tracks for UI
+        const uiTracks = (tracksRes || []).map((t: any) => ({
+          id: Number(t.id),
+          title: t.title,
+          artist: t.artist, // Principal
+          duration: t.duration,
+          genre: t.genre,
+          coverImage: t.coverImage,
+          audioUrl: t.audioUrl,
+          plays: Number(t.plays ?? 0),
+          likes: Number(t.likes ?? 0),
+          price: Number(t.price ?? 0),
+          releaseDate: t.releaseDate,
+          description: t.description,
+          audioAssetId: t.audioAssetId?.[0],
+          imageAssetId: t.imageAssetId?.[0],
+        }))
+        setAllTracks(uiTracks)
 
-    // Get all users who are artists
-    const users = mockDB.getUsers()
-    const artists = users.filter((user) => user.userType === "artist")
-    setFeaturedArtists(artists)
-
-    // Get all tracks
-    const tracks = mockDB.getTracks()
-    setAllTracks(tracks)
+        // Derive featured artists from unique principals in tracks
+        const principals = Array.from(new Set(uiTracks.map((tr) => tr.artist?.toText?.() ?? String(tr.artist))))
+        const artistUsers: any[] = []
+        for (const p of principals) {
+          try {
+            const uOpt = await getUser(p)
+            const u = uOpt?.[0] ?? uOpt // handle candid optional variants
+            if (u && ("artist" in u.userType)) {
+              artistUsers.push({
+                id: u.owner?.toText?.() ?? p,
+                displayName: u.displayName,
+                userType: "artist",
+                bio: u.bio,
+                location: u.location,
+                genres: u.genres,
+                profileImage: u.profileImage,
+                isVerified: Boolean(u.isVerified),
+                followers: Number(u.followers ?? 0),
+                following: Number(u.following ?? 0),
+                mccBalance: Number(u.balance ?? 0),
+                joinedDate: Number(u.joinedTimestamp ?? 0),
+              })
+            }
+          } catch {}
+        }
+        if (!mounted) return
+        setFeaturedArtists(artistUsers)
+      } catch (e: any) {
+        if (!mounted) return
+        setError(e?.message || "Failed to load data")
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    load()
+    return () => { mounted = false }
   }, [])
 
   const trendingPlaylists = [

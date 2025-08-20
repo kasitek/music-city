@@ -31,9 +31,10 @@ export default function Web3Auth({ onConnect, onDisconnect, isConnected, address
         setIsInitializing(true)
         await initWeb3Auth()
         setIsInitialized(true)
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to initialize Web3Auth:", err)
-        setError("Failed to initialize Web3Auth")
+        const msg = err?.message || String(err)
+        setError(msg)
       } finally {
         setIsInitializing(false)
       }
@@ -65,7 +66,8 @@ export default function Web3Auth({ onConnect, onDisconnect, isConnected, address
       }
     } catch (err: any) {
       console.error("Failed to connect:", err)
-      setError("Failed to connect. Please try again.")
+      const msg = err?.message || String(err)
+      setError(msg)
     } finally {
       setIsLoading(false)
     }

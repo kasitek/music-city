@@ -12,6 +12,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { mockDB } from "@/lib/mock-database"
+import { registerUser as registerUserIC } from "@/lib/ic/backend"
+import { getIdentity } from "@/lib/ic/auth"
+import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
+import { toast } from "sonner"
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1)
@@ -71,18 +75,57 @@ export default function OnboardingPage() {
       // Initialize database with sample data
       mockDB.initializeDatabase()
 
-      // Create new user in mock database
-      const newUser = mockDB.createUser({
-        walletAddress,
-        userType: formData.userType as "artist" | "fan",
-        displayName: formData.displayName,
-        bio: formData.bio,
-        location: formData.location,
-        genres: formData.genres,
-        birthDate: formData.birthDate,
-        profileImage: formData.profileImage,
-        isVerified: false,
-      })
+      // Reuse existing user or create one if missing
+      const existing = walletAddress ? mockDB.getUserByWallet(walletAddress) : null
+      const user = existing
+        ? mockDB.updateUser(existing.id, {
+            userType: formData.userType as "artist" | "fan",
+            displayName: formData.displayName || existing.displayName,
+            bio: formData.bio ?? existing.bio,
+            location: formData.location || existing.location,
+            genres: formData.genres?.length ? formData.genres : existing.genres,
+            birthDate: formData.birthDate || existing.birthDate,
+            profileImage: formData.profileImage || existing.profileImage,
+          }) || existing
+        : mockDB.createUser({
+            walletAddress,
+            userType: formData.userType as "artist" | "fan",
+            displayName: formData.displayName,
+            bio: formData.bio,
+            location: formData.location,
+            genres: formData.genres,
+            birthDate: formData.birthDate,
+            profileImage: formData.profileImage,
+            isVerified: false,
+          })
+
+      if (user) {
+        mockDB.setCurrentUser(user)
+      }
+
+      // Best-effort: also register in IC backend so permissions (e.g., createTrack) work
+      try {
+        // Ensure IC identity is set on backend actor if available (II/NFID session)
+        try {
+          const id = getIdentity()
+          if (id) setBackendIdentity(id)
+        } catch {}
+        await registerUserIC({
+          displayName: formData.displayName,
+          userType: formData.userType === "artist" ? { artist: null } : { fan: null },
+          bio: formData.bio,
+          location: formData.location,
+          genres: formData.genres,
+          profileImage: formData.profileImage,
+          birthDate: formData.birthDate || null,
+        })
+        console.log("registerUser (IC) success")
+        toast.success(`Registered as ${formData.userType || "user"} on backend`)
+      } catch (e) {
+        // Non-blocking: proceed with mock login even if backend registration fails
+        console.warn("registerUser (IC) failed", e)
+        toast.error("Backend registration failed; continuing locally")
+      }
 
       // Login the user (this will set the auth context)
       await login(walletAddress)

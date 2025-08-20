@@ -80,6 +80,37 @@ module {
     }
   };
 
+  public func becomeArtist(users : [(Principal, T.User)], caller : Principal)
+    : Result.Result<([(Principal, T.User)], T.User), Text> {
+    switch (getUser(users, caller)) {
+      case null { #err("Not registered") };
+      case (?u) {
+        switch (u.userType) {
+          case (#artist) { #err("Already an artist") };
+          case (#fan) {
+            let updated : T.User = {
+              owner = u.owner;
+              displayName = u.displayName;
+              userType = #artist;
+              bio = u.bio;
+              location = u.location;
+              genres = u.genres;
+              profileImage = u.profileImage;
+              isVerified = u.isVerified;
+              followers = u.followers;
+              following = u.following;
+              balance = u.balance;
+              joinedTimestamp = u.joinedTimestamp;
+              birthDate = u.birthDate;
+            };
+            let users1 = upsert(users, caller, updated);
+            #ok((users1, updated))
+          }
+        }
+      }
+    }
+  };
+
   public func credit(users : [(Principal, T.User)], p : Principal, amount : Nat) : [(Principal, T.User)] {
     switch (getUser(users, p)) {
       case null { users };

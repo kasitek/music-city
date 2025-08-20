@@ -1,7 +1,15 @@
 import { Web3Auth } from "@web3auth/modal"
 import { CHAIN_NAMESPACES, IProvider, WEB3AUTH_NETWORK } from "@web3auth/base"
 
-const clientId = process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID || "BPrCo3pN9HwlKMczwQ0zVL7Jt4LG3kC8FljGGKlT7VW5SN4QM1VgZ6rN0Ll8xzOKo6Q8QjAk5dOc0QzV3QJ0n1"
+const clientId = process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID || ""
+const networkEnv = (process.env.NEXT_PUBLIC_WEB3AUTH_NETWORK || "sapphire_devnet").toLowerCase()
+const web3AuthNetwork =
+  networkEnv === "sapphire_mainnet"
+    ? WEB3AUTH_NETWORK.SAPPHIRE_MAINNET
+    : WEB3AUTH_NETWORK.SAPPHIRE_DEVNET
+
+const evmChainId = process.env.NEXT_PUBLIC_EVM_CHAIN_ID || "0xaa36a7" // Sepolia by default
+const evmRpc = process.env.NEXT_PUBLIC_EVM_RPC || "https://rpc.ankr.com/eth_sepolia"
 
 let web3auth: Web3Auth | null = null
 
@@ -9,9 +17,13 @@ export const initWeb3Auth = async (): Promise<void> => {
   try {
     if (web3auth) return
 
-    web3auth = new Web3Auth({
+    if (!clientId) {
+      const hint = `Missing NEXT_PUBLIC_WEB3AUTH_CLIENT_ID. Create .env.local and set it to your Web3Auth Dashboard Client ID.`
+      throw new Error(hint)
+    }
+    const options: any = {
       clientId,
-      web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
+      web3AuthNetwork,
       uiConfig: {
         appName: "Music City",
         mode: "dark",
@@ -20,20 +32,47 @@ export const initWeb3Auth = async (): Promise<void> => {
         defaultLanguage: "en",
         modalZIndex: "2147483647",
       },
-    })
+    }
 
-    await web3auth.init()
+    // Provide a default EVM chain config when supported (newer modal versions)
+    options.chainConfig = {
+      chainNamespace: CHAIN_NAMESPACES.EIP155,
+      chainId: evmChainId,
+      rpcTarget: evmRpc,
+    }
+
+    try {
+      web3auth = new Web3Auth(options as any)
+    } catch (ctorErr: any) {
+      const origin = typeof window !== "undefined" ? window.location.origin : "server"
+      const ctx = { origin, network: networkEnv, chainId: evmChainId }
+      console.error("Web3Auth constructor failed with context:", ctx)
+      throw ctorErr
+    }
+
+    // For newer versions use initModal, for older use init
+    const anyAuth = web3auth as any
+    if (typeof anyAuth.initModal === "function") {
+      await anyAuth.initModal()
+    } else {
+      await (web3auth as any).init()
+    }
   } catch (error) {
     console.error("Error initializing Web3Auth:", error)
     throw error
   }
 }
 
+export const ensureWeb3Auth = async (): Promise<void> => {
+  if (!web3auth) {
+    await initWeb3Auth()
+  }
+}
+
 export const connectWallet = async () => {
   try {
-    if (!web3auth) {
-      throw new Error("Web3Auth not initialized")
-    }
+    await ensureWeb3Auth()
+    if (!web3auth) throw new Error("Web3Auth not initialized")
     const web3authProvider = await web3auth.connect()
     return web3authProvider
   } catch (error) {

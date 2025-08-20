@@ -67,7 +67,9 @@ export const idlFactory = ({ IDL }: any) => {
     registerUser: IDL.Func([IDL.Text, UserType, IDL.Text, IDL.Text, IDL.Vec(IDL.Text), IDL.Text, IDL.Opt(IDL.Text)], [ResultUser], []),
     getMyUser: IDL.Func([], [IDL.Opt(User)], ['query']),
     getUser: IDL.Func([IDL.Principal], [IDL.Opt(User)], ['query']),
+    listArtists: IDL.Func([], [IDL.Vec(User)], ['query']),
     updateProfile: IDL.Func([IDL.Opt(IDL.Text), IDL.Opt(IDL.Text), IDL.Opt(IDL.Text), IDL.Opt(IDL.Vec(IDL.Text)), IDL.Opt(IDL.Text)], [ResultUser], []),
+    becomeArtist: IDL.Func([], [ResultUser], []),
 
     createTrack: IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text], [ResultTrack], []),
     listTracks: IDL.Func([], [IDL.Vec(Track)], ['query']),

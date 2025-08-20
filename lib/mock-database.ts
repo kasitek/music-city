@@ -287,6 +287,21 @@ class MockDatabase {
 
   // User methods
   createUser(userData: Partial<User>): User {
+    // Prevent duplicate accounts by wallet address
+    if (userData.walletAddress) {
+      const existing = this.getUserByWallet(userData.walletAddress)
+      if (existing) {
+        // Optionally merge provided fields into existing record
+        const merged: User = { ...existing, ...userData, id: existing.id }
+        const idx = this.users.findIndex((u) => u.id === existing.id)
+        if (idx !== -1) {
+          this.users[idx] = merged
+          this.saveToStorage()
+        }
+        return merged
+      }
+    }
+
     const newUser: User = {
       id: Date.now().toString(),
       walletAddress: userData.walletAddress || "",

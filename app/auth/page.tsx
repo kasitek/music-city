@@ -8,6 +8,7 @@ import Web3Auth from "@/components/web3-auth"
 import { useAuth } from "@/hooks/use-auth"
 import OnboardingModal from "@/components/onboarding-modal"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 
 export default function AuthPage() {
   const [isConnected, setIsConnected] = useState(false)
@@ -77,10 +78,30 @@ export default function AuthPage() {
 
         {/* II / NFID Sign-in */}
         <div className="grid grid-cols-1 gap-3">
-          <Button variant="default" onClick={() => loginWithII()}>
+          <Button
+            variant="default"
+            onClick={async () => {
+              try {
+                await loginWithII()
+                toast.success("Signed in with Internet Identity. Now connect your wallet to continue onboarding.")
+              } catch (e) {
+                toast.error("Internet Identity sign-in failed")
+              }
+            }}
+          >
             Sign in with Internet Identity
           </Button>
-          <Button variant="secondary" onClick={() => loginWithNFID()}>
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              try {
+                await loginWithNFID()
+                toast.success("Signed in with NFID. Now connect your wallet to continue onboarding.")
+              } catch (e) {
+                toast.error("NFID sign-in failed")
+              }
+            }}
+          >
             Sign in with NFID (email/social)
           </Button>
         </div>

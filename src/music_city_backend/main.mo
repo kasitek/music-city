@@ -48,6 +48,13 @@ actor {
   public shared query ({ caller }) func getMyUser() : async ?T.User { U.getUser(users, caller) };
   public shared query func getUser(p : Principal) : async ?T.User { U.getUser(users, p) };
 
+  public shared query func listArtists() : async [T.User] {
+    let onlyArtists = Array.filter<(Principal, T.User)>(users, func (kv) {
+      switch (kv.1.userType) { case (#artist) true; case (#fan) false }
+    });
+    Array.map<(Principal, T.User), T.User>(onlyArtists, func (kv) { kv.1 })
+  };
+
   public shared ({ caller }) func updateProfile(
     displayName : ?Text,
     bio : ?Text,
@@ -56,6 +63,13 @@ actor {
     profileImage : ?Text
   ) : async Result.Result<T.User, Text> {
     switch (U.updateProfile(users, caller, displayName, bio, location, genres, profileImage)) {
+      case (#ok((users1, updated))) { users := users1; #ok(updated) };
+      case (#err(e)) { #err(e) };
+    }
+  };
+
+  public shared ({ caller }) func becomeArtist() : async Result.Result<T.User, Text> {
+    switch (U.becomeArtist(users, caller)) {
       case (#ok((users1, updated))) { users := users1; #ok(updated) };
       case (#err(e)) { #err(e) };
     }

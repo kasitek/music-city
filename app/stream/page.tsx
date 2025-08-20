@@ -5,37 +5,58 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter } from 'lucide-react'
-import { useState, useEffect } from "react"
-import { mockDB } from "@/lib/mock-database"
+import { useEffect, useRef, useState } from "react"
+import { listTracks, streamTrack } from "@/lib/ic/backend"
+import { getData } from "@/lib/ic/storage"
 import { Navigation } from "@/components/navigation"
 
 export default function StreamingPage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTrack, setCurrentTrack] = useState<any>(null)
   const [tracks, setTracks] = useState<any[]>([])
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
-    mockDB.initializeDatabase()
-    const allTracks = mockDB.getTracks()
-    setTracks(allTracks)
+    // Load tracks from backend canister
+    listTracks()
+      .then((res: any) => {
+        setTracks(res as any[])
+      })
+      .catch(() => {
+        // leave empty gracefully if backend not available
+      })
   }, [])
 
-  const handleStream = (trackId: string) => {
-    // Get current user ID from localStorage (mock for now)
-    const walletAddress = localStorage.getItem("walletAddress")
-    const currentUser = mockDB.getCurrentUser()
-    const userId = currentUser?.id || "user_1" // Fallback to default user
-
-    // Simulate streaming
-    const success = mockDB.simulateStream(trackId, userId)
-
-    if (success) {
-      // Update tracks to reflect new play count
-      const updatedTracks = mockDB.getTracks()
-      setTracks(updatedTracks)
-
-      // Show some feedback
-      console.log("Track streamed! Artist earned tokens.")
+  const loadAndPlay = async (track: any) => {
+    try {
+      setCurrentTrack(track)
+      setIsPlaying(false)
+      // Expect optional audioAssetId on track
+      const assetId = (track as any).audioAssetId?.[0]
+      if (!assetId) {
+        console.warn("No audio asset linked to this track")
+        return
+      }
+      const bytesRes = await getData(assetId)
+      if (bytesRes && Array.isArray((bytesRes as any))) {
+        const u8 = new Uint8Array(bytesRes as any)
+        const blob = new Blob([u8], { type: "audio/mpeg" })
+        const url = URL.createObjectURL(blob)
+        // Revoke old URL
+        if (audioUrl) URL.revokeObjectURL(audioUrl)
+        setAudioUrl(url)
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.play().catch(() => {/* ignore */})
+          }
+        }, 0)
+        setIsPlaying(true)
+        // Record stream
+        await streamTrack(track.id)
+      }
+    } catch (e) {
+      console.warn("Playback failed", e)
     }
   }
 
@@ -114,10 +135,7 @@ export default function StreamingPage() {
                       <Button
                         size="sm"
                         className="absolute inset-0 bg-black/50 hover:bg-black/70 w-full h-full rounded-lg"
-                        onClick={() => {
-                          setCurrentTrack(track)
-                          setIsPlaying(!isPlaying)
-                        }}
+                        onClick={() => loadAndPlay(track)}
                       >
                         {isPlaying && currentTrack?.id === track.id ? (
                           <Pause className="h-4 w-4" />
@@ -155,7 +173,7 @@ export default function StreamingPage() {
                       <Button
                         size="sm"
                         className="bg-purple-600 hover:bg-purple-700"
-                        onClick={() => handleStream(track.id)}
+                        onClick={() => loadAndPlay(track)}
                       >
                         Stream
                       </Button>
@@ -190,7 +208,11 @@ export default function StreamingPage() {
                 <Button
                   size="sm"
                   className="bg-purple-600 hover:bg-purple-700"
-                  onClick={() => setIsPlaying(!isPlaying)}
+                  onClick={() => {
+                    if (!audioRef.current) return
+                    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false) }
+                    else { audioRef.current.play().catch(() => {/* ignore */}); setIsPlaying(true) }
+                  }}
                 >
                   {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </Button>
@@ -206,6 +228,8 @@ export default function StreamingPage() {
                 </div>
               </div>
             </div>
+            {/* Hidden audio element */}
+            <audio ref={audioRef} src={audioUrl ?? undefined} />
           </div>
         )}
       </div>

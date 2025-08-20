@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Image from "next/image"
+import ProfileModal from "@/components/profile-modal"
 
 interface NavigationProps {
   currentPage?: string
@@ -21,6 +22,7 @@ interface NavigationProps {
 
 export default function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const { user, isAuthenticated, logout } = useAuth()
 
   const handleLogout = () => {
@@ -111,10 +113,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
                         Dashboard
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile" className="text-gray-300 hover:text-white">
-                        Profile
-                      </Link>
+                    <DropdownMenuItem onClick={() => setProfileOpen(true)} className="text-gray-300 focus:text-white">
+                      Profile
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-gray-700" />
                     <DropdownMenuItem onClick={handleLogout} className="text-red-400 hover:text-red-300">
@@ -219,6 +219,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
           </div>
         )}
       </div>
+      {/* Modals */}
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </nav>
   )
 }

@@ -60,6 +60,11 @@ export async function getUser(principalText: string) {
   return a.getUser(principal)
 }
 
+export async function listArtists() {
+  const a = await getActor()
+  return a.listArtists()
+}
+
 export async function updateProfile(params: {
   displayName?: string
   bio?: string
@@ -76,6 +81,11 @@ export async function updateProfile(params: {
     opt(params.genres),
     opt(params.profileImage)
   )
+}
+
+export async function becomeArtist() {
+  const a = await getActor()
+  return a.becomeArtist()
 }
 
 // Tracks
