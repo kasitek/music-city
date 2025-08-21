@@ -16,10 +16,23 @@ export function getIdentity(): Identity | null {
 }
 
 export async function isAuthenticated(): Promise<boolean> {
-  const client = await getAuthClient()
-  const ok = await client.isAuthenticated()
-  currentIdentity = ok ? client.getIdentity() : null
-  return ok
+  try {
+    const client = await getAuthClient()
+    const ok = await client.isAuthenticated()
+    currentIdentity = ok ? client.getIdentity() : null
+    return ok
+  } catch (e) {
+    console.warn('Authentication check failed, clearing auth state:', e)
+    // Clear any stale authentication state
+    currentIdentity = null
+    try {
+      const client = await getAuthClient()
+      await client.logout()
+    } catch (logoutError) {
+      console.warn('Failed to logout during auth check:', logoutError)
+    }
+    return false
+  }
 }
 
 function getIIProvider(): string | undefined {

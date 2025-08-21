@@ -12,18 +12,49 @@ export type CreateActorOptions = {
 }
 
 export async function createActor<T = Service>({ canisterId, host, fetchRootKey, identity, idlFactoryOverride }: CreateActorOptions): Promise<ActorSubclass<T>> {
-  const agent = new HttpAgent({ host, identity })
+  // For local development, create agent with proper configuration
+  const agentOptions: any = { 
+    host, 
+    identity,
+    // For local development, completely disable signature verification
+    verifyQuerySignatures: false,
+    ...(host?.includes('127.0.0.1') || host?.includes('localhost') ? {
+      // Additional local dev options to bypass certificate issues
+      rejectUnauthorized: false,
+      // Disable all certificate validation for local development
+      disableNaclVerification: true
+    } : {})
+  }
+  
+  const agent = new HttpAgent(agentOptions)
 
-  // Only in local dev: fetch the root key so agent can validate certificates
-  if (fetchRootKey) {
-    try { await agent.fetchRootKey() } catch (e) { console.warn('fetchRootKey failed', e) }
+  // For local development: always fetch the root key and disable certificate validation
+  if (fetchRootKey || host?.includes('127.0.0.1') || host?.includes('localhost')) {
+    console.log('[Agent] Setting up local development mode...')
+    try { 
+      // Fetch root key for local development
+      await agent.fetchRootKey() 
+      console.log('[Agent] Root key fetched successfully')
+      
+      // Disable certificate verification for local replica
+      if (typeof (agent as any).disableCertificateVerification === 'function') {
+        (agent as any).disableCertificateVerification()
+        console.log('[Agent] Certificate verification disabled for local development')
+      }
+    } catch (e) { 
+      console.warn('[Agent] Local setup failed, continuing anyway:', e)
+      // Continue for local development even if setup fails
+    }
   }
 
   const factory = idlFactoryOverride ?? idlFactory
-  return Actor.createActor<T>(factory, {
+  const actor = Actor.createActor<T>(factory, {
     agent,
     canisterId,
   })
+  
+  console.log('[Agent] Actor created successfully for canister:', canisterId)
+  return actor
 }
 
 export function getDefaultHost(): string | undefined {

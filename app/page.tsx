@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Music, Zap, Shield, Globe, Play, ArrowRight, Sparkles, TrendingUp } from 'lucide-react'
+import { Music, Zap, Shield, Globe, Play, ArrowRight, Sparkles, TrendingUp, Upload, DollarSign, Coins, Award, Eye } from 'lucide-react'
 import Link from "next/link"
 import { Navigation } from "@/components/navigation"
 
@@ -68,56 +68,101 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Feature 1 */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-purple-500/50 transition-all duration-300 hover:scale-105 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <Zap className="h-8 w-8 text-white" />
+          {/* Key Features - Matching the screenshot requirements */}
+          <div className="space-y-8">
+            {/* Artist Dashboard */}
+            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-purple-500/50 transition-all duration-300 group">
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Upload className="h-8 w-8 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold mb-3 text-purple-300">Artist Dashboard</h3>
+                    <p className="text-gray-300 text-lg leading-relaxed">
+                      A platform where artists can upload their music, track earnings, and manage rights.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold mb-3">Instant Royalties</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  Get paid instantly when your music is streamed. No waiting, no delays.
-                </p>
               </CardContent>
             </Card>
 
-            {/* Feature 2 */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-purple-500/50 transition-all duration-300 hover:scale-105 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <Shield className="h-8 w-8 text-white" />
+            {/* Streaming Platform */}
+            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-green-500/50 transition-all duration-300 group">
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Play className="h-8 w-8 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold mb-3 text-green-300">Streaming Platform</h3>
+                    <p className="text-gray-300 text-lg leading-relaxed">
+                      For fans to stream music with a built-in payment system that rewards artists.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold mb-3">Unbreakable Security</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  Your music and earnings are protected by blockchain technology.
-                </p>
               </CardContent>
             </Card>
 
-            {/* Feature 3 */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-purple-500/50 transition-all duration-300 hover:scale-105 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <Music className="h-8 w-8 text-white" />
+            {/* Royalties Management */}
+            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-blue-500/50 transition-all duration-300 group">
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Eye className="h-8 w-8 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold mb-3 text-blue-300">Royalties Management</h3>
+                    <p className="text-gray-300 text-lg leading-relaxed">
+                      A transparent system for calculating and distributing royalties in real-time via smart contracts.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold mb-3">Direct Fan Power</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  Connect directly with fans who support your music journey.
-                </p>
               </CardContent>
             </Card>
 
-            {/* Feature 4 */}
-            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-purple-500/50 transition-all duration-300 hover:scale-105 group">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <Globe className="h-8 w-8 text-white" />
+            {/* Token Economy */}
+            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-yellow-500/50 transition-all duration-300 group">
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Coins className="h-8 w-8 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold mb-3 text-yellow-300">Token Economy</h3>
+                    <p className="text-gray-300 text-lg leading-relaxed">
+                      A native token to power the platform's economy, enabling artists to receive payments instantly.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold mb-3">Global Reach</h3>
-                <p className="text-gray-400 leading-relaxed">
-                  From Pop to Hip-Hop, reach global audiences without borders.
+              </CardContent>
+            </Card>
+
+            {/* NFT Integration */}
+            <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-pink-500/50 transition-all duration-300 group">
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Award className="h-8 w-8 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold mb-3 text-pink-300">NFT Integration</h3>
+                    <p className="text-gray-300 text-lg leading-relaxed">
+                      Artists can mint and sell music as NFTs for exclusive content or rights management.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Platform Impact */}
+            <Card className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 backdrop-blur-sm border-purple-500/30 mt-12">
+              <CardContent className="p-8 text-center">
+                <h3 className="text-2xl font-bold mb-4 text-white">Platform Impact</h3>
+                <p className="text-gray-300 text-lg leading-relaxed max-w-4xl mx-auto">
+                  This approach would reshape how music distribution works, potentially solving issues like low payouts 
+                  from traditional streaming services, lack of transparency in royalty distribution, and providing a more 
+                  direct connection between artists and their audiences.
                 </p>
               </CardContent>
             </Card>

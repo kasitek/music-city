@@ -1,7 +1,7 @@
 import Array "mo:base/Array";
 import Result "mo:base/Result";
 
-actor {
+persistent actor {
   
 
   public type AssetId = Nat;

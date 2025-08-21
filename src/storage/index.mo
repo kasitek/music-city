@@ -3,7 +3,7 @@ import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Result "mo:base/Result";
 
-actor {
+persistent actor {
   public type AssetId = Nat;
   public type BucketId = Principal; // for now, a single bucket; can expand later
 

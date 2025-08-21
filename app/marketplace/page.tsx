@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Music, Search, Coins, Crown, Zap, Eye, Heart, Filter, TrendingUp } from 'lucide-react'
 import Link from "next/link"
-import { mockDB } from "@/lib/mock-database"
+import { listNFTs } from "@/lib/ic/backend"
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 
@@ -14,9 +14,17 @@ export default function NFTMarketplace() {
   const [nfts, setNfts] = useState<any[]>([])
 
   useEffect(() => {
-    mockDB.initializeDatabase()
-    const allNFTs = mockDB.getNFTs()
-    setNfts(allNFTs)
+    // Load NFTs from IC backend
+    const loadNFTs = async () => {
+      try {
+        const icNFTs = await listNFTs()
+        setNfts(icNFTs || [])
+      } catch (e) {
+        console.error('Failed to load NFTs:', e)
+        setNfts([])
+      }
+    }
+    loadNFTs()
   }, [])
 
   const getRarityColor = (rarity: string) => {
@@ -76,7 +84,7 @@ export default function NFTMarketplace() {
           </div>
         </div>
 
-        {/* Stats Section */}
+        {/* Stats Section - Real Data */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -84,8 +92,10 @@ export default function NFTMarketplace() {
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">45,231 MCC</div>
-              <p className="text-xs text-green-500">+12.5% from last week</p>
+              <div className="text-2xl font-bold text-white">
+                {nfts.reduce((sum, nft) => sum + Number(nft.price), 0).toLocaleString()} MCC
+              </div>
+              <p className="text-xs text-green-500">Live from IC backend</p>
             </CardContent>
           </Card>
 
@@ -95,7 +105,9 @@ export default function NFTMarketplace() {
               <Coins className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">50 MCC</div>
+              <div className="text-2xl font-bold text-white">
+                {nfts.length > 0 ? Math.min(...nfts.map(nft => Number(nft.price))) : 0} MCC
+              </div>
               <p className="text-xs text-yellow-500">Lowest available</p>
             </CardContent>
           </Card>
@@ -106,7 +118,7 @@ export default function NFTMarketplace() {
               <Crown className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">1,234</div>
+              <div className="text-2xl font-bold text-white">{nfts.filter(nft => !nft.owner).length}</div>
               <p className="text-xs text-purple-500">Currently listed</p>
             </CardContent>
           </Card>
@@ -117,56 +129,62 @@ export default function NFTMarketplace() {
               <Music className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">156</div>
+              <div className="text-2xl font-bold text-white">
+                {new Set(nfts.map(nft => nft.artist)).size}
+              </div>
               <p className="text-xs text-blue-500">Creating NFTs</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Featured NFT */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">Featured NFT</h2>
-          <Card className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-purple-600/30">
-            <CardContent className="p-6">
-              <div className="grid md:grid-cols-2 gap-6 items-center">
-                <div>
-                  <Badge className="mb-2 bg-yellow-600/20 text-yellow-300 border-yellow-600/30">
-                    <Crown className="h-3 w-3 mr-1" />
-                    Legendary
-                  </Badge>
-                  <h3 className="text-2xl font-bold text-white mb-2">Exclusive Album Preview</h3>
-                  <p className="text-gray-300 mb-4">
-                    Be among the first 100 people to hear Alex Rivera's upcoming album before its official release
-                  </p>
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="flex items-center space-x-2 text-sm text-gray-400">
-                      <Eye className="h-4 w-4" />
-                      <span>5.2K views</span>
+        {/* Featured NFT - Real Data */}
+        {nfts.length > 0 && (() => {
+          // Find the most expensive NFT to feature
+          const featuredNFT = nfts.reduce((prev, current) => 
+            (Number(prev.price) > Number(current.price)) ? prev : current
+          )
+          
+          return (
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold mb-4">Featured NFT</h2>
+              <Card className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-purple-600/30">
+                <CardContent className="p-6">
+                  <div className="grid md:grid-cols-2 gap-6 items-center">
+                    <div>
+                      <Badge className={`mb-2 ${getRarityColor(featuredNFT.rarity?.legendary ? 'legendary' : featuredNFT.rarity?.epic ? 'epic' : featuredNFT.rarity?.rare ? 'rare' : 'common')}`}>
+                        <Crown className="h-3 w-3 mr-1" />
+                        {featuredNFT.rarity?.legendary ? 'Legendary' : featuredNFT.rarity?.epic ? 'Epic' : featuredNFT.rarity?.rare ? 'Rare' : 'Common'}
+                      </Badge>
+                      <h3 className="text-2xl font-bold text-white mb-2">{featuredNFT.title}</h3>
+                      <p className="text-gray-300 mb-4">
+                        {featuredNFT.description}
+                      </p>
+                      <div className="flex items-center space-x-4 mb-4">
+                        <div className="text-sm text-gray-400">
+                          Live from IC blockchain
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-2xl font-bold text-yellow-400">{featuredNFT.price} MCC</div>
+                        <Button className="bg-purple-600 hover:bg-purple-700" disabled={featuredNFT.owner}>
+                          <Zap className="h-4 w-4 mr-2" />
+                          {featuredNFT.owner ? 'Sold' : 'Buy Now'}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-400">
-                      <Heart className="h-4 w-4" />
-                      <span>892 likes</span>
+                    <div className="flex justify-center">
+                      <img
+                        src={featuredNFT.image || "/placeholder.svg?height=300&width=300"}
+                        alt={featuredNFT.title}
+                        className="w-64 h-64 rounded-lg object-cover"
+                      />
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-2xl font-bold text-yellow-400">2,500 MCC</div>
-                    <Button className="bg-purple-600 hover:bg-purple-700">
-                      <Zap className="h-4 w-4 mr-2" />
-                      Buy Now
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex justify-center">
-                  <img
-                    src="/placeholder.svg?height=300&width=300"
-                    alt="Featured NFT"
-                    className="w-64 h-64 rounded-lg object-cover"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })()}
 
         {/* NFT Grid */}
         <div className="mb-8">

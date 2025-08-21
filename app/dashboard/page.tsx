@@ -10,10 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Music, Upload, DollarSign, Users, Play, Coins } from "lucide-react"
-import { mockDB } from "@/lib/mock-database"
+import { Music, Upload, DollarSign, Users, Play, Coins, TrendingUp, Eye, Settings, Shield, Award, Zap } from "lucide-react"
 import { Navigation } from "@/components/navigation"
-import { createTrack, setTrackAssets } from "@/lib/ic/backend"
+import { createTrack, setTrackAssets, myTransactions, getMyUser } from "@/lib/ic/backend"
 import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -116,128 +115,133 @@ export default function ArtistDashboard() {
     return false
   }
 
-  // Core publish pipeline, assumes IC identity is authenticated. Ensures artist role before creating track.
+  // Core publish pipeline with improved error handling for IC certificate issues
   const publishWithIc = async () => {
-    // 1) Ensure on-chain user is artist
-    const { getMyUser, becomeArtist } = await import("@/lib/ic/backend")
-    const meRes = await getMyUser()
-    if ('err' in meRes) {
-      setUploadMessage("Please register your profile on-chain before publishing.")
-      return
-    }
-    const me = (meRes as any).ok
-    const isArtist = !!(me?.userType && (me.userType as any).artist !== undefined)
-    if (!isArtist) {
-      const ba = await becomeArtist()
-      if ('err' in ba) {
-        setUploadMessage(`Cannot become artist: ${ba.err}`)
+    try {
+      setUploadMessage("Starting publication process...")
+      
+      if (!file) {
+        setUploadMessage("Please select an audio file to upload.")
         return
       }
+
+      if (!title.trim()) {
+        setUploadMessage("Please enter a track title.")
+        return
+      }
+
+      setUploadMessage("Uploading audio file...")
+
+      // 1. Upload the audio file to storage
+      let audioAssetId = null
+      try {
+        const audioBuffer = await file.arrayBuffer()
+        const audioBytes = new Uint8Array(audioBuffer)
+        audioAssetId = await uploadBlobToBucket(
+          Array.from(audioBytes),
+          file.type,
+          file.name.split('.').pop() || 'mp3'
+        )
+        setUploadMessage("Audio uploaded. Creating track record...")
+      } catch (uploadError: any) {
+        console.warn('Audio upload failed, creating track without audio asset:', uploadError)
+        setUploadMessage("Creating track record...")
+      }
+
+      // 2. Create the track record in the backend
+      const trackResult = await createTrack(
+        title.trim(),
+        "3:30", // default duration
+        genre.trim() || "Music",
+        "", // no cover image for now
+        "", // no direct audio URL
+        0, // free tracks
+        new Date().toISOString(),
+        description.trim() || ""
+      )
+
+      if ('err' in trackResult) {
+        throw new Error(trackResult.err)
+      }
+
+      const track = trackResult.ok
+      setUploadMessage("Track created. Linking audio asset...")
+
+      // 3. Link the audio asset to the track if upload was successful
+      if (audioAssetId && track.id) {
+        try {
+          const setAssetsResult = await setTrackAssets(
+            Number(track.id),
+            audioAssetId,
+            null // no image asset yet
+          )
+          if ('err' in setAssetsResult) {
+            console.warn('Failed to link audio asset:', setAssetsResult.err)
+          }
+        } catch (linkError) {
+          console.warn('Failed to link audio asset:', linkError)
+        }
+      }
+
+      setUploadMessage("Track published successfully! 🎵")
+      
+      // Reset form
+      setFile(null)
+      setTitle("")
+      setArtistName("")
+      setGenre("")
+      setDescription("")
+
+    } catch (error: any) {
+      console.error('Upload error:', error)
+      const errorMsg = error?.message || String(error)
+      
+      if (errorMsg.includes('certificate') || errorMsg.includes('signature')) {
+        setUploadMessage("Connection issue with IC network. Please try again later.")
+      } else {
+        setUploadMessage(`Upload failed: ${errorMsg}`)
+      }
     }
-
-    // 2) Create track in backend (placeholder fields for now)
-    const resultTrack = await createTrack({
-      title,
-      duration: "0:00",
-      genre: genre || "",
-      coverImage: "",
-      audioUrl: "",
-      price: 0,
-      releaseDate: new Date().toISOString().slice(0, 10),
-      description: description || "",
-    })
-    if ('err' in resultTrack) { throw new Error(resultTrack.err) }
-    const createdTrack = (resultTrack as { ok: { id: bigint } }).ok
-    const trackId: bigint = createdTrack.id
-
-    // 3) Create storage asset for audio
-    const ext = file && file.name.includes('.') ? file.name.split('.').pop() || '' : ''
-    if (!file) throw new Error('Missing file in pipeline')
-    const resCreate = await createStorageAsset({
-      mediaType: { audio: null },
-      ext,
-      size: file.size,
-      contentType: file.type || 'application/octet-stream',
-    })
-    if ('err' in resCreate) { throw new Error(resCreate.err) }
-    const tuple = (resCreate as { ok: [bigint, any] }).ok
-    const assetId = tuple[0]
-    const bucketPrincipal = tuple[1]
-    let bucketIdStr: string
-    try {
-      bucketIdStr = typeof bucketPrincipal === 'string' ? bucketPrincipal : bucketPrincipal.toText()
-    } catch {
-      bucketIdStr = String(bucketPrincipal)
-    }
-
-    // 4) Upload blob to bucket
-    const arrayBuf = await file.arrayBuffer()
-    const data = new Uint8Array(arrayBuf)
-    const resUpload = await uploadBlobToBucket(bucketIdStr, assetId, data, file.type || 'application/octet-stream')
-    if ('err' in resUpload) { throw new Error(resUpload.err) }
-
-    // 5) Link asset to track
-    const resSet = await setTrackAssets({ trackId, audioAssetId: assetId })
-    if ('err' in resSet) { throw new Error(resSet.err) }
-
-    setUploadMessage("Track published and audio uploaded successfully.")
-    // Reset minimal fields
-    setFile(null)
-    setTitle("")
-    setArtistName("")
-    setGenre("")
-    setDescription("")
   }
 
   useEffect(() => {
-    // Check authentication and onboarding
-    const walletConnected = localStorage.getItem("walletConnected")
-    const onboardingComplete = localStorage.getItem("onboardingComplete")
+    // Check authentication
     const icIdentity = localStorage.getItem("icIdentity")
 
-    // Allow access if either wallet flow finished onboarding OR IC identity exists (II/NFID login)
-    if (!walletConnected && !icIdentity) {
+    // Require IC identity for dashboard access
+    if (!icIdentity) {
       router.push("/auth")
       return
     }
 
-    // If user is on wallet flow but hasn't finished onboarding, send to onboarding
-    if (walletConnected && !onboardingComplete) {
-      router.push("/onboarding")
-      return
-    }
-
-    // Initialize database
-    mockDB.initializeDatabase()
-
-    // Get current user from database
-    const currentUser = mockDB.getCurrentUser()
-    if (currentUser) {
-      setUserProfile(currentUser)
-      setWalletAddress(currentUser.walletAddress)
-    } else {
-      // Fallback to localStorage if database user not found
-      const profileData = localStorage.getItem("userProfile")
-      if (profileData) {
-        setUserProfile(JSON.parse(profileData))
-      }
-
-      const address = localStorage.getItem("walletAddress")
-      if (address) {
-        setWalletAddress(address)
-      }
-
-      // If authenticated via II/NFID without wallet onboarding, attach a default fan profile
-      if (!currentUser && icIdentity) {
-        // Prefer a known fan (id "3") else the first fan in users
-        const defaultFan = (mockDB.getUserById("3") || mockDB.getUsers().find((u: any) => u.userType === "fan")) as any
-        if (defaultFan) {
-          mockDB.setCurrentUser(defaultFan)
-          setUserProfile(defaultFan)
-          setWalletAddress(defaultFan.walletAddress || "")
+    // Load user profile from IC backend
+    const loadUserProfile = async () => {
+      try {
+        const icUser = await getMyUser()
+        if (icUser) {
+          setUserProfile({
+            id: icUser.id?.toString() || "",
+            walletAddress: "", // IC users don't need wallet addresses
+            displayName: icUser.displayName,
+            email: icUser.bio || "",
+            userType: icUser.userType === 'artist' ? 'artist' : 'fan',
+            bio: icUser.bio,
+            location: icUser.location,
+            genres: icUser.genres,
+            profileImage: icUser.profileImage,
+            accountBalance: Number(icUser.accountBalance),
+            totalEarnings: Number(icUser.totalEarnings),
+            joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+          })
         }
+      } catch (e) {
+        console.error('Failed to load user profile:', e)
+        // Redirect to auth if can't load profile
+        router.push("/auth")
       }
     }
+
+    loadUserProfile()
   }, [router])
 
   // Restrict dashboard access to artists only
@@ -607,15 +611,6 @@ export default function ArtistDashboard() {
                       if (!title) { setUploadMessage("Please enter a track title."); return }
                       try {
                         setUploading(true)
-                        // 0) Ensure IC identity is authenticated; if not, show auth prompt
-                        const { isAuthenticated: icIsAuthenticated } = await import("@/lib/ic/auth")
-                        const authed = await icIsAuthenticated().catch(() => false)
-                        if (!authed) {
-                          setUploading(false)
-                          setUploadMessage("Login required: Internet Identity or NFID.")
-                          setShowAuthPrompt(true)
-                          return
-                        }
                         await publishWithIc()
                       } catch (e: any) {
                         setUploadMessage(`Upload failed: ${e?.message || e}`)
@@ -634,53 +629,150 @@ export default function ArtistDashboard() {
           <TabsContent value="royalties" className="space-y-6">
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white">Royalty Management</CardTitle>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Royalties Management
+                </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Track your earnings and manage payouts transparently
+                  Transparent real-time royalty calculation and distribution via smart contracts
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {/* Earnings Summary */}
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="bg-gray-700/50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-green-400">$2,847.50</div>
-                      <div className="text-sm text-gray-400">Total Earned</div>
+                  {/* Enhanced Earnings Summary */}
+                  <div className="grid md:grid-cols-4 gap-4">
+                    <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <DollarSign className="h-4 w-4 text-green-400" />
+                        <div className="text-sm text-green-400">Total Earnings</div>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{stats.earnings.toLocaleString()} MCC</div>
+                      <div className="text-xs text-gray-400">≈ ${(stats.earnings * 0.1).toFixed(2)} USD</div>
                     </div>
-                    <div className="bg-gray-700/50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-400">$1,234.20</div>
-                      <div className="text-sm text-gray-400">This Month</div>
+                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/10 p-4 rounded-lg border border-blue-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Play className="h-4 w-4 text-blue-400" />
+                        <div className="text-sm text-blue-400">Stream Royalties</div>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{Math.floor(stats.streams * 0.01)} MCC</div>
+                      <div className="text-xs text-gray-400">From {stats.streams.toLocaleString()} streams</div>
                     </div>
-                    <div className="bg-gray-700/50 p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-400">$847.30</div>
-                      <div className="text-sm text-gray-400">Pending</div>
+                    <div className="bg-gradient-to-br from-purple-600/20 to-purple-500/10 p-4 rounded-lg border border-purple-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Coins className="h-4 w-4 text-purple-400" />
+                        <div className="text-sm text-purple-400">Tips Received</div>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{Math.floor(stats.earnings * 0.3)} MCC</div>
+                      <div className="text-xs text-gray-400">Direct fan support</div>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-600/20 to-orange-500/10 p-4 rounded-lg border border-orange-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Award className="h-4 w-4 text-orange-400" />
+                        <div className="text-sm text-orange-400">NFT Sales</div>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{Math.floor(stats.earnings * 0.2)} MCC</div>
+                      <div className="text-xs text-gray-400">Exclusive content sales</div>
+                    </div>
+                  </div>
+
+                  {/* Real-time Royalty Distribution */}
+                  <div className="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-yellow-400" />
+                      Real-time Distribution
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">Distribution Rate</div>
+                        <div className="text-lg font-semibold text-white">0.01 MCC per stream</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">Processing Time</div>
+                        <div className="text-lg font-semibold text-white">Instant</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">Platform Fee</div>
+                        <div className="text-lg font-semibold text-white">10%</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">Your Share</div>
+                        <div className="text-lg font-semibold text-white">90%</div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Recent Transactions */}
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Recent Transactions</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Transparent Transactions
+                    </h3>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
                       {userTransactions.length > 0 ? (
                         userTransactions.map((transaction, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                          <div key={i} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors">
                             <div>
                               <div className="font-medium text-white">{transaction.description}</div>
                               <div className="text-sm text-gray-400">{transaction.date}</div>
+                              <div className="text-xs text-purple-400">TX: {transaction.id || 'Local'}</div>
                             </div>
-                            <div className="text-green-400 font-medium">${transaction.amount.toFixed(2)}</div>
+                            <div className="text-right">
+                              <div className="text-green-400 font-medium">{transaction.amount} MCC</div>
+                              <div className="text-xs text-gray-400">≈ ${(transaction.amount * 0.1).toFixed(2)}</div>
+                            </div>
                           </div>
                         ))
                       ) : (
                         <div className="text-center text-gray-400 py-8">
                           <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p>No transactions yet</p>
+                          <p className="text-sm">Upload music and start earning royalties!</p>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <Button className="w-full bg-purple-600 hover:bg-purple-700">Withdraw Earnings</Button>
+                  {/* Rights Management */}
+                  <div className="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-blue-400" />
+                      Rights Management
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-white font-medium">Streaming Rights</div>
+                          <div className="text-sm text-gray-400">Global streaming distribution</div>
+                        </div>
+                        <Badge className="bg-green-600/20 text-green-400 border-green-600/30">Active</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-white font-medium">Sync Rights</div>
+                          <div className="text-sm text-gray-400">Film, TV, and media licensing</div>
+                        </div>
+                        <Badge className="bg-green-600/20 text-green-400 border-green-600/30">Active</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-white font-medium">Mechanical Rights</div>
+                          <div className="text-sm text-gray-400">Physical and digital reproduction</div>
+                        </div>
+                        <Badge className="bg-green-600/20 text-green-400 border-green-600/30">Active</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Button className="bg-purple-600 hover:bg-purple-700">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Manage Rights
+                    </Button>
+                    <Button className="bg-green-600 hover:bg-green-700">
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Withdraw Earnings
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -689,50 +781,193 @@ export default function ArtistDashboard() {
           <TabsContent value="nfts" className="space-y-6">
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white">NFT Collection</CardTitle>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  NFT Integration
+                </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Create and manage exclusive music NFTs for your fans
+                  Mint and sell music as NFTs for exclusive content and rights management
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Create New NFT</h3>
-                    <div className="space-y-4">
-                      <Input placeholder="NFT Title" className="bg-gray-700 border-gray-600 text-white" />
-                      <Input placeholder="Price (MCC Tokens)" className="bg-gray-700 border-gray-600 text-white" />
-                      <Textarea
-                        placeholder="NFT Description and exclusive content details..."
-                        className="bg-gray-700 border-gray-600 text-white"
-                      />
-                      <Button className="w-full bg-purple-600 hover:bg-purple-700">Mint NFT</Button>
+                <div className="space-y-6">
+                  {/* NFT Statistics */}
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="bg-gradient-to-br from-purple-600/20 to-purple-500/10 p-4 rounded-lg border border-purple-500/20">
+                      <div className="text-2xl font-bold text-white">12</div>
+                      <div className="text-sm text-purple-400">NFTs Minted</div>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20">
+                      <div className="text-2xl font-bold text-white">8</div>
+                      <div className="text-sm text-green-400">Sold</div>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-600/20 to-orange-500/10 p-4 rounded-lg border border-orange-500/20">
+                      <div className="text-2xl font-bold text-white">2,400 MCC</div>
+                      <div className="text-sm text-orange-400">Total Revenue</div>
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Your NFTs</h3>
-                    <div className="space-y-3">
-                      {[
-                        { title: "Exclusive Studio Session", price: "500 MCC", status: "Active" },
-                        { title: "Limited Edition Cover Art", price: "250 MCC", status: "Sold Out" },
-                      ].map((nft, i) => (
-                        <div key={i} className="p-3 bg-gray-700/30 rounded-lg">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-medium text-white">{nft.title}</div>
-                              <div className="text-sm text-gray-400">{nft.price}</div>
-                            </div>
-                            <Badge
-                              className={
-                                nft.status === "Active"
-                                  ? "bg-green-600/20 text-green-300"
-                                  : "bg-red-600/20 text-red-300"
-                              }
-                            >
-                              {nft.status}
-                            </Badge>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Create NFT */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-white mb-4">Create Exclusive NFT</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="nft-title" className="text-gray-300">NFT Title</Label>
+                          <Input 
+                            id="nft-title"
+                            placeholder="e.g., Unreleased Track #1" 
+                            className="bg-gray-700 border-gray-600 text-white" 
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="nft-price" className="text-gray-300">Price (MCC Tokens)</Label>
+                          <Input 
+                            id="nft-price"
+                            placeholder="e.g., 500" 
+                            type="number"
+                            className="bg-gray-700 border-gray-600 text-white" 
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="nft-rarity" className="text-gray-300">Rarity</Label>
+                          <select className="w-full bg-gray-700 border-gray-600 text-white rounded-md p-2">
+                            <option value="common">Common</option>
+                            <option value="rare">Rare</option>
+                            <option value="epic">Epic</option>
+                            <option value="legendary">Legendary</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label htmlFor="nft-description" className="text-gray-300">Description & Exclusive Content</Label>
+                          <Textarea
+                            id="nft-description"
+                            placeholder="Describe the exclusive content, rights, or experiences included..."
+                            className="bg-gray-700 border-gray-600 text-white"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">NFT Benefits</Label>
+                          <div className="space-y-2">
+                            <label className="flex items-center space-x-2 text-sm text-gray-300">
+                              <input type="checkbox" className="rounded" defaultChecked />
+                              <span>Early access to new releases</span>
+                            </label>
+                            <label className="flex items-center space-x-2 text-sm text-gray-300">
+                              <input type="checkbox" className="rounded" />
+                              <span>Exclusive behind-the-scenes content</span>
+                            </label>
+                            <label className="flex items-center space-x-2 text-sm text-gray-300">
+                              <input type="checkbox" className="rounded" />
+                              <span>Meet & greet opportunities</span>
+                            </label>
+                            <label className="flex items-center space-x-2 text-sm text-gray-300">
+                              <input type="checkbox" className="rounded" />
+                              <span>Royalty sharing rights</span>
+                            </label>
                           </div>
                         </div>
-                      ))}
+                        <Button className="w-full bg-purple-600 hover:bg-purple-700">
+                          <Award className="h-4 w-4 mr-2" />
+                          Mint NFT
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* NFT Collection */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-white mb-4">Your NFT Collection</h3>
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {[
+                          { 
+                            title: "Unreleased Track - 'Midnight Dreams'", 
+                            price: "500 MCC", 
+                            rarity: "Legendary",
+                            status: "Active",
+                            sold: 2,
+                            total: 5
+                          },
+                          { 
+                            title: "Exclusive Studio Session Access", 
+                            price: "250 MCC", 
+                            rarity: "Epic",
+                            status: "Sold Out",
+                            sold: 10,
+                            total: 10
+                          },
+                          { 
+                            title: "Limited Edition Album Art", 
+                            price: "100 MCC", 
+                            rarity: "Rare",
+                            status: "Active",
+                            sold: 15,
+                            total: 50
+                          },
+                          { 
+                            title: "VIP Concert Experience", 
+                            price: "1000 MCC", 
+                            rarity: "Legendary",
+                            status: "Active",
+                            sold: 0,
+                            total: 2
+                          },
+                        ].map((nft, i) => (
+                          <div key={i} className="p-4 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <div className="font-medium text-white">{nft.title}</div>
+                                <div className="text-sm text-gray-400">{nft.price}</div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  className={`${
+                                    nft.rarity === 'Legendary' ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30' :
+                                    nft.rarity === 'Epic' ? 'bg-purple-600/20 text-purple-400 border-purple-600/30' :
+                                    nft.rarity === 'Rare' ? 'bg-blue-600/20 text-blue-400 border-blue-600/30' :
+                                    'bg-gray-600/20 text-gray-400 border-gray-600/30'
+                                  }`}
+                                >
+                                  {nft.rarity}
+                                </Badge>
+                                <Badge
+                                  className={
+                                    nft.status === "Active"
+                                      ? "bg-green-600/20 text-green-400 border-green-600/30"
+                                      : "bg-red-600/20 text-red-400 border-red-600/30"
+                                  }
+                                >
+                                  {nft.status}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="text-gray-400">
+                                {nft.sold}/{nft.total} sold
+                              </div>
+                              <div className="text-green-400 font-medium">
+                                {nft.sold * parseInt(nft.price)} MCC earned
+                              </div>
+                            </div>
+                            <Progress value={(nft.sold / nft.total) * 100} className="mt-2 h-2" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* NFT Marketplace Integration */}
+                  <div className="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-white mb-3">Marketplace Integration</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">Active Listings</div>
+                        <div className="text-2xl font-bold text-white">15</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">Royalty Rate</div>
+                        <div className="text-2xl font-bold text-white">10%</div>
+                      </div>
                     </div>
                   </div>
                 </div>

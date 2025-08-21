@@ -7,7 +7,7 @@ import { Users, Star } from 'lucide-react'
 
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
-import { listArtists } from "@/lib/ic/backend"
+import { listArtists, resetActor } from "@/lib/ic/backend"
 import { fromCandidUser } from "@/lib/mappers"
 import type { UserModel } from "@/lib/types"
 
@@ -23,15 +23,29 @@ export default function ArtistsPage() {
       setLoading(true)
       setError(null)
       try {
+        // Reset actor cache to ensure fresh connection
+        resetActor()
+        console.log('[Artists] Attempting to load artists from backend...')
+        console.log('[Artists] Environment check:', {
+          NEXT_PUBLIC_DFX_NETWORK: process.env.NEXT_PUBLIC_DFX_NETWORK,
+          NEXT_PUBLIC_IC_HOST: process.env.NEXT_PUBLIC_IC_HOST,
+          NEXT_PUBLIC_MUSIC_CITY_BACKEND_CANISTER_ID: process.env.NEXT_PUBLIC_MUSIC_CITY_BACKEND_CANISTER_ID
+        })
+        
         const res = await listArtists()
+        console.log('[Artists] Raw backend response:', res)
         if (!mounted) return
+        
         const all: UserModel[] = (res || []).map((u: any) => fromCandidUser(u))
+        console.log('[Artists] Mapped artists:', all)
+        
         // Deduplicate by principal/id just in case
         const uniqueArtists = Array.from(new Map(all.map((a: UserModel) => [String(a.owner).toLowerCase(), a])).values())
         if (!mounted) return
         setArtists(uniqueArtists)
       } catch (e: any) {
         if (!mounted) return
+        console.error('[Artists] Error loading artists:', e)
         const msg = e?.message || String(e)
         // Common local dev issue: agent didn't fetch root key or wrong host
         if (msg.includes('node signatures') || msg.includes('certificate') || msg.includes('IC0503')) {

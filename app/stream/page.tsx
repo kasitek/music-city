@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter } from 'lucide-react'
+import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter, Coins, DollarSign, Zap, Gift } from 'lucide-react'
 import { useEffect, useRef, useState } from "react"
 import { listTracks, streamTrack } from "@/lib/ic/backend"
 import { getData } from "@/lib/ic/storage"
@@ -102,19 +102,112 @@ export default function StreamingPage() {
           </div>
         </div>
 
-        {/* Featured Section */}
+        {/* Most Popular Track - Real Data */}
+        {tracks.length > 0 && (() => {
+          const mostPopular = tracks.reduce((prev, current) => 
+            (Number(prev.plays) > Number(current.plays)) ? prev : current
+          )
+          
+          return (
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold mb-4">Most Popular Track</h2>
+              <Card className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-purple-600/30">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-20 h-20 bg-purple-600 rounded-lg flex items-center justify-center">
+                      <Music className="h-10 w-10" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-white">{mostPopular.title}</h3>
+                      <p className="text-gray-300">{mostPopular.description}</p>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-sm text-green-400">{Number(mostPopular.plays)} plays</span>
+                        <span className="text-sm text-purple-400">{mostPopular.genre}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })()}
+
+        {/* Streaming Rewards Section */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">Featured This Week</h2>
-          <Card className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-purple-600/30">
+          <Card className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border-green-600/30">
             <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 bg-purple-600 rounded-lg flex items-center justify-center">
-                  <Music className="h-10 w-10" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
+                    <Zap className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Streaming Rewards</h3>
+                    <p className="text-gray-300">Earn MCC tokens while listening & support artists</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white">Global Hits Playlist</h3>
-                  <p className="text-gray-300">Discover the latest sounds from around the world</p>
-                  <Button className="mt-2 bg-purple-600 hover:bg-purple-700">Explore Playlist</Button>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-400">1,247 MCC</div>
+                  <div className="text-sm text-gray-400">Your Balance</div>
+                </div>
+              </div>
+              
+              <div className="grid md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Play className="h-4 w-4 text-blue-400" />
+                    <div className="text-sm text-blue-400">Per Stream</div>
+                  </div>
+                  <div className="text-lg font-bold text-white">0.01 MCC</div>
+                </div>
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="h-4 w-4 text-green-400" />
+                    <div className="text-sm text-green-400">To Artist</div>
+                  </div>
+                  <div className="text-lg font-bold text-white">90%</div>
+                </div>
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Coins className="h-4 w-4 text-purple-400" />
+                    <div className="text-sm text-purple-400">Platform Fee</div>
+                  </div>
+                  <div className="text-lg font-bold text-white">10%</div>
+                </div>
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Gift className="h-4 w-4 text-orange-400" />
+                    <div className="text-sm text-orange-400">Bonus Rewards</div>
+                  </div>
+                  <div className="text-lg font-bold text-white">Active</div>
+                </div>
+              </div>
+
+              <div className="bg-gray-800/30 p-4 rounded-lg mb-4">
+                <h4 className="text-lg font-semibold text-white mb-2">How Streaming Rewards Work</h4>
+                <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-300">
+                  <div>
+                    <p className="mb-2">✓ <strong>Listen & Earn:</strong> Get 0.01 MCC per song streamed</p>
+                    <p className="mb-2">✓ <strong>Support Artists:</strong> 90% goes directly to the artist instantly</p>
+                  </div>
+                  <div>
+                    <p className="mb-2">✓ <strong>Bonus Multipliers:</strong> Premium users earn 2x rewards</p>
+                    <p className="mb-2">✓ <strong>Instant Payouts:</strong> No waiting periods or minimums</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <Button className="bg-green-600 hover:bg-green-700">
+                  <Coins className="h-4 w-4 mr-2" />
+                  Buy MCC Tokens
+                </Button>
+                <Button variant="outline" className="border-green-600 text-green-400">
+                  <Gift className="h-4 w-4 mr-2" />
+                  Tip Artist
+                </Button>
+                <div className="text-sm text-gray-400 ml-auto">
+                  Next reward in: <span className="text-white font-medium">2:47</span>
                 </div>
               </div>
             </CardContent>
@@ -123,7 +216,12 @@ export default function StreamingPage() {
 
         {/* Track List */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">Trending Tracks</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Trending Tracks</h2>
+            <div className="text-sm text-gray-400">
+              Every stream earns <span className="text-green-400 font-medium">0.01 MCC</span> for you and rewards the artist
+            </div>
+          </div>
           <div className="space-y-3">
             {tracks.map((track) => (
               <Card key={track.id} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
@@ -161,17 +259,27 @@ export default function StreamingPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-col items-end space-y-1">
                       <Badge className="bg-gray-700 text-gray-300">{track.genre || "Music"}</Badge>
-                      <div className="text-sm text-yellow-400">{Number(track.price || 0)} MCC</div>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Coins className="h-3 w-3 text-green-400" />
+                        <span className="text-green-400">+0.01 MCC</span>
+                      </div>
+                      <div className="text-xs text-gray-400">per stream</div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="ghost" className="text-gray-400 hover:text-red-400">
-                        <Heart className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-gray-400 hover:text-blue-400">
-                        <Share2 className="h-4 w-4" />
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Button size="sm" variant="ghost" className="text-gray-400 hover:text-red-400">
+                          <Heart className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-gray-400 hover:text-blue-400">
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1">
+                        <Gift className="h-3 w-3 mr-1" />
+                        Tip
                       </Button>
                       <Button
                         size="sm"

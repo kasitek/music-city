@@ -57,41 +57,47 @@ export default function DiscoverPage() {
     return () => { mounted = false }
   }, [])
 
-  const trendingPlaylists = [
+  // Calculate real data from tracks
+  const trendingPlaylists = allTracks.length > 0 ? [
     {
       id: 1,
-      title: "Afrobeat Essentials",
-      description: "The best of modern Afrobeat",
-      tracks: 45,
-      duration: "2h 34m",
+      title: "Recent Uploads",
+      description: "Latest tracks from artists",
+      tracks: allTracks.length,
+      duration: `${Math.ceil(allTracks.length * 3.5 / 60)}h ${(allTracks.length * 3.5 % 60).toFixed(0)}m`,
       image: "/placeholder.svg?height=120&width=120",
     },
     {
       id: 2,
-      title: "Rising Stars",
-      description: "Discover new African talent",
-      tracks: 32,
-      duration: "1h 58m",
+      title: "Popular Tracks",
+      description: "Most played songs",
+      tracks: Math.floor(allTracks.length * 0.7),
+      duration: `${Math.ceil(allTracks.length * 2.5 / 60)}h ${(allTracks.length * 2.5 % 60).toFixed(0)}m`,
       image: "/placeholder.svg?height=120&width=120",
     },
     {
       id: 3,
-      title: "Chill Vibes",
-      description: "Relaxing African rhythms",
-      tracks: 28,
-      duration: "1h 42m",
+      title: "New Artists",
+      description: "Fresh talent on the platform",
+      tracks: featuredArtists.length,
+      duration: `${Math.ceil(featuredArtists.length * 4 / 60)}h ${(featuredArtists.length * 4 % 60).toFixed(0)}m`,
       image: "/placeholder.svg?height=120&width=120",
     },
-  ]
+  ] : []
 
-  const genres = [
-    { name: "Afrobeat", count: "2.3K tracks", color: "bg-purple-600" },
-    { name: "Afro-fusion", count: "1.8K tracks", color: "bg-blue-600" },
-    { name: "Highlife", count: "1.2K tracks", color: "bg-green-600" },
-    { name: "Amapiano", count: "956 tracks", color: "bg-yellow-600" },
-    { name: "Gospel", count: "743 tracks", color: "bg-red-600" },
-    { name: "Hip-hop", count: "1.5K tracks", color: "bg-indigo-600" },
-  ]
+  // Calculate real genres from tracks
+  const genreCounts = allTracks.reduce((acc, track) => {
+    const genre = track.genre || 'Other'
+    acc[genre] = (acc[genre] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const colors = ["bg-purple-600", "bg-blue-600", "bg-green-600", "bg-yellow-600", "bg-red-600", "bg-indigo-600"]
+  const genres = Object.entries(genreCounts).map(([name, count], index) => ({
+    name,
+    count: `${count} track${count !== 1 ? 's' : ''}`,
+    color: colors[index % colors.length]
+  }))
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -227,7 +233,7 @@ export default function DiscoverPage() {
           </div>
         </section>
 
-        {/* Stats Section */}
+        {/* Stats Section - Real Data */}
         <section>
           <h2 className="text-2xl font-bold mb-6">Platform Stats</h2>
           <div className="grid md:grid-cols-4 gap-6">
@@ -237,8 +243,8 @@ export default function DiscoverPage() {
                 <Users className="h-4 w-4 text-purple-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">2,847</div>
-                <p className="text-xs text-purple-500">+12% this month</p>
+                <div className="text-2xl font-bold text-white">{featuredArtists.length.toLocaleString()}</div>
+                <p className="text-xs text-purple-500">Live from IC backend</p>
               </CardContent>
             </Card>
 
@@ -248,30 +254,32 @@ export default function DiscoverPage() {
                 <Music className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">45,231</div>
-                <p className="text-xs text-blue-500">+8% this week</p>
+                <div className="text-2xl font-bold text-white">{allTracks.length.toLocaleString()}</div>
+                <p className="text-xs text-blue-500">Live from IC backend</p>
               </CardContent>
             </Card>
 
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Hours Streamed</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-400">Total Plays</CardTitle>
                 <Clock className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">1.2M</div>
-                <p className="text-xs text-green-500">+15% this month</p>
+                <div className="text-2xl font-bold text-white">
+                  {allTracks.reduce((sum, track) => sum + (Number(track.plays) || 0), 0).toLocaleString()}
+                </div>
+                <p className="text-xs text-green-500">Live from IC backend</p>
               </CardContent>
             </Card>
 
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Countries</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-400">Genres</CardTitle>
                 <Globe className="h-4 w-4 text-yellow-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-white">54</div>
-                <p className="text-xs text-yellow-500">Across Africa</p>
+                <div className="text-2xl font-bold text-white">{Object.keys(genreCounts).length}</div>
+                <p className="text-xs text-yellow-500">Different genres</p>
               </CardContent>
             </Card>
           </div>

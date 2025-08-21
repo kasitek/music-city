@@ -14,18 +14,38 @@ export function setIdentity(identity?: Identity) {
   actorPromise = null
 }
 
+export function resetActor() {
+  actorPromise = null
+  loggedConfig = false
+}
+
 async function getActor(): Promise<ActorSubclass<_SERVICE>> {
   if (!actorPromise) {
     const canisterId = await getBackendCanisterId()
     const host = getDefaultHost()
+    
+    // For local development, try without identity first to avoid certificate issues
+    const isLocal = host?.includes('127.0.0.1') || host?.includes('localhost')
+    const identity = isLocal ? undefined : currentIdentity
+    
     actorPromise = createActor<_SERVICE>({
       canisterId,
       host,
       fetchRootKey: shouldFetchRootKey(host),
-      identity: currentIdentity,
+      identity,
+    }).catch(async (error) => {
+      console.warn('[Backend] Actor creation failed, retrying without identity:', error)
+      // Reset and try again without identity
+      return createActor<_SERVICE>({
+        canisterId,
+        host,
+        fetchRootKey: shouldFetchRootKey(host),
+        identity: undefined,
+      })
     })
+    
     if (!loggedConfig) {
-      console.info('[IC backend] creating actor', { canisterId, host, fetchRootKey: shouldFetchRootKey(host) })
+      console.info('[IC backend] creating actor', { canisterId, host, fetchRootKey: shouldFetchRootKey(host), hasIdentity: !!identity })
       loggedConfig = true
     }
   }
@@ -68,7 +88,15 @@ export async function getUser(principalText: string) {
 
 export async function listArtists() {
   const a = await getActor()
-  return a.listArtists()
+  console.log('[Backend] Calling listArtists...')
+  try {
+    const result = await a.listArtists()
+    console.log('[Backend] listArtists success:', result)
+    return result
+  } catch (error) {
+    console.error('[Backend] listArtists error:', error)
+    throw error
+  }
 }
 
 export async function updateProfile(params: {

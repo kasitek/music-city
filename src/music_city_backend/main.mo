@@ -13,7 +13,7 @@ import N "./nfts";
 import Tx "./txs";
 import C "./constants";
 
-actor {
+persistent actor {
   
   stable var users : [(Principal, T.User)] = [];
   stable var tracks : [T.Track] = [];

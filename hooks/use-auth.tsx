@@ -3,10 +3,25 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { mockDB, type User } from "@/lib/mock-database"
 import { isAuthenticated as icIsAuthenticated, loginInternetIdentity, loginNFID, logout as icLogout, getIdentity } from "@/lib/ic/auth"
-import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
+import { setIdentity as setBackendIdentity, getMyUser, registerUser } from "@/lib/ic/backend"
 import { setStorageIdentity, setBucketPrincipal } from "@/lib/ic/storage"
+
+// Define User type locally (removing dependency on mockDB)
+export interface User {
+  id: string
+  walletAddress: string
+  displayName: string
+  email?: string
+  userType: 'fan' | 'artist'
+  bio?: string
+  location?: string
+  genres?: string[]
+  profileImage?: string
+  accountBalance: number
+  totalEarnings: number
+  joinedAt: string
+}
 
 interface AuthContextType {
   user: User | null
@@ -26,42 +41,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Initialize database
-    mockDB.initializeDatabase()
-
-    // Check for existing authentication
-    const checkAuth = () => {
-      const walletConnected = localStorage.getItem("walletConnected")
-      const onboardingComplete = localStorage.getItem("onboardingComplete")
-      const walletAddress = localStorage.getItem("walletAddress")
-
-      if (walletConnected && onboardingComplete && walletAddress) {
-        // Try to get user from database
-        const currentUser = mockDB.getCurrentUser()
-        if (currentUser) {
-          setUser(currentUser)
-        } else {
-          // Fallback: try to find user by wallet address
-          const foundUser = mockDB.getUserByWallet(walletAddress)
-          if (foundUser) {
-            setUser(foundUser)
-            mockDB.setCurrentUser(foundUser)
+    // Check for existing IC authentication and load real user data
+    const checkAuth = async () => {
+      try {
+        const isIcAuthenticated = await icIsAuthenticated()
+        if (isIcAuthenticated) {
+          const identity = getIdentity()
+          if (identity) {
+            setBackendIdentity(identity)
+            setStorageIdentity(identity)
+            await setBucketPrincipal().catch(() => { /* ignore init errors */ })
+            
+            // Try to get user from IC backend
+            try {
+              const icUser = await getMyUser()
+              if (icUser) {
+                // Convert IC user format to local User format
+                const user: User = {
+                  id: identity.getPrincipal().toText(),
+                  walletAddress: identity.getPrincipal().toText(),
+                  displayName: icUser.displayName,
+                  email: icUser.bio || '', // Using bio field for email temporarily
+                  userType: icUser.userType === 'artist' ? 'artist' : 'fan',
+                  bio: icUser.bio,
+                  location: icUser.location,
+                  genres: icUser.genres,
+                  profileImage: icUser.profileImage,
+                  accountBalance: Number(icUser.accountBalance),
+                  totalEarnings: Number(icUser.totalEarnings),
+                  joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+                }
+                setUser(user)
+              }
+            } catch (e) {
+              console.log('No IC user found, user needs to register')
+            }
           }
+        }
+      } catch (e) {
+        console.log('IC authentication check failed, clearing stale auth:', e)
+        // Clear any stale authentication state
+        try {
+          await icLogout()
+          setBackendIdentity(undefined)
+          setStorageIdentity(undefined)
+          localStorage.removeItem("icIdentity")
+          localStorage.removeItem("walletConnected")
+          localStorage.removeItem("onboardingComplete")
+        } catch (clearError) {
+          console.warn('Failed to clear auth state:', clearError)
         }
       }
-
-      // Initialize IC identity if already authenticated (II/NFID session)
-      icIsAuthenticated().then((ok) => {
-        if (ok) {
-          const id = getIdentity()
-          if (id) {
-            setBackendIdentity(id)
-            setStorageIdentity(id)
-            // Initialize storage index with the bucket canister principal (one-time setup per replica)
-            setBucketPrincipal().catch(() => { /* ignore init errors here; can retry on demand */ })
-          }
-        }
-      }).catch(() => {/* ignore */})
       setIsLoading(false)
     }
 
@@ -70,24 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (walletAddress: string, email?: string, name?: string): Promise<User | null> => {
     try {
-      // Check if user exists in database
-      const user = mockDB.getUserByWallet(walletAddress)
-
-      if (user) {
-        // User exists, log them in
-        setUser(user)
-        mockDB.setCurrentUser(user)
-        localStorage.setItem("walletConnected", "true")
-        localStorage.setItem("walletAddress", walletAddress)
-        localStorage.setItem("onboardingComplete", "true")
-        if (email) localStorage.setItem("userEmail", email)
-        if (name) localStorage.setItem("userName", name)
-        return user
-      }
-
-      // User doesn't exist, they need to complete onboarding
-      localStorage.setItem("walletConnected", "true")
-      localStorage.setItem("walletAddress", walletAddress)
+      // This function is mainly for Web3Auth flow
+      // For IC auth, users should use loginWithII/loginWithNFID directly
+      // Store temp data for onboarding if needed
       if (email) localStorage.setItem("userEmail", email)
       if (name) localStorage.setItem("userName", name)
       return null
@@ -103,8 +118,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setBackendIdentity(identity)
       setStorageIdentity(identity)
       await setBucketPrincipal().catch(() => { /* ignore; user can retry uploads */ })
-      // Persist a hint so UI can reflect logged-in state even without wallet
-      localStorage.setItem("icIdentity", "true")
+      
+      // Try to get existing user
+      try {
+        const icUser = await getMyUser()
+        if (icUser) {
+          const user: User = {
+            id: identity.getPrincipal().toText(),
+            walletAddress: identity.getPrincipal().toText(),
+            displayName: icUser.displayName,
+            email: icUser.bio || '',
+            userType: icUser.userType === 'artist' ? 'artist' : 'fan',
+            bio: icUser.bio,
+            location: icUser.location,
+            genres: icUser.genres,
+            profileImage: icUser.profileImage,
+            accountBalance: Number(icUser.accountBalance),
+            totalEarnings: Number(icUser.totalEarnings),
+            joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+          }
+          setUser(user)
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "true")
+        }
+      } catch (e) {
+        // User doesn't exist, create default fan account
+        try {
+          const result = await registerUser(
+            "New User",
+            { "fan": null },
+            "",
+            "",
+            [],
+            "",
+            null
+          )
+          if ("ok" in result) {
+            const icUser = result.ok
+            const user: User = {
+              id: identity.getPrincipal().toText(),
+              walletAddress: identity.getPrincipal().toText(),
+              displayName: icUser.displayName,
+              email: "",
+              userType: 'fan',
+              bio: icUser.bio,
+              location: icUser.location,
+              genres: icUser.genres,
+              profileImage: icUser.profileImage,
+              accountBalance: Number(icUser.accountBalance),
+              totalEarnings: Number(icUser.totalEarnings),
+              joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+            }
+            setUser(user)
+            localStorage.setItem("icIdentity", "true")
+            localStorage.setItem("onboardingComplete", "false") // Allow onboarding to complete profile
+          }
+        } catch (regError) {
+          console.error("Failed to register new user:", regError)
+        }
+      }
     } catch (e: any) {
       const msg = e?.message || String(e)
       if (msg.includes("User closed the modal")) {
@@ -121,7 +193,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setBackendIdentity(identity)
       setStorageIdentity(identity)
       await setBucketPrincipal().catch(() => { /* ignore; user can retry uploads */ })
-      localStorage.setItem("icIdentity", "true")
+      
+      // Try to get existing user
+      try {
+        const icUser = await getMyUser()
+        if (icUser) {
+          const user: User = {
+            id: identity.getPrincipal().toText(),
+            walletAddress: identity.getPrincipal().toText(),
+            displayName: icUser.displayName,
+            email: icUser.bio || '',
+            userType: icUser.userType === 'artist' ? 'artist' : 'fan',
+            bio: icUser.bio,
+            location: icUser.location,
+            genres: icUser.genres,
+            profileImage: icUser.profileImage,
+            accountBalance: Number(icUser.accountBalance),
+            totalEarnings: Number(icUser.totalEarnings),
+            joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+          }
+          setUser(user)
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "true")
+        }
+      } catch (e) {
+        // User doesn't exist, create default fan account
+        try {
+          const result = await registerUser(
+            "New User",
+            { "fan": null },
+            "",
+            "",
+            [],
+            "",
+            null
+          )
+          if ("ok" in result) {
+            const icUser = result.ok
+            const user: User = {
+              id: identity.getPrincipal().toText(),
+              walletAddress: identity.getPrincipal().toText(),
+              displayName: icUser.displayName,
+              email: "",
+              userType: 'fan',
+              bio: icUser.bio,
+              location: icUser.location,
+              genres: icUser.genres,
+              profileImage: icUser.profileImage,
+              accountBalance: Number(icUser.accountBalance),
+              totalEarnings: Number(icUser.totalEarnings),
+              joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+            }
+            setUser(user)
+            localStorage.setItem("icIdentity", "true")
+            localStorage.setItem("onboardingComplete", "false") // Allow onboarding to complete profile
+          }
+        } catch (regError) {
+          console.error("Failed to register new user:", regError)
+        }
+      }
     } catch (e: any) {
       const msg = e?.message || String(e)
       if (msg.includes("User closed the modal")) {
@@ -134,7 +264,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null)
-    mockDB.clearCurrentUser()
     // Clear IC identity session
     icLogout().catch(() => {/* ignore */})
     setBackendIdentity(undefined)
@@ -151,11 +280,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateUser = (updates: Partial<User>) => {
     if (user) {
-      const updatedUser = mockDB.updateUser(user.id, updates)
-      if (updatedUser) {
-        setUser(updatedUser)
-        mockDB.setCurrentUser(updatedUser)
-      }
+      // Update local state immediately for better UX
+      const updatedUser = { ...user, ...updates }
+      setUser(updatedUser)
+      
+      // TODO: Implement updateProfile call to IC backend
+      // This would require adding updateProfile function call here
     }
   }
 
