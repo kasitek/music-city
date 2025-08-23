@@ -188,4 +188,28 @@ persistent actor {
   public shared query ({ caller }) func myTransactions() : async [T.Transaction] {
     Tx.myTransactions(txs, caller)
   };
+
+  public shared ({ caller }) func follow(artist : Principal) : async Result.Result<Bool, Text> {
+    switch (U.getUser(users, caller)) {
+      case null { #err("Not registered") };
+      case (?_) {
+        let (users1, ok) = U.follow(users, caller, artist);
+        if (not ok) { return #err("Follow failed") };
+        users := users1;
+        #ok(true)
+      }
+    }
+  };
+
+  public shared ({ caller }) func unfollow(artist : Principal) : async Result.Result<Bool, Text> {
+    switch (U.getUser(users, caller)) {
+      case null { #err("Not registered") };
+      case (?_) {
+        let (users1, ok) = U.unfollow(users, caller, artist);
+        if (not ok) { return #err("Unfollow failed") };
+        users := users1;
+        #ok(true)
+      }
+    }
+  };
 }

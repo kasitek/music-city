@@ -56,20 +56,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
               const icUser = await getMyUser()
               if (icUser) {
-                // Convert IC user format to local User format
+                // Convert IC user format (per IDL) to local User format
+                const isArtist = icUser.userType && typeof icUser.userType === 'object' && 'artist' in icUser.userType
                 const user: User = {
                   id: identity.getPrincipal().toText(),
                   walletAddress: identity.getPrincipal().toText(),
                   displayName: icUser.displayName,
                   email: icUser.bio || '', // Using bio field for email temporarily
-                  userType: icUser.userType === 'artist' ? 'artist' : 'fan',
+                  userType: isArtist ? 'artist' : 'fan',
                   bio: icUser.bio,
                   location: icUser.location,
                   genres: icUser.genres,
                   profileImage: icUser.profileImage,
-                  accountBalance: Number(icUser.accountBalance),
-                  totalEarnings: Number(icUser.totalEarnings),
-                  joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+                  accountBalance: Number(icUser.balance || 0),
+                  totalEarnings: 0,
+                  joinedAt: new Date(Number(icUser.joinedTimestamp || 0) / 1000000).toISOString()
                 }
                 setUser(user)
               }
@@ -123,64 +124,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const icUser = await getMyUser()
         if (icUser) {
+          const isArtist = icUser.userType && typeof icUser.userType === 'object' && 'artist' in icUser.userType
           const user: User = {
             id: identity.getPrincipal().toText(),
             walletAddress: identity.getPrincipal().toText(),
             displayName: icUser.displayName,
             email: icUser.bio || '',
-            userType: icUser.userType === 'artist' ? 'artist' : 'fan',
+            userType: isArtist ? 'artist' : 'fan',
             bio: icUser.bio,
             location: icUser.location,
             genres: icUser.genres,
             profileImage: icUser.profileImage,
-            accountBalance: Number(icUser.accountBalance),
-            totalEarnings: Number(icUser.totalEarnings),
-            joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+            accountBalance: Number(icUser.balance || 0),
+            totalEarnings: 0,
+            joinedAt: new Date(Number(icUser.joinedTimestamp || 0) / 1000000).toISOString()
           }
           setUser(user)
           localStorage.setItem("icIdentity", "true")
           localStorage.setItem("onboardingComplete", "true")
+        } else {
+          // No IC user found yet: defer registration to onboarding so the user can choose role (artist/fan)
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "false")
         }
-      } catch (e) {
-        // User doesn't exist, create default fan account
-        try {
-          const result = await registerUser(
-            "New User",
-            { "fan": null },
-            "",
-            "",
-            [],
-            "",
-            null
-          )
-          if ("ok" in result) {
-            const icUser = result.ok
-            const user: User = {
-              id: identity.getPrincipal().toText(),
-              walletAddress: identity.getPrincipal().toText(),
-              displayName: icUser.displayName,
-              email: "",
-              userType: 'fan',
-              bio: icUser.bio,
-              location: icUser.location,
-              genres: icUser.genres,
-              profileImage: icUser.profileImage,
-              accountBalance: Number(icUser.accountBalance),
-              totalEarnings: Number(icUser.totalEarnings),
-              joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
-            }
-            setUser(user)
-            localStorage.setItem("icIdentity", "true")
-            localStorage.setItem("onboardingComplete", "false") // Allow onboarding to complete profile
-          }
-        } catch (regError) {
-          console.error("Failed to register new user:", regError)
+      } catch (e: any) {
+        const msg = e?.message || String(e)
+        if (msg.includes("User closed the modal")) {
+          // Silent cancel: user dismissed the login modal. Allow retry without error noise.
+          return
         }
+        throw e
       }
     } catch (e: any) {
       const msg = e?.message || String(e)
       if (msg.includes("User closed the modal")) {
-        // Silent cancel: user dismissed the login modal. Allow retry without error noise.
+        // Silent cancel
         return
       }
       throw e
@@ -198,59 +176,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const icUser = await getMyUser()
         if (icUser) {
+          const isArtist = icUser.userType && typeof icUser.userType === 'object' && 'artist' in icUser.userType
           const user: User = {
             id: identity.getPrincipal().toText(),
             walletAddress: identity.getPrincipal().toText(),
             displayName: icUser.displayName,
             email: icUser.bio || '',
-            userType: icUser.userType === 'artist' ? 'artist' : 'fan',
+            userType: isArtist ? 'artist' : 'fan',
             bio: icUser.bio,
             location: icUser.location,
             genres: icUser.genres,
             profileImage: icUser.profileImage,
-            accountBalance: Number(icUser.accountBalance),
-            totalEarnings: Number(icUser.totalEarnings),
-            joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
+            accountBalance: Number(icUser.balance || 0),
+            totalEarnings: 0,
+            joinedAt: new Date(Number(icUser.joinedTimestamp || 0) / 1000000).toISOString()
           }
           setUser(user)
           localStorage.setItem("icIdentity", "true")
           localStorage.setItem("onboardingComplete", "true")
+        } else {
+          // No IC user found yet: defer registration to onboarding so the user can choose role (artist/fan)
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "false")
         }
       } catch (e) {
-        // User doesn't exist, create default fan account
-        try {
-          const result = await registerUser(
-            "New User",
-            { "fan": null },
-            "",
-            "",
-            [],
-            "",
-            null
-          )
-          if ("ok" in result) {
-            const icUser = result.ok
-            const user: User = {
-              id: identity.getPrincipal().toText(),
-              walletAddress: identity.getPrincipal().toText(),
-              displayName: icUser.displayName,
-              email: "",
-              userType: 'fan',
-              bio: icUser.bio,
-              location: icUser.location,
-              genres: icUser.genres,
-              profileImage: icUser.profileImage,
-              accountBalance: Number(icUser.accountBalance),
-              totalEarnings: Number(icUser.totalEarnings),
-              joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
-            }
-            setUser(user)
-            localStorage.setItem("icIdentity", "true")
-            localStorage.setItem("onboardingComplete", "false") // Allow onboarding to complete profile
-          }
-        } catch (regError) {
-          console.error("Failed to register new user:", regError)
-        }
+        console.log('Failed to get IC user:', e)
       }
     } catch (e: any) {
       const msg = e?.message || String(e)

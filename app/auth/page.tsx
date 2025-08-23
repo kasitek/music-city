@@ -9,20 +9,34 @@ import { useAuth } from "@/hooks/use-auth"
 import OnboardingModal from "@/components/onboarding-modal"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { getMyUser } from "@/lib/ic/backend"
 
 export default function AuthPage() {
   const [isConnected, setIsConnected] = useState(false)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const [showOnboarding, setShowOnboarding] = useState(false)
   const router = useRouter()
-  const { login, loginWithII, loginWithNFID, isAuthenticated } = useAuth()
+  const { login, loginWithII, loginWithNFID, isAuthenticated, user, updateUser } = useAuth()
 
   useEffect(() => {
     // Redirect if already authenticated
-    if (isAuthenticated) {
-      router.push("/dashboard")
+    const go = async () => {
+      if (isAuthenticated) {
+        try {
+          const icUser = await getMyUser()
+          const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
+          const role = isArtist ? 'artist' : 'fan'
+          if (role === 'artist') router.push("/dashboard")
+          else router.push("/")
+        } catch {
+          const role = user?.userType === 'artist' ? 'artist' : 'fan'
+          if (role === 'artist') router.push("/dashboard")
+          else router.push("/")
+        }
+      }
     }
-  }, [isAuthenticated, router])
+    go()
+  }, [isAuthenticated, router, user])
 
   const handleConnect = async (address: string, email?: string, name?: string) => {
     setIsConnected(true)
@@ -48,9 +62,29 @@ export default function AuthPage() {
     localStorage.removeItem("walletAddress")
   }
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = async () => {
     setShowOnboarding(false)
-    router.push("/dashboard")
+    try {
+      const icUser = await getMyUser()
+      const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
+      const role = isArtist ? 'artist' : 'fan'
+      // Refresh auth context with latest profile so UI shows correct displayName, etc.
+      try {
+        updateUser({
+          displayName: icUser?.displayName || user?.displayName || '',
+          userType: role,
+          bio: icUser?.bio,
+          location: icUser?.location,
+          genres: icUser?.genres,
+          profileImage: icUser?.profileImage,
+        })
+      } catch {}
+      if (role === 'artist') router.push("/dashboard")
+      else router.push("/")
+    } catch {
+      // Fallback if fetch fails
+      router.push("/")
+    }
   }
 
   return (
@@ -84,7 +118,24 @@ export default function AuthPage() {
               try {
                 await loginWithII()
                 toast.success("Signed in with Internet Identity")
-                router.push("/dashboard")
+                const ob = typeof window !== 'undefined' ? localStorage.getItem("onboardingComplete") : "true"
+                if (ob !== "true") {
+                  setShowOnboarding(true)
+                } else {
+                  // Decide by role; fetch to be certain
+                  try {
+                    const icUser = await getMyUser()
+                    const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
+                    const role = isArtist ? 'artist' : 'fan'
+                    if (role === 'artist') router.push("/dashboard")
+                    else router.push("/")
+                  } catch {
+                    // fallback to current context if available
+                    const role = user?.userType === 'artist' ? 'artist' : 'fan'
+                    if (role === 'artist') router.push("/dashboard")
+                    else router.push("/")
+                  }
+                }
               } catch (e) {
                 toast.error("Internet Identity sign-in failed")
               }
@@ -98,7 +149,22 @@ export default function AuthPage() {
               try {
                 await loginWithNFID()
                 toast.success("Signed in with NFID")
-                router.push("/dashboard")
+                const ob = typeof window !== 'undefined' ? localStorage.getItem("onboardingComplete") : "true"
+                if (ob !== "true") {
+                  setShowOnboarding(true)
+                } else {
+                  try {
+                    const icUser = await getMyUser()
+                    const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
+                    const role = isArtist ? 'artist' : 'fan'
+                    if (role === 'artist') router.push("/dashboard")
+                    else router.push("/")
+                  } catch {
+                    const role = user?.userType === 'artist' ? 'artist' : 'fan'
+                    if (role === 'artist') router.push("/dashboard")
+                    else router.push("/")
+                  }
+                }
               } catch (e) {
                 toast.error("NFID sign-in failed")
               }

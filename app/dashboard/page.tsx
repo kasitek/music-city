@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Music, Upload, DollarSign, Users, Play, Coins, TrendingUp, Eye, Settings, Shield, Award, Zap } from "lucide-react"
 import { Navigation } from "@/components/navigation"
-import { createTrack, setTrackAssets, myTransactions, getMyUser } from "@/lib/ic/backend"
+import { createTrack, setTrackAssets, myTransactions, getMyUser, listTracks } from "@/lib/ic/backend"
 import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -33,6 +33,44 @@ export default function ArtistDashboard() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const [authInProgress, setAuthInProgress] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+
+  // Backend data state
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [tracks, setTracks] = useState<any[]>([])
+
+  // Require authentication and artist role to access dashboard
+  useEffect(() => {
+    let mounted = true
+    (async () => {
+      try {
+        const icUser = await getMyUser()
+        if (!mounted) return
+        if (!icUser) {
+          router.push('/auth')
+          return
+        }
+        const isArtist = icUser.userType && typeof icUser.userType === 'object' && 'artist' in icUser.userType
+        if (!isArtist) {
+          router.push('/')
+          return
+        }
+        // Map minimal profile for local UI usage
+        setUserProfile({
+          id: walletAddress || '',
+          displayName: icUser.displayName,
+          userType: 'artist',
+          profileImage: icUser.profileImage || '',
+        })
+      } catch (e) {
+        router.push('/auth')
+      }
+    })()
+    return () => { mounted = false }
+  }, [router, walletAddress])
+
+  // Helpers for principals
+  const principalText = (p: any) => (p && typeof p === 'object' && 'toText' in p ? (p as any).toText() : String(p))
+  const principalEq = (a: any, b: any) => principalText(a) === principalText(b)
 
   // Drag & Drop state
   const [isDragging, setIsDragging] = useState(false)
@@ -214,122 +252,68 @@ export default function ArtistDashboard() {
       return
     }
 
-    // Load user profile from IC backend
-    const loadUserProfile = async () => {
-      try {
-        const icUser = await getMyUser()
-        if (icUser) {
-          setUserProfile({
-            id: icUser.id?.toString() || "",
-            walletAddress: "", // IC users don't need wallet addresses
-            displayName: icUser.displayName,
-            email: icUser.bio || "",
-            userType: icUser.userType === 'artist' ? 'artist' : 'fan',
-            bio: icUser.bio,
-            location: icUser.location,
-            genres: icUser.genres,
-            profileImage: icUser.profileImage,
-            accountBalance: Number(icUser.accountBalance),
-            totalEarnings: Number(icUser.totalEarnings),
-            joinedAt: new Date(Number(icUser.joinedAt) / 1000000).toISOString()
-          })
-        }
-      } catch (e) {
-        console.error('Failed to load user profile:', e)
-        // Redirect to auth if can't load profile
-        router.push("/auth")
-      }
-    }
-
     loadUserProfile()
   }, [router])
 
-  // Restrict dashboard access to artists only
-  useEffect(() => {
-    if (userProfile && userProfile.userType !== 'artist') {
-      router.replace('/')
-    }
-  }, [userProfile, router])
-
-  const getUserStats = () => {
-    if (!userProfile) return { earnings: 0, streams: 0, followers: 0, tokens: 0 }
-
-    if (userProfile.userType === "artist") {
-      // Calculate earnings from transactions
-      const userTransactions = mockDB.getUserTransactions(userProfile.id)
-      const earnings = userTransactions
-        .filter(t => t.toUser === userProfile.id && (t.type === "royalty" || t.type === "tip"))
-        .reduce((sum, t) => sum + t.amount, 0)
-
-      // Calculate total streams from tracks
-      const userTracks = mockDB.getTracksByArtist(userProfile.id)
-      const streams = userTracks.reduce((sum, track) => sum + track.plays, 0)
-
-      return {
-        earnings: earnings,
-        streams: streams,
-        followers: userProfile.followers || 0,
-        tokens: Math.floor(earnings * 10), // Mock MCC tokens conversion
-      }
-    }
-
-    return {
-      earnings: 0,
-      streams: 0,
-      followers: userProfile.followers || 0,
-      tokens: 1247, // Mock tokens for fans
-    }
+// Restrict dashboard access to artists only
+useEffect(() => {
+  if (userProfile && userProfile.userType !== 'artist') {
+    router.replace('/')
   }
+}, [userProfile, router])
 
-  const getUserTracks = () => {
-    if (!userProfile || userProfile.userType !== "artist") return []
-    const tracks = mockDB.getTracksByArtist(userProfile.id)
-    
-    // Add earnings calculation for each track
-    return tracks.map(track => {
-      const trackTransactions = mockDB.getUserTransactions(userProfile.id)
-        .filter(t => t.trackId === track.id && t.type === "royalty")
-      const earnings = trackTransactions.reduce((sum, t) => sum + t.amount, 0)
-      
-      return {
-        ...track,
-        earnings: earnings,
-        streams: track.plays // Use plays as streams
-      }
+const getUserStats = () => {
+  if (!userProfile) return { earnings: 0, streams: 0, followers: 0, tokens: 0 }
+
+  // Earnings from incoming royalties and tips
+  const incoming = (transactions || []).filter((t: any) => principalEq(t.toUser, userProfile.id))
+  const earnings = incoming
+    .filter((t: any) => ('royalty' in t.kind) || ('tip' in t.kind))
+    .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
+
+  // Streams from artist's tracks
+  const myTracks = (tracks || [])
+  const streams = myTracks.reduce((sum: number, tr: any) => sum + Number(tr.plays || 0), 0)
+
+  return {
+    earnings,
+    streams,
+    followers: userProfile.followers || 0,
+    tokens: Math.floor(earnings * 10),
+  }
+}
+
+const getUserTracks = () => {
+  if (!userProfile || userProfile.userType !== "artist") return []
+  const myTracks = (tracks || [])
+  const txs = (transactions || [])
+  return myTracks.map((track: any) => {
+    // Sum royalties for this track
+    const trackTxs = txs.filter((t: any) => {
+      const tTrackId = Array.isArray(t.trackId) ? t.trackId[0] : t.trackId
+      return ('royalty' in t.kind) && tTrackId !== undefined && tTrackId !== null && BigInt(tTrackId as any) === BigInt(track.id as any)
     })
-  }
-
-  const getUserTransactions = () => {
-    if (!userProfile) return []
-    const transactions = mockDB.getUserTransactions(userProfile.id)
-    
-    // Format transactions for display
-    return transactions
-      .filter(t => t.toUser === userProfile.id) // Only incoming transactions for earnings
-      .slice(0, 3) // Get latest 3
-      .map(t => ({
-        ...t,
-        description: getTransactionDescription(t),
-        date: new Date(t.timestamp).toLocaleDateString()
-      }))
-  }
-
-  const getTransactionDescription = (transaction: any) => {
-    switch (transaction.type) {
-      case "royalty":
-        return "Stream royalty payment"
-      case "tip":
-        return "Fan tip received"
-      case "nft_purchase":
-        return "NFT sale"
-      default:
-        return "Payment received"
+    const earnings = trackTxs.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
+    return {
+      ...track,
+      id: Number(track.id),
+      earnings,
+      streams: Number(track.plays || 0),
     }
-  }
+  })
+}
 
-  const stats = getUserStats()
-  const userTracks = getUserTracks()
-  const userTransactions = getUserTransactions()
+const getUserTransactions = () => {
+  if (!userProfile) return []
+  const incoming = (transactions || []).filter((t: any) => principalEq(t.toUser, userProfile.id))
+  const sorted = incoming.sort((a: any, b: any) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+  return sorted.slice(0, 3).map((t: any) => ({
+    ...t,
+    amount: Number(t.amount || 0),
+    description: getTransactionDescription(t),
+    date: new Date(Number(t.timestamp || 0) / 1_000_000).toLocaleDateString(),
+  }))
+}
 
   if (!userProfile) {
     return (

@@ -24,9 +24,9 @@ async function getActor(): Promise<ActorSubclass<_SERVICE>> {
     const canisterId = await getBackendCanisterId()
     const host = getDefaultHost()
     
-    // For local development, try without identity first to avoid certificate issues
-    const isLocal = host?.includes('127.0.0.1') || host?.includes('localhost')
-    const identity = isLocal ? undefined : currentIdentity
+    // Prefer using identity if available (even on local) so authenticated methods work.
+    // We will still fallback to an anonymous actor if creation fails.
+    const identity = currentIdentity
     
     actorPromise = createActor<_SERVICE>({
       canisterId,
@@ -172,6 +172,19 @@ export async function tip(artistPrincipalText: string, amount: number | bigint) 
   const a = await getActor()
   const { Principal } = await import('@dfinity/principal')
   return a.tip(Principal.fromText(artistPrincipalText), BigInt(amount as any))
+}
+
+// Follow
+export async function follow(artistPrincipalText: string) {
+  const a = await getActor()
+  const { Principal } = await import('@dfinity/principal')
+  return a.follow(Principal.fromText(artistPrincipalText))
+}
+
+export async function unfollow(artistPrincipalText: string) {
+  const a = await getActor()
+  const { Principal } = await import('@dfinity/principal')
+  return a.unfollow(Principal.fromText(artistPrincipalText))
 }
 
 // NFTs

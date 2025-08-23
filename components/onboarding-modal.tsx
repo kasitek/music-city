@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Music, User, ArrowRight, Upload, X } from "lucide-react"
 import { useState, useRef } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { mockDB } from "@/lib/mock-database"
 import { registerUser as registerUserIC } from "@/lib/ic/backend"
 import { getIdentity } from "@/lib/ic/auth"
 import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
@@ -32,7 +31,7 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
     birthDate: "",
     profileImage: "",
   })
-  const { login, loginWithII } = useAuth()
+  const { loginWithII } = useAuth()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [dragActive, setDragActive] = useState(false)
 
@@ -96,52 +95,24 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
     if (step < 3) {
       setStep(step + 1)
     } else {
-      // Initialize database with sample data
-      mockDB.initializeDatabase()
-
-      // Reuse existing user or create one if missing
-      const existing = walletAddress ? mockDB.getUserByWallet(walletAddress) : null
-      const user = existing
-        ? mockDB.updateUser(existing.id, {
-            userType: formData.userType as "artist" | "fan",
-            displayName: formData.displayName || existing.displayName,
-            bio: formData.bio ?? existing.bio,
-            location: formData.location || existing.location,
-            genres: formData.genres?.length ? formData.genres : existing.genres,
-            birthDate: formData.birthDate || existing.birthDate,
-            profileImage: formData.profileImage || existing.profileImage,
-          }) || existing
-        : mockDB.createUser({
-            walletAddress,
-            userType: formData.userType as "artist" | "fan",
-            displayName: formData.displayName,
-            bio: formData.bio,
-            location: formData.location,
-            genres: formData.genres,
-            birthDate: formData.birthDate,
-            profileImage: formData.profileImage,
-            isVerified: false,
-          })
-
-      if (user) {
-        mockDB.setCurrentUser(user)
-      }
-
-      // Register in IC backend so permissions (e.g., createTrack) work under the correct principal
+      // Final step: register on IC backend
       try {
-        // Ensure we have an authenticated identity (avoid registering as Anonymous)
-        let id: Identity | null = null
-        try { id = getIdentity() } catch {}
-        if (!id) {
-          try {
-            await loginWithII()
-            id = getIdentity()
-          } catch (e) {
-            console.warn("II login skipped/failed; proceeding may register anonymous principal", e)
-          }
+        let identity: Identity | null = getIdentity() as Identity | null
+
+        // Ensure we have an Internet Identity session
+        if (!identity) {
+          await loginWithII()
+          identity = getIdentity() as Identity | null
         }
-        if (id) setBackendIdentity(id)
-        await registerUserIC({
+
+        if (!identity) {
+          console.error("No Internet Identity available; aborting registration.")
+          return
+        }
+
+        // Bind identity to backend actor and register user
+        setBackendIdentity(identity)
+        const res = await registerUserIC({
           displayName: formData.displayName,
           userType: formData.userType === "artist" ? { artist: null } : { fan: null },
           bio: formData.bio,
@@ -150,16 +121,22 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
           profileImage: formData.profileImage,
           birthDate: formData.birthDate || null,
         })
-        console.log("registerUser (IC) success [modal]")
+
+        if ("ok" in res) {
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "true")
+          onComplete()
+        } else if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
+          // Gracefully handle already-registered accounts: mark complete and continue
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "true")
+          onComplete()
+        } else {
+          console.error("IC registerUser failed:", res)
+        }
       } catch (e) {
         console.warn("registerUser (IC) failed [modal]", e)
       }
-
-      // Login the user (this will set the auth context)
-      await login(walletAddress)
-
-      // Complete onboarding
-      onComplete()
     }
   }
 

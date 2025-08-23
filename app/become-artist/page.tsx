@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 
 export default function BecomeArtistPage() {
-  const { user, loginWithII, loginWithNFID } = useAuth()
+  const { user, loginWithII, loginWithNFID, updateUser } = useAuth()
   const [status, setStatus] = useState<string>("")
   const [loading, setLoading] = useState(false)
 
@@ -25,8 +25,13 @@ export default function BecomeArtistPage() {
       }
       const res = await becomeArtist()
       if ("ok" in res) {
-        setStatus("Success: you are now an artist. Reloading profile...")
-        await getMyUser()
+        setStatus("Success: you are now an artist. Updating session...")
+        try {
+          const icUser = await getMyUser()
+          if (icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType) {
+            updateUser({ userType: 'artist' })
+          }
+        } catch {}
       } else {
         setStatus(`Error: ${res.err}`)
       }

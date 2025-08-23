@@ -24,6 +24,13 @@ export default function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const { user, isAuthenticated, logout } = useAuth()
+  const balance = (user as any)?.mccBalance ?? user?.accountBalance ?? 0
+  const shortPrincipal = (addr?: string) => {
+    if (!addr || addr.length < 10) return addr || 'User'
+    return `${addr.slice(0,5)}...${addr.slice(-3)}`
+  }
+  const displayLabel = user ? (user.displayName || shortPrincipal(user.walletAddress)) : 'User'
+  const displayInitial = (displayLabel?.charAt(0) || 'U').toUpperCase()
 
   const handleLogout = () => {
     logout()
@@ -89,22 +96,22 @@ export default function Navigation({ currentPage }: NavigationProps) {
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-300">
-                  <span className="font-medium">{user.mccBalance}</span> MCC
+                  <span className="font-medium">{balance}</span> MCC
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={user.displayName} />
+                        <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={displayLabel} />
                         <AvatarFallback className="bg-purple-600 text-white">
-                          {user.displayName.charAt(0).toUpperCase()}
+                          {displayInitial}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56 bg-gray-800 border-gray-700" align="end" forceMount>
                     <div className="flex flex-col space-y-1 p-2">
-                      <p className="text-sm font-medium text-white">{user.displayName}</p>
+                      <p className="text-sm font-medium text-white">{displayLabel}</p>
                       <p className="text-xs text-gray-400 capitalize">{user.userType}</p>
                     </div>
                     <DropdownMenuSeparator className="bg-gray-700" />
@@ -186,14 +193,14 @@ export default function Navigation({ currentPage }: NavigationProps) {
                     <div className="px-3 py-2">
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={user.displayName} />
+                          <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={displayLabel} />
                           <AvatarFallback className="bg-purple-600 text-white text-sm">
-                            {user.displayName.charAt(0).toUpperCase()}
+                            {displayInitial}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="text-sm font-medium text-white">{user.displayName}</div>
-                          <div className="text-xs text-gray-400">{user.mccBalance} MCC</div>
+                          <div className="text-sm font-medium text-white">{displayLabel}</div>
+                          <div className="text-xs text-gray-400">{balance} MCC</div>
                         </div>
                       </div>
                     </div>

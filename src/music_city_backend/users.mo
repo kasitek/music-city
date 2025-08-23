@@ -130,4 +130,41 @@ module {
       }
     }
   };
+
+  // NOTE: We only track counts, not the follow graph. This means follow() is not idempotent.
+  public func follow(users : [(Principal, T.User)], follower : Principal, target : Principal) : ([(Principal, T.User)], Bool) {
+    if (Principal.equal(follower, target)) { return (users, false) };
+    switch (getUser(users, follower)) {
+      case null { (users, false) };
+      case (?fu) {
+        switch (getUser(users, target)) {
+          case null { (users, false) };
+          case (?tu) {
+            let users1 = upsert(users, follower, { fu with following = fu.following + 1 });
+            let users2 = upsert(users1, target, { tu with followers = tu.followers + 1 });
+            (users2, true)
+          }
+        }
+      }
+    }
+  };
+
+  public func unfollow(users : [(Principal, T.User)], follower : Principal, target : Principal) : ([(Principal, T.User)], Bool) {
+    if (Principal.equal(follower, target)) { return (users, false) };
+    switch (getUser(users, follower)) {
+      case null { (users, false) };
+      case (?fu) {
+        switch (getUser(users, target)) {
+          case null { (users, false) };
+          case (?tu) {
+            let newFollowing = if (fu.following > 0) fu.following - 1 else 0;
+            let newFollowers = if (tu.followers > 0) tu.followers - 1 else 0;
+            let users1 = upsert(users, follower, { fu with following = newFollowing });
+            let users2 = upsert(users1, target, { tu with followers = newFollowers });
+            (users2, true)
+          }
+        }
+      }
+    }
+  };
 }

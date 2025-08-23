@@ -79,6 +79,9 @@ export const idlFactory = ({ IDL }: any) => {
 
     tip: IDL.Func([IDL.Principal, IDL.Nat], [ResultBool], []),
 
+    follow: IDL.Func([IDL.Principal], [ResultBool], []),
+    unfollow: IDL.Func([IDL.Principal], [ResultBool], []),
+
     mintNFT: IDL.Func([IDL.Text, IDL.Text, IDL.Nat, Rarity, IDL.Text], [ResultNFT], []),
     purchaseNFT: IDL.Func([IDL.Nat], [ResultBool], []),
     listNFTs: IDL.Func([], [IDL.Vec(NFT)], ['query']),

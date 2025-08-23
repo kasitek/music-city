@@ -11,7 +11,6 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
-import { mockDB } from "@/lib/mock-database"
 import { registerUser as registerUserIC } from "@/lib/ic/backend"
 import { getIdentity } from "@/lib/ic/auth"
 import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
@@ -36,12 +35,6 @@ export default function OnboardingPage() {
     if (isAuthenticated) {
       router.push("/dashboard")
       return
-    }
-
-    // Check if wallet is connected
-    const walletConnected = localStorage.getItem("walletConnected")
-    if (!walletConnected) {
-      router.push("/auth")
     }
   }, [isAuthenticated, router])
 
@@ -69,69 +62,41 @@ export default function OnboardingPage() {
     if (step < 3) {
       setStep(step + 1)
     } else {
-      // Get wallet address from localStorage
-      const walletAddress = localStorage.getItem("walletAddress") || ""
-
-      // Initialize database with sample data
-      mockDB.initializeDatabase()
-
-      // Reuse existing user or create one if missing
-      const existing = walletAddress ? mockDB.getUserByWallet(walletAddress) : null
-      const user = existing
-        ? mockDB.updateUser(existing.id, {
-            userType: formData.userType as "artist" | "fan",
-            displayName: formData.displayName || existing.displayName,
-            bio: formData.bio ?? existing.bio,
-            location: formData.location || existing.location,
-            genres: formData.genres?.length ? formData.genres : existing.genres,
-            birthDate: formData.birthDate || existing.birthDate,
-            profileImage: formData.profileImage || existing.profileImage,
-          }) || existing
-        : mockDB.createUser({
-            walletAddress,
-            userType: formData.userType as "artist" | "fan",
-            displayName: formData.displayName,
-            bio: formData.bio,
-            location: formData.location,
-            genres: formData.genres,
-            birthDate: formData.birthDate,
-            profileImage: formData.profileImage,
-            isVerified: false,
-          })
-
-      if (user) {
-        mockDB.setCurrentUser(user)
-      }
-
-      // Best-effort: also register in IC backend so permissions (e.g., createTrack) work
+      // Register in IC backend (authoritative source)
       try {
         // Ensure IC identity is set on backend actor if available (II/NFID session)
         try {
           const id = getIdentity()
           if (id) setBackendIdentity(id)
         } catch {}
-        await registerUserIC({
+        const res = await registerUserIC({
           displayName: formData.displayName,
           userType: formData.userType === "artist" ? { artist: null } : { fan: null },
           bio: formData.bio,
           location: formData.location,
           genres: formData.genres,
           profileImage: formData.profileImage,
-          birthDate: formData.birthDate || null,
+          birthDate: formData.birthDate,
         })
-        console.log("registerUser (IC) success")
-        toast.success(`Registered as ${formData.userType || "user"} on backend`)
-      } catch (e) {
-        // Non-blocking: proceed with mock login even if backend registration fails
-        console.warn("registerUser (IC) failed", e)
-        toast.error("Backend registration failed; continuing locally")
+        if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
+          // Treat as success and continue
+          console.warn('User already registered; proceeding with onboarding completion')
+        } else if (res && typeof res === 'object' && 'ok' in res) {
+          // success
+        } else {
+          throw new Error('Registration failed')
+        }
+        toast.success("Onboarding complete! Your profile has been created.")
+        // Mark completion and redirect based on role
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('onboardingComplete', 'true')
+        }
+        if (formData.userType === 'artist') router.push('/dashboard')
+        else router.push('/')
+      } catch (e: any) {
+        console.error("IC registration failed:", e)
+        toast.error(e?.message || "Failed to complete onboarding. Please try again.")
       }
-
-      // Login the user (this will set the auth context)
-      await login(walletAddress)
-
-      // Redirect to dashboard
-      router.push("/dashboard")
     }
   }
 

@@ -4,17 +4,22 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Music, Search, Play, Users, Star, Clock, Globe } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Music, Search, Play, Users, Star, Clock, Globe, Share2 } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
 import { Navigation } from "@/components/navigation"
 import { fromCandidTrack, fromCandidUser } from "@/lib/mappers"
 import type { TrackModel, UserModel } from "@/lib/types"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
 
 export default function DiscoverPage() {
   const [featuredArtists, setFeaturedArtists] = useState<UserModel[]>([])
   const [allTracks, setAllTracks] = useState<TrackModel[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [following, setFollowing] = useState<Record<string, boolean>>({})
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     let mounted = true
@@ -56,6 +61,32 @@ export default function DiscoverPage() {
     load()
     return () => { mounted = false }
   }, [])
+
+  async function onFollow(artist: UserModel) {
+    try {
+      if (!isAuthenticated) { router.push('/auth'); return }
+      const { follow } = await import('@/lib/ic/backend')
+      const res = await follow(artist.owner)
+      if ('ok' in res && res.ok) {
+        setFollowing((prev) => ({ ...prev, [artist.owner]: true }))
+        setFeaturedArtists((prev) => prev.map(a => a.owner === artist.owner ? { ...a, followers: (BigInt(a.followers || 0) + 1n) } : a))
+      }
+    } catch (e) {
+      console.error('Follow failed:', e)
+    }
+  }
+
+  async function onShareArtist(artist: UserModel) {
+    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/artists?owner=${artist.owner}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: artist.displayName, text: `Check out ${artist.displayName} on Music City`, url })
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url)
+        alert('Artist link copied to clipboard')
+      }
+    } catch {}
+  }
 
   // Calculate real data from tracks
   const trendingPlaylists = allTracks.length > 0 ? [
@@ -132,7 +163,8 @@ export default function DiscoverPage() {
             {featuredArtists.map((artist) => (
               <Card
                 key={artist.owner}
-                className="bg-gray-800 border-gray-700 hover:border-purple-600/50 transition-colors"
+                className="bg-gray-800 border-gray-700 hover:border-purple-600/50 transition-colors cursor-pointer"
+                onClick={() => router.push(`/artists?owner=${artist.owner}`)}
               >
                 <CardContent className="p-6 text-center">
                   <div className="relative mb-4">
@@ -164,7 +196,22 @@ export default function DiscoverPage() {
                     </div>
                     <p className="text-xs">{artist.location}</p>
                   </div>
-                  <Button className="w-full mt-4 bg-purple-600 hover:bg-purple-700">Follow</Button>
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      className="flex-1 bg-purple-600 hover:bg-purple-700"
+                      disabled={!!following[artist.owner]}
+                      onClick={(e) => { e.stopPropagation(); onFollow(artist) }}
+                    >
+                      {following[artist.owner] ? 'Following' : 'Follow'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-gray-600 text-gray-300 bg-transparent"
+                      onClick={(e) => { e.stopPropagation(); onShareArtist(artist) }}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
