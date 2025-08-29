@@ -1,0 +1,39 @@
+type Result_1 = 
+ variant {
+   err: text;
+   ok: record {
+         AssetId;
+         BucketId;
+       };
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: bool;
+ };
+type MediaType = 
+ variant {
+   audio;
+   image;
+   other;
+ };
+type BucketId = principal;
+type AssetId = nat;
+type Asset = 
+ record {
+   bucket: BucketId;
+   contentType: text;
+   ext: text;
+   id: AssetId;
+   mediaType: MediaType;
+   owner: principal;
+   size: nat;
+ };
+service : {
+  createAsset: (mediaType: MediaType, ext: text, size: nat, contentType:
+   text) -> (Result_1);
+  deleteAsset: (id: AssetId) -> (Result);
+  listByOwner: (p: opt principal) -> (vec Asset) query;
+  locateAsset: (id: AssetId) -> (opt Asset) query;
+  setBucket: (p: principal) -> ();
+}

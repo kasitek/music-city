@@ -1,0 +1,128 @@
+type UserType = 
+ variant {
+   artist;
+   fan;
+ };
+type User = 
+ record {
+   balance: nat;
+   bio: text;
+   birthDate: opt text;
+   displayName: text;
+   followers: nat;
+   following: nat;
+   genres: vec text;
+   isVerified: bool;
+   joinedTimestamp: nat64;
+   location: text;
+   owner: principal;
+   profileImage: text;
+   userType: UserType;
+ };
+type TxType = 
+ variant {
+   nft_purchase;
+   royalty;
+   stream;
+   tip;
+ };
+type Transaction = 
+ record {
+   amount: nat;
+   fromUser: opt principal;
+   id: nat;
+   kind: TxType;
+   nftId: opt nat;
+   status: variant {
+             completed;
+             failed;
+             pending;
+           };
+   timestamp: nat64;
+   toUser: principal;
+   trackId: opt nat;
+ };
+type Track = 
+ record {
+   artist: principal;
+   audioAssetId: opt nat;
+   audioUrl: text;
+   coverImage: text;
+   description: text;
+   duration: text;
+   genre: text;
+   id: nat;
+   imageAssetId: opt nat;
+   likes: nat;
+   plays: nat;
+   price: nat;
+   releaseDate: text;
+   title: text;
+ };
+type Result_3 = 
+ variant {
+   err: text;
+   ok: NFT;
+ };
+type Result_2 = 
+ variant {
+   err: text;
+   ok: Track;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: bool;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: User;
+ };
+type Rarity = 
+ variant {
+   common;
+   epic;
+   legendary;
+   rare;
+ };
+type NFT = 
+ record {
+   artist: principal;
+   createdTimestamp: nat64;
+   description: text;
+   id: nat;
+   image: text;
+   owner: opt principal;
+   price: nat;
+   rarity: Rarity;
+   title: text;
+ };
+service : {
+  becomeArtist: () -> (Result);
+  createTrack: (title: text, duration: text, genre: text, coverImage: 
+   text, audioUrl: text, price: nat, releaseDate: text, description: 
+   text) -> (Result_2);
+  follow: (artist: principal) -> (Result_1);
+  getMyUser: () -> (opt User) query;
+  getNFT: (id: nat) -> (opt NFT) query;
+  getTrack: (id: nat) -> (opt Track) query;
+  getUser: (p: principal) -> (opt User) query;
+  listArtists: () -> (vec User) query;
+  listNFTs: () -> (vec NFT) query;
+  listTracks: () -> (vec Track) query;
+  mintNFT: (title: text, image: text, price: nat, rarity: Rarity,
+   description: text) -> (Result_3);
+  myTransactions: () -> (vec Transaction) query;
+  purchaseNFT: (nftId: nat) -> (Result_1);
+  registerUser: (displayName: text, userType: UserType, bio: text, location:
+   text, genres: vec text, profileImage: text, birthDate: opt text) ->
+   (Result);
+  setTrackAssets: (trackId: nat, audioAssetId: opt nat, imageAssetId:
+   opt nat) -> (Result_2);
+  streamTrack: (trackId: nat) -> (Result_1);
+  tip: (artist: principal, amount: nat) -> (Result_1);
+  unfollow: (artist: principal) -> (Result_1);
+  updateProfile: (displayName: opt text, bio: opt text, location: opt text,
+   genres: opt vec text, profileImage: opt text) -> (Result);
+}

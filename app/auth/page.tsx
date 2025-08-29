@@ -5,53 +5,62 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Web3Auth from "@/components/web3-auth"
-import { useAuth } from "@/hooks/use-auth"
 import OnboardingModal from "@/components/onboarding-modal"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { getMyUser } from "@/lib/ic/backend"
+import { useAuth } from "@/hooks/ic/auth-context"
+import WalletConnectionModal from "@/components/wallet-connection-modal"
 
 export default function AuthPage() {
+  const {isAuthenticated, login, logout, backendActor} = useAuth()
+
+  console.log("Is authenticated:", isAuthenticated)
   const [isConnected, setIsConnected] = useState(false)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const router = useRouter()
-  const { login, loginWithII, loginWithNFID, isAuthenticated, user, updateUser } = useAuth()
+    const [isWalletModalOpen, setIsWalletModalOpen] = useState(false)
 
-  useEffect(() => {
-    // Redirect if already authenticated
-    const go = async () => {
-      if (isAuthenticated) {
-        try {
-          const icUser = await getMyUser()
-          const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
-          const role = isArtist ? 'artist' : 'fan'
-          if (role === 'artist') router.push("/dashboard")
-          else router.push("/")
-        } catch {
-          const role = user?.userType === 'artist' ? 'artist' : 'fan'
-          if (role === 'artist') router.push("/dashboard")
-          else router.push("/")
-        }
-      }
-    }
-    go()
-  }, [isAuthenticated, router, user])
+      const closeWalletModal = () => {
+    setIsWalletModalOpen(false)
+  }
+
+
+  const router = useRouter()
+
+  // useEffect(() => {
+  //   // Redirect if already authenticated
+  //   const go = async () => {
+  //     if (isAuthenticated) {
+  //       try {
+  //         const icUser = await getMyUser()
+  //         const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
+  //         const role = isArtist ? 'artist' : 'fan'
+  //         if (role === 'artist') router.push("/dashboard")
+  //         else router.push("/")
+  //       } catch {
+  //         const role = user?.userType === 'artist' ? 'artist' : 'fan'
+  //         if (role === 'artist') router.push("/dashboard")
+  //         else router.push("/")
+  //       }
+  //     }
+  //   }
+  //   go()
+  // }, [isAuthenticated, router, user])
 
   const handleConnect = async (address: string, email?: string, name?: string) => {
     setIsConnected(true)
     setWalletAddress(address)
 
-    // Try to login with existing user
-    const user = await login(address, email, name)
+    // // Try to login with existing user
+    // const user = await login(address, email, name)
 
-    if (user) {
-      // User exists, redirect to dashboard
-      router.push("/dashboard")
-    } else {
-      // New user, show onboarding modal
-      setShowOnboarding(true)
-    }
+    // if (user) {
+    //   // User exists, redirect to dashboard
+    //   router.push("/dashboard")
+    // } else {
+    //   // New user, show onboarding modal
+    //   setShowOnboarding(true)
+    // }
   }
 
   const handleDisconnect = () => {
@@ -64,27 +73,27 @@ export default function AuthPage() {
 
   const handleOnboardingComplete = async () => {
     setShowOnboarding(false)
-    try {
-      const icUser = await getMyUser()
-      const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
-      const role = isArtist ? 'artist' : 'fan'
-      // Refresh auth context with latest profile so UI shows correct displayName, etc.
-      try {
-        updateUser({
-          displayName: icUser?.displayName || user?.displayName || '',
-          userType: role,
-          bio: icUser?.bio,
-          location: icUser?.location,
-          genres: icUser?.genres,
-          profileImage: icUser?.profileImage,
-        })
-      } catch {}
-      if (role === 'artist') router.push("/dashboard")
-      else router.push("/")
-    } catch {
-      // Fallback if fetch fails
-      router.push("/")
-    }
+    // try {
+    //   const icUser = await getMyUser()
+    //   const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
+    //   const role = isArtist ? 'artist' : 'fan'
+    //   // Refresh auth context with latest profile so UI shows correct displayName, etc.
+    //   try {
+    //     updateUser({
+    //       displayName: icUser?.displayName || user?.displayName || '',
+    //       userType: role,
+    //       bio: icUser?.bio,
+    //       location: icUser?.location,
+    //       genres: icUser?.genres,
+    //       profileImage: icUser?.profileImage,
+    //     })
+    //   } catch {}
+    //   if (role === 'artist') router.push("/dashboard")
+    //   else router.push("/")
+    // } catch {
+    //   // Fallback if fetch fails
+    //   router.push("/")
+    // }
   }
 
   return (
@@ -102,103 +111,23 @@ export default function AuthPage() {
           <p className="text-gray-400 text-lg">Connect your wallet or sign in with Internet Identity/NFID</p>
         </div>
 
-        {/* Web3Auth Connection */}
-        <Web3Auth
-          onConnect={handleConnect}
-          onDisconnect={handleDisconnect}
-          isConnected={isConnected}
-          address={walletAddress}
+        {!isAuthenticated && <button
+          onClick={() => setIsWalletModalOpen(true)}
+          className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded">
+          Login
+        </button>}
+        {isAuthenticated && (
+          <button
+            onClick={logout}
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
+            Logout
+          </button>
+        )}
+        <WalletConnectionModal
+          isOpen={isWalletModalOpen}
+          onClose={closeWalletModal}
         />
-
-        {/* II / NFID Sign-in */}
-        <div className="grid grid-cols-1 gap-3">
-          <Button
-            variant="default"
-            onClick={async () => {
-              try {
-                await loginWithII()
-                toast.success("Signed in with Internet Identity")
-                const ob = typeof window !== 'undefined' ? localStorage.getItem("onboardingComplete") : "true"
-                if (ob !== "true") {
-                  setShowOnboarding(true)
-                } else {
-                  // Decide by role; fetch to be certain
-                  try {
-                    const icUser = await getMyUser()
-                    const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
-                    const role = isArtist ? 'artist' : 'fan'
-                    if (role === 'artist') router.push("/dashboard")
-                    else router.push("/")
-                  } catch {
-                    // fallback to current context if available
-                    const role = user?.userType === 'artist' ? 'artist' : 'fan'
-                    if (role === 'artist') router.push("/dashboard")
-                    else router.push("/")
-                  }
-                }
-              } catch (e) {
-                toast.error("Internet Identity sign-in failed")
-              }
-            }}
-          >
-            Sign in with Internet Identity
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              try {
-                await loginWithNFID()
-                toast.success("Signed in with NFID")
-                const ob = typeof window !== 'undefined' ? localStorage.getItem("onboardingComplete") : "true"
-                if (ob !== "true") {
-                  setShowOnboarding(true)
-                } else {
-                  try {
-                    const icUser = await getMyUser()
-                    const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
-                    const role = isArtist ? 'artist' : 'fan'
-                    if (role === 'artist') router.push("/dashboard")
-                    else router.push("/")
-                  } catch {
-                    const role = user?.userType === 'artist' ? 'artist' : 'fan'
-                    if (role === 'artist') router.push("/dashboard")
-                    else router.push("/")
-                  }
-                }
-              } catch (e) {
-                toast.error("NFID sign-in failed")
-              }
-            }}
-          >
-            Sign in with NFID (email/social)
-          </Button>
-        </div>
-
-        {/* Features */}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-lg">
-            <Shield className="h-6 w-6 text-blue-500" />
-            <div>
-              <div className="text-sm font-medium text-white">Secure & Transparent</div>
-              <div className="text-xs text-gray-400">Blockchain-powered security</div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-lg">
-            <Coins className="h-6 w-6 text-yellow-500" />
-            <div>
-              <div className="text-sm font-medium text-white">Fair Royalties</div>
-              <div className="text-xs text-gray-400">Direct payments to artists</div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-lg">
-            <Users className="h-6 w-6 text-green-500" />
-            <div>
-              <div className="text-sm font-medium text-white">Community Driven</div>
-              <div className="text-xs text-gray-400">Connect with fans directly</div>
-            </div>
-          </div>
-        </div>
-
+      
         {/* Footer */}
         <div className="text-center text-xs text-gray-500">
           New to Web3?{" "}

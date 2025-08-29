@@ -1,0 +1,14 @@
+type Result = 
+ variant {
+   err: text;
+   ok: bool;
+ };
+type Blob = vec nat8;
+type AssetId = nat;
+service : {
+  commit_batch: (id: AssetId, _totalChunks: nat, _contentType: text, _size:
+   nat) -> (Result);
+  delete: (id: AssetId) -> (Result);
+  get_data: (id: AssetId) -> (opt Blob) query;
+  put_chunk: (id: AssetId, _chunkNo: nat, data: Blob) -> (Result);
+}

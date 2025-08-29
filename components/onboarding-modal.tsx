@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { Music, User, ArrowRight, Upload, X } from "lucide-react"
 import { useState, useRef } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { registerUser as registerUserIC } from "@/lib/ic/backend"
-import { getIdentity } from "@/lib/ic/auth"
-import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
+// import { registerUser as registerUserIC } from "@/lib/ic/backend"
+// import { getIdentity } from "@/lib/ic/auth"
+// import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
 import type { Identity } from "@dfinity/agent"
 
 interface OnboardingModalProps {
@@ -31,7 +31,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
     birthDate: "",
     profileImage: "",
   })
-  const { loginWithII } = useAuth()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [dragActive, setDragActive] = useState(false)
 
@@ -95,48 +94,48 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
     if (step < 3) {
       setStep(step + 1)
     } else {
-      // Final step: register on IC backend
-      try {
-        let identity: Identity | null = getIdentity() as Identity | null
+      // // Final step: register on IC backend
+      // try {
+      //   let identity: Identity | null = getIdentity() as Identity | null
 
-        // Ensure we have an Internet Identity session
-        if (!identity) {
-          await loginWithII()
-          identity = getIdentity() as Identity | null
-        }
+      //   // Ensure we have an Internet Identity session
+      //   if (!identity) {
+      //     await loginWithII()
+      //     identity = getIdentity() as Identity | null
+      //   }
 
-        if (!identity) {
-          console.error("No Internet Identity available; aborting registration.")
-          return
-        }
+      //   if (!identity) {
+      //     console.error("No Internet Identity available; aborting registration.")
+      //     return
+      //   }
 
-        // Bind identity to backend actor and register user
-        setBackendIdentity(identity)
-        const res = await registerUserIC({
-          displayName: formData.displayName,
-          userType: formData.userType === "artist" ? { artist: null } : { fan: null },
-          bio: formData.bio,
-          location: formData.location,
-          genres: formData.genres,
-          profileImage: formData.profileImage,
-          birthDate: formData.birthDate || null,
-        })
+      //   // Bind identity to backend actor and register user
+      //   setBackendIdentity(identity)
+      //   const res = await registerUserIC({
+      //     displayName: formData.displayName,
+      //     userType: formData.userType === "artist" ? { artist: null } : { fan: null },
+      //     bio: formData.bio,
+      //     location: formData.location,
+      //     genres: formData.genres,
+      //     profileImage: formData.profileImage,
+      //     birthDate: formData.birthDate || null,
+      //   })
 
-        if ("ok" in res) {
-          localStorage.setItem("icIdentity", "true")
-          localStorage.setItem("onboardingComplete", "true")
-          onComplete()
-        } else if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
-          // Gracefully handle already-registered accounts: mark complete and continue
-          localStorage.setItem("icIdentity", "true")
-          localStorage.setItem("onboardingComplete", "true")
-          onComplete()
-        } else {
-          console.error("IC registerUser failed:", res)
-        }
-      } catch (e) {
-        console.warn("registerUser (IC) failed [modal]", e)
-      }
+      //   if ("ok" in res) {
+      //     localStorage.setItem("icIdentity", "true")
+      //     localStorage.setItem("onboardingComplete", "true")
+      //     onComplete()
+      //   } else if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
+      //     // Gracefully handle already-registered accounts: mark complete and continue
+      //     localStorage.setItem("icIdentity", "true")
+      //     localStorage.setItem("onboardingComplete", "true")
+      //     onComplete()
+      //   } else {
+      //     console.error("IC registerUser failed:", res)
+      //   }
+      // } catch (e) {
+      //   console.warn("registerUser (IC) failed [modal]", e)
+      // }
     }
   }
 
