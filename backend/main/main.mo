@@ -1,29 +1,47 @@
 import Principal "mo:base/Principal";
 import Time "mo:base/Time";
-import Array "mo:base/Array";
-import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
 import Result "mo:base/Result";
+import HashMap "mo:base/HashMap";
+import Nat32 "mo:base/Nat32";
+import Iter "mo:base/Iter";
 
-import T "./types";
-import U "./users";
-import Tr "./tracks";
-import N "./nfts";
-import Tx "./txs";
-import C "./constants";
+import ApplicationTypes "./types";
+import UserManagement "./user_management";
+import TrackManagement "./track_management";
+import TransactionManagement "./transaction_management";
+import ApplicationConstants "./constants";
 
 persistent actor {
   
-  stable var users : [(Principal, T.User)] = [];
-  stable var tracks : [T.Track] = [];
-  stable var nfts : [T.NFT] = [];
-  stable var txs : [T.Transaction] = [];
+  // Using HashMaps for testing - will migrate to stable maps later
+  stable var userEntries : [(Principal, ApplicationTypes.User)] = [];
+  private transient var usersMap = HashMap.fromIter<Principal, ApplicationTypes.User>(userEntries.vals(), userEntries.size(), Principal.equal, Principal.hash);
+
+  stable var trackEntries : [(Nat, ApplicationTypes.Track)] = [];
+  private transient var tracksMap = HashMap.fromIter<Nat, ApplicationTypes.Track>(trackEntries.vals(), trackEntries.size(), Nat.equal, func(n: Nat): Nat32 { Nat32.fromNat(n) });
+
+  stable var transactionEntries : [(Nat, ApplicationTypes.Transaction)] = [];
+  private transient var transactionsMap = HashMap.fromIter<Nat, ApplicationTypes.Transaction>(transactionEntries.vals(), transactionEntries.size(), Nat.equal, func(n: Nat): Nat32 { Nat32.fromNat(n) });
 
   // Counters
   stable var nextTrackId : Nat = 1;
-  stable var nextNftId : Nat = 1;
-  stable var nextTxId : Nat = 1;
+  stable var nextTransactionId : Nat = 1;
+  
+  // Pre-upgrade hook to save map entries
+  system func preupgrade() {
+    userEntries := Iter.toArray(usersMap.entries());
+    trackEntries := Iter.toArray(tracksMap.entries());
+    transactionEntries := Iter.toArray(transactionsMap.entries());
+  };
+
+  // Post-upgrade hook to restore maps
+  system func postupgrade() {
+    userEntries := [];
+    trackEntries := [];
+    transactionEntries := [];
+  };
 
   // Helpers
   func now() : Nat64 { Nat64.fromIntWrap(Time.now()) };
@@ -32,27 +50,26 @@ persistent actor {
 
   public shared ({ caller }) func registerUser(
     displayName : Text,
-    userType : T.UserType,
+    userType : ApplicationTypes.UserType,
     bio : Text,
     location : Text,
     genres : [Text],
     profileImage : Text,
     birthDate : ?Text
-  ) : async Result.Result<T.User, Text> {
-    switch (U.registerUser(users, caller, displayName, userType, bio, location, genres, profileImage, birthDate)) {
-      case (#ok((users1, u))) { users := users1; #ok(u) };
-      case (#err(e)) { #err(e) };
-    }
+  ) : async Result.Result<ApplicationTypes.User, Text> {
+    UserManagement.registerUser(usersMap, caller, displayName, userType, bio, location, genres, profileImage, birthDate)
   };
 
-  public shared query ({ caller }) func getMyUser() : async ?T.User { U.getUser(users, caller) };
-  public shared query func getUser(p : Principal) : async ?T.User { U.getUser(users, p) };
+  public shared query ({ caller }) func getMyUser() : async ?ApplicationTypes.User { 
+    usersMap.get(caller) 
+  };
+  
+  public shared query func getUser(principal : Principal) : async ?ApplicationTypes.User { 
+    usersMap.get(principal) 
+  };
 
-  public shared query func listArtists() : async [T.User] {
-    let onlyArtists = Array.filter<(Principal, T.User)>(users, func (kv) {
-      switch (kv.1.userType) { case (#artist) true; case (#fan) false }
-    });
-    Array.map<(Principal, T.User), T.User>(onlyArtists, func (kv) { kv.1 })
+  public shared query func listArtists() : async [ApplicationTypes.User] {
+    UserManagement.listArtists(usersMap)
   };
 
   public shared ({ caller }) func updateProfile(
@@ -61,18 +78,12 @@ persistent actor {
     location : ?Text,
     genres : ?[Text],
     profileImage : ?Text
-  ) : async Result.Result<T.User, Text> {
-    switch (U.updateProfile(users, caller, displayName, bio, location, genres, profileImage)) {
-      case (#ok((users1, updated))) { users := users1; #ok(updated) };
-      case (#err(e)) { #err(e) };
-    }
+  ) : async Result.Result<ApplicationTypes.User, Text> {
+    UserManagement.updateProfile(usersMap, caller, displayName, bio, location, genres, profileImage)
   };
 
-  public shared ({ caller }) func becomeArtist() : async Result.Result<T.User, Text> {
-    switch (U.becomeArtist(users, caller)) {
-      case (#ok((users1, updated))) { users := users1; #ok(updated) };
-      case (#err(e)) { #err(e) };
-    }
+  public shared ({ caller }) func becomeArtist() : async Result.Result<ApplicationTypes.User, Text> {
+    UserManagement.becomeArtist(usersMap, caller)
   };
 
   public shared ({ caller }) func createTrack(
@@ -84,131 +95,78 @@ persistent actor {
     price : Nat,
     releaseDate : Text,
     description : Text
-  ) : async Result.Result<T.Track, Text> {
-    let isArtist = switch (U.getUser(users, caller)) {
-      case (?u) { switch (u.userType) { case (#artist) true; case (#fan) false } };
-      case null false
-    };
-    switch (Tr.create(tracks, caller, isArtist, title, duration, genre, coverImage, audioUrl, price, releaseDate, description, nextTrackId)) {
-      case (#ok((tracks1, track, nextId))) { tracks := tracks1; nextTrackId := nextId; #ok(track) };
-      case (#err(e)) { #err(e) };
+  ) : async Result.Result<ApplicationTypes.Track, Text> {
+    let result = TrackManagement.createTrack(tracksMap, usersMap, caller, title, duration, genre, coverImage, audioUrl, price, releaseDate, description, nextTrackId);
+    switch (result) {
+      case (#ok(track)) { 
+        nextTrackId += 1; 
+        #ok(track) 
+      };
+      case (#err(error)) { #err(error) };
     }
   };
 
-  public shared query func listTracks() : async [T.Track] { Tr.list(tracks) };
-  public shared query func getTrack(id : Nat) : async ?T.Track { Tr.get(tracks, id) };
+  public shared query func listTracks() : async [ApplicationTypes.Track] { 
+    TrackManagement.listTracks(tracksMap) 
+  };
+  
+  public shared query func getTrack(trackId : Nat) : async ?ApplicationTypes.Track { 
+    tracksMap.get(trackId) 
+  };
 
   public shared ({ caller }) func setTrackAssets(
     trackId : Nat,
     audioAssetId : ?Nat,
     imageAssetId : ?Nat
-  ) : async Result.Result<T.Track, Text> {
-    switch (Tr.setAssets(tracks, caller, trackId, audioAssetId, imageAssetId)) {
-      case (#err(e)) { #err(e) };
-      case (#ok((tracks1, updated))) { tracks := tracks1; #ok(updated) };
-    }
+  ) : async Result.Result<ApplicationTypes.Track, Text> {
+    TrackManagement.setTrackAssets(tracksMap, caller, trackId, audioAssetId, imageAssetId)
   };
 
   public shared ({ caller }) func streamTrack(trackId : Nat) : async Result.Result<Bool, Text> {
-    switch (U.getUser(users, caller)) {
-      case null { #err("Not registered") };
+    switch (usersMap.get(caller)) {
+      case null { #err("User not registered") };
       case (?_) {
-        switch (Tr.incrementPlay(tracks, trackId)) {
-          case (#err(e)) { #err(e) };
-          case (#ok((tracks1, updatedTrack))) {
-            tracks := tracks1;
-            // credit artist royalty and record tx
-            users := U.credit(users, updatedTrack.artist, C.STREAM_ROYALTY);
-            let (txs1, _tx, nextId) = Tx.recordRoyaltyTx(txs, updatedTrack.artist, updatedTrack.id, C.STREAM_ROYALTY, now(), nextTxId);
-            txs := txs1; nextTxId := nextId;
-            #ok(true)
-          }
+        switch (TrackManagement.streamTrack(tracksMap, usersMap, transactionsMap, trackId, caller, nextTransactionId)) {
+          case (#ok(newTxId)) { 
+            nextTransactionId := newTxId;
+            #ok(true) 
+          };
+          case (#err(error)) { #err(error) };
         }
       }
     }
   };
 
   public shared ({ caller }) func tip(artist : Principal, amount : Nat) : async Result.Result<Bool, Text> {
-    if (amount == 0) { return #err("Amount must be > 0") };
-    switch (U.getUser(users, caller)) {
-      case null { #err("Not registered") };
+    if (amount == 0) { return #err("Amount must be greater than 0") };
+    switch (usersMap.get(caller)) {
+      case null { #err("User not registered") };
       case (?_) {
-        let (users1, ok) = U.debit(users, caller, amount);
-        if (not ok) { return #err("Insufficient balance") };
-        users := U.credit(users1, artist, amount);
-        let (txs1, _tx, nextId) = Tx.recordTipTx(txs, caller, artist, amount, now(), nextTxId);
-        txs := txs1; nextTxId := nextId;
-        #ok(true)
+        UserManagement.tipArtist(usersMap, transactionsMap, caller, artist, amount, nextTransactionId)
       }
     }
   };
 
-  public shared ({ caller }) func mintNFT(
-    title : Text,
-    image : Text,
-    price : Nat,
-    rarity : T.Rarity,
-    description : Text
-  ) : async Result.Result<T.NFT, Text> {
-    switch (U.getUser(users, caller)) {
-      case null { #err("Not registered") };
-      case (?u) {
-        let isArtist = switch (u.userType) { case (#artist) true; case (#fan) false };
-        switch (N.mint(nfts, caller, isArtist, title, image, price, rarity, description, now(), nextNftId)) {
-          case (#ok((nfts1, nft, nextId))) { nfts := nfts1; nextNftId := nextId; #ok(nft) };
-          case (#err(e)) { #err(e) };
-        }
-      }
-    }
-  };
+  // NFT functions removed - will use intercanister calls to NFT standard
 
-  public shared ({ caller }) func purchaseNFT(nftId : Nat) : async Result.Result<Bool, Text> {
-    switch (N.purchase(nfts, caller, nftId)) {
-      case (#err(e)) { #err(e) };
-      case (#ok((nfts1, nftUpdated, price))) {
-        // attempt to debit buyer
-        let (users1, ok) = U.debit(users, caller, price);
-        if (not ok) { return #err("Insufficient balance") };
-        users := users1;
-        // credit artist
-        users := U.credit(users, nftUpdated.artist, N.artistShare(price));
-        // persist NFT list
-        nfts := nfts1;
-        // record tx
-        let (txs1, _tx, nextId) = Tx.recordNftPurchaseTx(txs, caller, nftUpdated.artist, nftUpdated.id, price, now(), nextTxId);
-        txs := txs1; nextTxId := nextId;
-        #ok(true)
-      }
-    }
-  };
-
-  public shared query func listNFTs() : async [T.NFT] { N.list(nfts) };
-  public shared query func getNFT(id : Nat) : async ?T.NFT { N.get(nfts, id) };
-
-  public shared query ({ caller }) func myTransactions() : async [T.Transaction] {
-    Tx.myTransactions(txs, caller)
+  public shared query ({ caller }) func myTransactions() : async [ApplicationTypes.Transaction] {
+    TransactionManagement.getUserTransactions(transactionsMap, caller)
   };
 
   public shared ({ caller }) func follow(artist : Principal) : async Result.Result<Bool, Text> {
-    switch (U.getUser(users, caller)) {
-      case null { #err("Not registered") };
+    switch (usersMap.get(caller)) {
+      case null { #err("User not registered") };
       case (?_) {
-        let (users1, ok) = U.follow(users, caller, artist);
-        if (not ok) { return #err("Follow failed") };
-        users := users1;
-        #ok(true)
+        UserManagement.followArtist(usersMap, caller, artist)
       }
     }
   };
 
   public shared ({ caller }) func unfollow(artist : Principal) : async Result.Result<Bool, Text> {
-    switch (U.getUser(users, caller)) {
-      case null { #err("Not registered") };
+    switch (usersMap.get(caller)) {
+      case null { #err("User not registered") };
       case (?_) {
-        let (users1, ok) = U.unfollow(users, caller, artist);
-        if (not ok) { return #err("Unfollow failed") };
-        users := users1;
-        #ok(true)
+        UserManagement.unfollowArtist(usersMap, caller, artist)
       }
     }
   };

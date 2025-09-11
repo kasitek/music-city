@@ -64,11 +64,16 @@ export default function OnboardingPage() {
     } else {
       // Register in IC backend (authoritative source)
       try {
-        // Ensure IC identity is set on backend actor if available (II/NFID session)
-        try {
-          const id = getIdentity()
-          if (id) setBackendIdentity(id)
-        } catch {}
+        let identity = getIdentity()
+        
+        // If no identity, prompt user to login with Internet Identity first
+        if (!identity) {
+          toast.error("Please sign in with Internet Identity first to complete registration.")
+          router.push('/auth/ii')
+          return
+        }
+        
+        setBackendIdentity(identity)
         const res = await registerUserIC({
           displayName: formData.displayName,
           userType: formData.userType === "artist" ? { artist: null } : { fan: null },
@@ -78,21 +83,22 @@ export default function OnboardingPage() {
           profileImage: formData.profileImage,
           birthDate: formData.birthDate,
         })
-        if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
-          // Treat as success and continue
-          console.warn('User already registered; proceeding with onboarding completion')
-        } else if (res && typeof res === 'object' && 'ok' in res) {
-          // success
-        } else {
-          throw new Error('Registration failed')
-        }
-        toast.success("Onboarding complete! Your profile has been created.")
-        // Mark completion and redirect based on role
-        if (typeof window !== 'undefined') {
+        
+        if (res && typeof res === 'object' && 'ok' in res) {
+          toast.success("Onboarding complete! Your profile has been created.")
           localStorage.setItem('onboardingComplete', 'true')
+          localStorage.setItem('icIdentity', 'true')
+          if (formData.userType === 'artist') router.push('/dashboard')
+          else router.push('/')
+        } else if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
+          toast.success("Welcome back! Your profile is already set up.")
+          localStorage.setItem('onboardingComplete', 'true')
+          localStorage.setItem('icIdentity', 'true')
+          if (formData.userType === 'artist') router.push('/dashboard')
+          else router.push('/')
+        } else {
+          throw new Error('Registration failed - please try again')
         }
-        if (formData.userType === 'artist') router.push('/dashboard')
-        else router.push('/')
       } catch (e: any) {
         console.error("IC registration failed:", e)
         toast.error(e?.message || "Failed to complete onboarding. Please try again.")

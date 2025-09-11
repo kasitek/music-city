@@ -1,15 +1,15 @@
 import Principal "mo:base/Principal";
 
 module {
-  public type UserType = {
+  public type ApplicationUserType = {
     #artist;
     #fan;
   };
 
-  public type User = {
+  public type ApplicationUser = {
     owner : Principal;
     displayName : Text;
-    userType : UserType;
+    userType : ApplicationUserType;
     bio : Text;
     location : Text;
     genres : [Text];
@@ -22,7 +22,7 @@ module {
     birthDate : ?Text;
   };
 
-  public type Track = {
+  public type MusicTrack = {
     id : Nat;
     title : Text;
     artist : Principal; // owner principal
@@ -38,35 +38,24 @@ module {
     price : Nat; // per-stream/pay price in token units
     releaseDate : Text;
     description : Text;
-  };
-
-  public type Rarity = {
-    #common; #rare; #epic; #legendary
-  };
-
-  public type NFT = {
-    id : Nat;
-    title : Text;
-    artist : Principal; // creator/beneficiary
-    image : Text;
-    price : Nat;
-    rarity : Rarity;
-    description : Text;
-    owner : ?Principal; // None means unsold
     createdTimestamp : Nat64;
   };
 
-  public type TxType = { #stream; #tip; #nft_purchase; #royalty };
+  public type TransactionType = { #tip; #royalty };
 
-  public type Transaction = {
+  public type ApplicationTransaction = {
     id : Nat;
-    kind : TxType;
+    txType : TransactionType;
+    from : Principal;
+    to : Principal;
     amount : Nat;
-    fromUser : ?Principal;
-    toUser : Principal;
-    trackId : ?Nat;
-    nftId : ?Nat;
     timestamp : Nat64;
-    status : { #completed; #pending; #failed };
+    metadata : ?Text;
   };
+
+  // Legacy type aliases for backward compatibility
+  public type UserType = ApplicationUserType;
+  public type User = ApplicationUser;
+  public type Track = MusicTrack;
+  public type Transaction = ApplicationTransaction;
 }

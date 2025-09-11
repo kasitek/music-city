@@ -29,18 +29,31 @@ export default function Web3Auth({ onConnect, onDisconnect, isConnected, address
     const initializeWeb3Auth = async () => {
       try {
         setIsInitializing(true)
+        setError(null)
+        console.log("Web3Auth component initializing...")
         await initWeb3Auth()
         setIsInitialized(true)
+        console.log("Web3Auth component initialized successfully")
       } catch (err: any) {
         console.error("Failed to initialize Web3Auth:", err)
         const msg = err?.message || String(err)
-        setError(msg)
+        
+        // Provide more helpful error messages
+        if (msg.includes("timeout")) {
+          setError("Web3Auth initialization timed out. Please refresh the page and try again.")
+        } else if (msg.includes("CLIENT_ID")) {
+          setError("Web3Auth configuration error. Please check your settings.")
+        } else {
+          setError(`Failed to initialize Web3Auth: ${msg}`)
+        }
       } finally {
         setIsInitializing(false)
       }
     }
 
-    initializeWeb3Auth()
+    // Add a small delay to ensure DOM is ready
+    const timer = setTimeout(initializeWeb3Auth, 100)
+    return () => clearTimeout(timer)
   }, [])
 
   const connectWallet = async () => {
@@ -143,9 +156,18 @@ export default function Web3Auth({ onConnect, onDisconnect, isConnected, address
       </CardHeader>
       <CardContent className="space-y-6">
         {error && (
-          <div className="flex items-center space-x-2 p-4 bg-red-600/20 border border-red-600/30 rounded-lg">
-            <AlertCircle className="h-5 w-5 text-red-400" />
-            <span className="text-sm text-red-300">{error}</span>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2 p-4 bg-red-600/20 border border-red-600/30 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+              <span className="text-sm text-red-300">{error}</span>
+            </div>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="w-full border-red-600/30 text-red-300 hover:bg-red-600/10"
+            >
+              Refresh Page
+            </Button>
           </div>
         )}
 

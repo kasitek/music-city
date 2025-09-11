@@ -22,6 +22,7 @@ interface OnboardingModalProps {
 
 export default function OnboardingModal({ walletAddress, onComplete, onClose }: OnboardingModalProps) {
   const [step, setStep] = useState(1)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [formData, setFormData] = useState({
     userType: "",
     displayName: "",
@@ -94,6 +95,7 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
     if (step < 3) {
       setStep(step + 1)
     } else {
+<<<<<<< HEAD
       // // Final step: register on IC backend
       // try {
       //   let identity: Identity | null = getIdentity() as Identity | null
@@ -136,6 +138,77 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
       // } catch (e) {
       //   console.warn("registerUser (IC) failed [modal]", e)
       // }
+=======
+      // Final step: register on IC backend
+      setIsProcessing(true)
+      try {
+        let identity: Identity | null = getIdentity() as Identity | null
+
+        // Ensure we have an Internet Identity session
+        if (!identity) {
+          try {
+            console.log("No identity found, prompting for Internet Identity login...")
+            await loginWithII()
+            identity = getIdentity() as Identity | null
+          } catch (loginError) {
+            console.error("Internet Identity login failed:", loginError)
+            // Show user-friendly error and allow retry
+            alert("Please sign in with Internet Identity to complete registration.")
+            setIsProcessing(false)
+            return
+          }
+        }
+
+        if (!identity) {
+          console.error("No Internet Identity available; aborting registration.")
+          alert("Internet Identity is required to complete registration. Please try again.")
+          setIsProcessing(false)
+          return
+        }
+
+        console.log("Registering user with IC backend...", {
+          displayName: formData.displayName,
+          userType: formData.userType,
+          principal: identity.getPrincipal().toText()
+        })
+
+        // Bind identity to backend actor and register user
+        setBackendIdentity(identity)
+        const res = await registerUserIC({
+          displayName: formData.displayName,
+          userType: formData.userType === "artist" ? { artist: null } : { fan: null },
+          bio: formData.bio,
+          location: formData.location,
+          genres: formData.genres,
+          profileImage: formData.profileImage,
+          birthDate: formData.birthDate || null,
+        })
+
+        console.log("Registration response:", res)
+
+        if ("ok" in res) {
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "true")
+          console.log("User registration successful!")
+          onComplete()
+        } else if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
+          // Gracefully handle already-registered accounts: mark complete and continue
+          localStorage.setItem("icIdentity", "true")
+          localStorage.setItem("onboardingComplete", "true")
+          console.log("User already registered, proceeding...")
+          onComplete()
+        } else {
+          console.error("IC registerUser failed:", res)
+          alert("Registration failed. Please try again.")
+        }
+      } catch (e: any) {
+        console.error("Registration error:", e)
+        const errorMsg = e?.message || "An unexpected error occurred during registration."
+        alert(`Registration failed: ${errorMsg}`)
+      } finally {
+        setIsProcessing(false)
+      }
+>>>>>>> 65e52c8 (Fix the type conversation and mops)
     }
   }
 
@@ -421,9 +494,28 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
               >
                 Back
               </Button>
+<<<<<<< HEAD
               <Button onClick={handleNext} disabled={!isStepValid()} className="bg-purple-600 hover:bg-purple-700">
                 {step === 3 ? "Complete Setup" : "Next"}
                 <ArrowRight className="h-4 w-4 ml-2" />
+=======
+              <Button 
+                onClick={handleNext} 
+                disabled={!isStepValid() || isProcessing} 
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <>
+                    {step === 3 ? "Complete Setup" : "Next"}
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+>>>>>>> 65e52c8 (Fix the type conversation and mops)
               </Button>
             </div>
           </CardContent>
