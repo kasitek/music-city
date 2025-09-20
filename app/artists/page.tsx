@@ -11,7 +11,7 @@ import { listArtists, resetActor } from "@/lib/ic/backend"
 import { fromCandidUser, fromCandidTrack } from "@/lib/mappers"
 import type { UserModel, TrackModel } from "@/lib/types"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/hooks/ic/auth-context"
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<UserModel[]>([])
@@ -97,7 +97,7 @@ export default function ArtistsPage() {
       if ('ok' in res && res.ok) {
         setFollowing(prev => ({ ...prev, [a.owner]: true }))
         if (artist && a.owner === artist.owner) {
-          setArtist({ ...artist, followers: (BigInt(artist.followers || 0) + 1n) })
+          setArtist({ ...artist, followers: (BigInt(artist.followers || 0) + BigInt(1)) })
         }
       }
     } catch (e) {
@@ -232,3 +232,4 @@ export default function ArtistsPage() {
     </div>
   )
 }
+

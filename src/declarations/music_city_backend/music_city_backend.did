@@ -17,30 +17,22 @@ type User =
    location: text;
    owner: principal;
    profileImage: text;
-   userType: UserType;
+   userType: ApplicationUserType;
  };
-type TxType = 
+type TransactionType = 
  variant {
-   nft_purchase;
    royalty;
-   stream;
    tip;
  };
 type Transaction = 
  record {
    amount: nat;
-   fromUser: opt principal;
+   from: principal;
    id: nat;
-   kind: TxType;
-   nftId: opt nat;
-   status: variant {
-             completed;
-             failed;
-             pending;
-           };
+   metadata: opt text;
    timestamp: nat64;
-   toUser: principal;
-   trackId: opt nat;
+   to: principal;
+   txType: TransactionType;
  };
 type Track = 
  record {
@@ -48,6 +40,7 @@ type Track =
    audioAssetId: opt nat;
    audioUrl: text;
    coverImage: text;
+   createdTimestamp: nat64;
    description: text;
    duration: text;
    genre: text;
@@ -58,11 +51,6 @@ type Track =
    price: nat;
    releaseDate: text;
    title: text;
- };
-type Result_3 = 
- variant {
-   err: text;
-   ok: NFT;
  };
 type Result_2 = 
  variant {
@@ -79,24 +67,10 @@ type Result =
    err: text;
    ok: User;
  };
-type Rarity = 
+type ApplicationUserType = 
  variant {
-   common;
-   epic;
-   legendary;
-   rare;
- };
-type NFT = 
- record {
-   artist: principal;
-   createdTimestamp: nat64;
-   description: text;
-   id: nat;
-   image: text;
-   owner: opt principal;
-   price: nat;
-   rarity: Rarity;
-   title: text;
+   artist;
+   fan;
  };
 service : {
   becomeArtist: () -> (Result);
@@ -105,16 +79,11 @@ service : {
    text) -> (Result_2);
   follow: (artist: principal) -> (Result_1);
   getMyUser: () -> (opt User) query;
-  getNFT: (id: nat) -> (opt NFT) query;
-  getTrack: (id: nat) -> (opt Track) query;
-  getUser: (p: principal) -> (opt User) query;
+  getTrack: (trackId: nat) -> (opt Track) query;
+  getUser: ("principal": principal) -> (opt User) query;
   listArtists: () -> (vec User) query;
-  listNFTs: () -> (vec NFT) query;
   listTracks: () -> (vec Track) query;
-  mintNFT: (title: text, image: text, price: nat, rarity: Rarity,
-   description: text) -> (Result_3);
   myTransactions: () -> (vec Transaction) query;
-  purchaseNFT: (nftId: nat) -> (Result_1);
   registerUser: (displayName: text, userType: UserType, bio: text, location:
    text, genres: vec text, profileImage: text, birthDate: opt text) ->
    (Result);

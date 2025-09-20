@@ -14,13 +14,12 @@ import { Music, Upload, DollarSign, Users, Play, Coins, TrendingUp, Eye, Setting
 import { Navigation } from "@/components/navigation"
 import { createTrack, setTrackAssets, myTransactions, getMyUser, listTracks } from "@/lib/ic/backend"
 import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
-import { useAuth } from "@/hooks/use-auth"
+import { loginInternetIdentity, loginNFID } from "@/lib/ic/auth"
 
 export default function ArtistDashboard() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const router = useRouter()
-  const { loginWithII, loginWithNFID } = useAuth()
   // Upload form state
   const [title, setTitle] = useState("")
   const [artistName, setArtistName] = useState("")
@@ -40,16 +39,16 @@ export default function ArtistDashboard() {
 
   // Require authentication and artist role to access dashboard
   useEffect(() => {
-    let mounted = true
+    let mounted = true;
     (async () => {
       try {
         const icUser = await getMyUser()
         if (!mounted) return
-        if (!icUser) {
+        if (!icUser || icUser.length === 0) {
           router.push('/auth')
           return
         }
-        const isArtist = icUser.userType && typeof icUser.userType === 'object' && 'artist' in icUser.userType
+        const isArtist = icUser[0]?.userType && typeof icUser[0]?.userType === 'object' && 'artist' in icUser[0]?.userType
         if (!isArtist) {
           router.push('/')
           return
@@ -57,9 +56,9 @@ export default function ArtistDashboard() {
         // Map minimal profile for local UI usage
         setUserProfile({
           id: walletAddress || '',
-          displayName: icUser.displayName,
+          displayName: icUser[0]?.displayName,
           userType: 'artist',
-          profileImage: icUser.profileImage || '',
+          profileImage: icUser[0]?.profileImage || '',
         })
       } catch (e) {
         router.push('/auth')
@@ -175,11 +174,8 @@ export default function ArtistDashboard() {
       try {
         const audioBuffer = await file.arrayBuffer()
         const audioBytes = new Uint8Array(audioBuffer)
-        audioAssetId = await uploadBlobToBucket(
-          Array.from(audioBytes),
-          file.type,
-          file.name.split('.').pop() || 'mp3'
-        )
+        const audioBlob = new Blob([audioBytes], { type: file.type });
+        audioAssetId = await createStorageAsset(audioBlob, file.type)
         setUploadMessage("Audio uploaded. Creating track record...")
       } catch (uploadError: any) {
         console.warn('Audio upload failed, creating track without audio asset:', uploadError)
@@ -187,16 +183,16 @@ export default function ArtistDashboard() {
       }
 
       // 2. Create the track record in the backend
-      const trackResult = await createTrack(
-        title.trim(),
-        "3:30", // default duration
-        genre.trim() || "Music",
-        "", // no cover image for now
-        "", // no direct audio URL
-        0, // free tracks
-        new Date().toISOString(),
-        description.trim() || ""
-      )
+      const trackResult = await createTrack({
+        title: title.trim(),
+        duration: "3:30", // default duration
+        genre: genre.trim() || "Music",
+        coverImage: "", // no cover image for now
+        audioUrl: "", // no direct audio URL
+        price: 0, // free tracks
+        releaseDate: new Date().toISOString(),
+        description: description.trim() || ""
+      })
 
       if ('err' in trackResult) {
         throw new Error(trackResult.err)
@@ -208,11 +204,11 @@ export default function ArtistDashboard() {
       // 3. Link the audio asset to the track if upload was successful
       if (audioAssetId && track.id) {
         try {
-          const setAssetsResult = await setTrackAssets(
-            Number(track.id),
-            audioAssetId,
-            null // no image asset yet
-          )
+          const setAssetsResult = await setTrackAssets({
+            trackId: Number(track.id),
+            audioAssetId: audioAssetId,
+            imageAssetId: null // no image asset yet
+          })
           if ('err' in setAssetsResult) {
             console.warn('Failed to link audio asset:', setAssetsResult.err)
           }
@@ -252,7 +248,7 @@ export default function ArtistDashboard() {
       return
     }
 
-    loadUserProfile()
+    // User profile loading is handled in the first useEffect
   }, [router])
 
 // Restrict dashboard access to artists only
@@ -315,6 +311,19 @@ const getUserTransactions = () => {
   }))
 }
 
+const getTransactionDescription = (transaction: any): string => {
+  if (transaction.kind && typeof transaction.kind === 'object') {
+    if ('royalty' in transaction.kind) {
+      return `Royalty from track ${transaction.trackId}`;
+    } else if ('tip' in transaction.kind) {
+      return `Tip from user ${transaction.fromUser}`;
+    } else {
+      return 'Unknown transaction';
+    }
+  }
+  return 'Unknown transaction';
+};
+
   if (!userProfile) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -322,6 +331,9 @@ const getUserTransactions = () => {
       </div>
     )
   }
+
+  const stats = getUserStats()
+  const userTracks = getUserTracks()
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -692,8 +704,8 @@ const getUserTransactions = () => {
                       Transparent Transactions
                     </h3>
                     <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {userTransactions.length > 0 ? (
-                        userTransactions.map((transaction, i) => (
+                      {getUserTransactions().length > 0 ? (
+                        getUserTransactions().map((transaction, i) => (
                           <div key={i} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors">
                             <div>
                               <div className="font-medium text-white">{transaction.description}</div>
@@ -983,7 +995,7 @@ const getUserTransactions = () => {
                 setAuthError(null)
                 setAuthInProgress(true)
                 try {
-                  await loginWithII()
+                  await loginInternetIdentity()
                   const authed = await waitForIcAuth()
                   if (!authed) {
                     setAuthError('Internet Identity login was cancelled or timed out. Please try again.')
@@ -1004,7 +1016,7 @@ const getUserTransactions = () => {
                 setAuthError(null)
                 setAuthInProgress(true)
                 try {
-                  await loginWithNFID()
+                  await loginNFID()
                   const authed = await waitForIcAuth()
                   if (!authed) {
                     setAuthError('NFID login was cancelled or timed out. Please try again.')

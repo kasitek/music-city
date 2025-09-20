@@ -27,25 +27,40 @@ export default function AuthPage() {
 
   const router = useRouter()
 
-  // useEffect(() => {
-  //   // Redirect if already authenticated
-  //   const go = async () => {
-  //     if (isAuthenticated) {
-  //       try {
-  //         const icUser = await getMyUser()
-  //         const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
-  //         const role = isArtist ? 'artist' : 'fan'
-  //         if (role === 'artist') router.push("/dashboard")
-  //         else router.push("/")
-  //       } catch {
-  //         const role = user?.userType === 'artist' ? 'artist' : 'fan'
-  //         if (role === 'artist') router.push("/dashboard")
-  //         else router.push("/")
-  //       }
-  //     }
-  //   }
-  //   go()
-  // }, [isAuthenticated, router, user])
+  useEffect(() => {
+    // Redirect if already authenticated
+    const go = async () => {
+      if (isAuthenticated && backendActor) {
+        try {
+          console.log("User is authenticated, checking profile...")
+          const icUser = await backendActor.getMyUser()
+          console.log("IC User:", icUser)
+          
+          if (icUser && icUser.length > 0) {
+            // User has completed registration
+            const user = icUser[0]
+            const isArtist = user?.userType && 'artist' in user.userType
+            console.log("User profile found, isArtist:", isArtist)
+            
+            if (isArtist) {
+              router.push("/dashboard")
+            } else {
+              router.push("/stream")
+            }
+          } else {
+            // User is authenticated but hasn't completed registration
+            console.log("User authenticated but no profile found, showing onboarding...")
+            setShowOnboarding(true)
+          }
+        } catch (error) {
+          console.error("Error checking user profile:", error)
+          // If there's an error, assume user needs to complete registration
+          setShowOnboarding(true)
+        }
+      }
+    }
+    go()
+  }, [isAuthenticated, backendActor, router])
 
   const handleConnect = async (address: string, email?: string, name?: string) => {
     setIsConnected(true)
@@ -73,27 +88,34 @@ export default function AuthPage() {
 
   const handleOnboardingComplete = async () => {
     setShowOnboarding(false)
-    // try {
-    //   const icUser = await getMyUser()
-    //   const isArtist = icUser && typeof icUser.userType === 'object' && icUser.userType && 'artist' in icUser.userType
-    //   const role = isArtist ? 'artist' : 'fan'
-    //   // Refresh auth context with latest profile so UI shows correct displayName, etc.
-    //   try {
-    //     updateUser({
-    //       displayName: icUser?.displayName || user?.displayName || '',
-    //       userType: role,
-    //       bio: icUser?.bio,
-    //       location: icUser?.location,
-    //       genres: icUser?.genres,
-    //       profileImage: icUser?.profileImage,
-    //     })
-    //   } catch {}
-    //   if (role === 'artist') router.push("/dashboard")
-    //   else router.push("/")
-    // } catch {
-    //   // Fallback if fetch fails
-    //   router.push("/")
-    // }
+    try {
+      if (backendActor) {
+        const icUser = await backendActor.getMyUser()
+        console.log("Onboarding complete, user profile:", icUser)
+        
+        if (icUser && icUser.length > 0) {
+          const user = icUser[0]
+          const isArtist = user?.userType && 'artist' in user.userType
+          console.log("Redirecting user, isArtist:", isArtist)
+          
+          if (isArtist) {
+            router.push("/dashboard")
+          } else {
+            router.push("/stream")
+          }
+        } else {
+          // Fallback to stream page
+          router.push("/stream")
+        }
+      } else {
+        // Fallback if no backend actor
+        router.push("/stream")
+      }
+    } catch (error) {
+      console.error("Error after onboarding completion:", error)
+      // Fallback to stream page
+      router.push("/stream")
+    }
   }
 
   return (

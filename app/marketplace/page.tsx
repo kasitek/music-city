@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Music, Search, Coins, Crown, Zap, Eye, Heart, Filter, TrendingUp } from 'lucide-react'
 import Link from "next/link"
-import { listNFTs } from "@/lib/ic/backend"
+// import { listNFTs } from "@/lib/ic/backend" // NFT functionality not yet implemented in backend
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 
@@ -14,11 +14,12 @@ export default function NFTMarketplace() {
   const [nfts, setNfts] = useState<any[]>([])
 
   useEffect(() => {
-    // Load NFTs from IC backend
+    // TODO: Load NFTs from IC backend when NFT functionality is implemented
+    // For now, using mock data
     const loadNFTs = async () => {
       try {
-        const icNFTs = await listNFTs()
-        setNfts(icNFTs || [])
+        // const icNFTs = await listNFTs() // Will be implemented later
+        setNfts([]) // Empty for now until backend NFT functionality is added
       } catch (e) {
         console.error('Failed to load NFTs:', e)
         setNfts([])

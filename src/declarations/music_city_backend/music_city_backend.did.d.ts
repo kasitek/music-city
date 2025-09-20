@@ -2,28 +2,13 @@ import type { Principal } from '@dfinity/principal';
 import type { ActorMethod } from '@dfinity/agent';
 import type { IDL } from '@dfinity/candid';
 
-export interface NFT {
-  'id' : bigint,
-  'title' : string,
-  'owner' : [] | [Principal],
-  'description' : string,
-  'createdTimestamp' : bigint,
-  'artist' : Principal,
-  'rarity' : Rarity,
-  'image' : string,
-  'price' : bigint,
-}
-export type Rarity = { 'epic' : null } |
-  { 'legendary' : null } |
-  { 'rare' : null } |
-  { 'common' : null };
+export type ApplicationUserType = { 'fan' : null } |
+  { 'artist' : null };
 export type Result = { 'ok' : User } |
   { 'err' : string };
 export type Result_1 = { 'ok' : boolean } |
   { 'err' : string };
 export type Result_2 = { 'ok' : Track } |
-  { 'err' : string };
-export type Result_3 = { 'ok' : NFT } |
   { 'err' : string };
 export interface Track {
   'id' : bigint,
@@ -36,6 +21,7 @@ export interface Track {
   'likes' : bigint,
   'coverImage' : string,
   'genre' : string,
+  'createdTimestamp' : bigint,
   'artist' : Principal,
   'plays' : bigint,
   'price' : bigint,
@@ -43,24 +29,18 @@ export interface Track {
 }
 export interface Transaction {
   'id' : bigint,
-  'status' : { 'pending' : null } |
-    { 'completed' : null } |
-    { 'failed' : null },
-  'kind' : TxType,
-  'toUser' : Principal,
-  'trackId' : [] | [bigint],
-  'nftId' : [] | [bigint],
+  'to' : Principal,
+  'metadata' : [] | [string],
+  'from' : Principal,
   'timestamp' : bigint,
-  'fromUser' : [] | [Principal],
+  'txType' : TransactionType,
   'amount' : bigint,
 }
-export type TxType = { 'tip' : null } |
-  { 'stream' : null } |
-  { 'royalty' : null } |
-  { 'nft_purchase' : null };
+export type TransactionType = { 'tip' : null } |
+  { 'royalty' : null };
 export interface User {
   'bio' : string,
-  'userType' : UserType,
+  'userType' : ApplicationUserType,
   'balance' : bigint,
   'birthDate' : [] | [string],
   'displayName' : string,
@@ -83,15 +63,11 @@ export interface _SERVICE {
   >,
   'follow' : ActorMethod<[Principal], Result_1>,
   'getMyUser' : ActorMethod<[], [] | [User]>,
-  'getNFT' : ActorMethod<[bigint], [] | [NFT]>,
   'getTrack' : ActorMethod<[bigint], [] | [Track]>,
   'getUser' : ActorMethod<[Principal], [] | [User]>,
   'listArtists' : ActorMethod<[], Array<User>>,
-  'listNFTs' : ActorMethod<[], Array<NFT>>,
   'listTracks' : ActorMethod<[], Array<Track>>,
-  'mintNFT' : ActorMethod<[string, string, bigint, Rarity, string], Result_3>,
   'myTransactions' : ActorMethod<[], Array<Transaction>>,
-  'purchaseNFT' : ActorMethod<[bigint], Result_1>,
   'registerUser' : ActorMethod<
     [string, UserType, string, string, Array<string>, string, [] | [string]],
     Result

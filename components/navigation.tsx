@@ -3,8 +3,9 @@
 import { Button } from "@/components/ui/button"
 import { Music, Menu, X } from 'lucide-react'
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/hooks/ic/auth-context"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,20 +22,22 @@ interface NavigationProps {
 }
 
 export default function Navigation({ currentPage }: NavigationProps) {
+  const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const { user, isAuthenticated, logout } = useAuth()
-  const balance = (user as any)?.mccBalance ?? user?.accountBalance ?? 0
+  const { principalId, sessionData, isAuthenticated, logout } = useAuth()
+  const balance = sessionData?.mccBalance ?? 0
   const shortPrincipal = (addr?: string) => {
     if (!addr || addr.length < 10) return addr || 'User'
     return `${addr.slice(0,5)}...${addr.slice(-3)}`
   }
-  const displayLabel = user ? (user.displayName || shortPrincipal(user.walletAddress)) : 'User'
+  const displayLabel = principalId ? (sessionData?.displayName || shortPrincipal(principalId)) : 'User'
   const displayInitial = (displayLabel?.charAt(0) || 'U').toUpperCase()
 
   const handleLogout = () => {
     logout()
     setIsMenuOpen(false)
+    router.push('/')
   }
 
   return (
@@ -57,6 +60,16 @@ export default function Navigation({ currentPage }: NavigationProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
+            {sessionData?.userType === 'artist' && (
+              <Link 
+                href="/dashboard" 
+                className={`text-gray-300 hover:text-white transition-colors ${
+                  currentPage === 'dashboard' ? 'text-purple-400' : ''
+                }`}
+              >
+                Dashboard
+              </Link>
+            )}
             <Link 
               href="/discover" 
               className={`text-gray-300 hover:text-white transition-colors ${
@@ -93,7 +106,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
 
           {/* Auth Section */}
           <div className="hidden md:flex items-center space-x-4">
-            {isAuthenticated && user ? (
+            {isAuthenticated && principalId ? (
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-300">
                   <span className="font-medium">{balance}</span> MCC
@@ -102,7 +115,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={displayLabel} />
+                        <AvatarImage src={sessionData?.profileImage || "/placeholder.svg"} alt={displayLabel} />
                         <AvatarFallback className="bg-purple-600 text-white">
                           {displayInitial}
                         </AvatarFallback>
@@ -112,10 +125,10 @@ export default function Navigation({ currentPage }: NavigationProps) {
                   <DropdownMenuContent className="w-56 bg-gray-800 border-gray-700" align="end" forceMount>
                     <div className="flex flex-col space-y-1 p-2">
                       <p className="text-sm font-medium text-white">{displayLabel}</p>
-                      <p className="text-xs text-gray-400 capitalize">{user.userType}</p>
+                      <p className="text-xs text-gray-400 capitalize">{sessionData?.userType}</p>
                     </div>
                     <DropdownMenuSeparator className="bg-gray-700" />
-                    {user.userType === 'artist' && (
+                    {sessionData?.userType === 'artist' && (
                       <DropdownMenuItem asChild>
                         <Link href="/dashboard" className="text-gray-300 hover:text-white">
                           Dashboard
@@ -151,6 +164,17 @@ export default function Navigation({ currentPage }: NavigationProps) {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 rounded-lg mt-2">
+              {sessionData?.userType === 'artist' && (
+                <Link
+                  href="/dashboard"
+                  className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
+                    currentPage === 'dashboard' ? 'text-purple-400' : ''
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              )}
               <Link
                 href="/discover"
                 className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
@@ -188,12 +212,12 @@ export default function Navigation({ currentPage }: NavigationProps) {
                 Marketplace
               </Link>
               <div className="border-t border-gray-700 pt-2">
-                {isAuthenticated && user ? (
+                {isAuthenticated && principalId ? (
                   <div className="space-y-2">
                     <div className="px-3 py-2">
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={displayLabel} />
+                          <AvatarImage src={sessionData?.profileImage || "/placeholder.svg"} alt={displayLabel} />
                           <AvatarFallback className="bg-purple-600 text-white text-sm">
                             {displayInitial}
                           </AvatarFallback>
@@ -204,7 +228,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
                         </div>
                       </div>
                     </div>
-                    {user.userType === 'artist' && (
+                    {sessionData?.userType === 'artist' && (
                       <Link
                         href="/dashboard"
                         className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"

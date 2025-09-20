@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Navigation } from "@/components/navigation"
 import { fromCandidTrack, fromCandidUser } from "@/lib/mappers"
 import type { TrackModel, UserModel } from "@/lib/types"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/hooks/ic/auth-context"
 import { useRouter } from "next/navigation"
 
 export default function DiscoverPage() {
@@ -69,7 +69,7 @@ export default function DiscoverPage() {
       const res = await follow(artist.owner)
       if ('ok' in res && res.ok) {
         setFollowing((prev) => ({ ...prev, [artist.owner]: true }))
-        setFeaturedArtists((prev) => prev.map(a => a.owner === artist.owner ? { ...a, followers: (BigInt(a.followers || 0) + 1n) } : a))
+        setFeaturedArtists((prev) => prev.map(a => a.owner === artist.owner ? { ...a, followers: (BigInt(a.followers || 0) + BigInt(1)) } : a))
       }
     } catch (e) {
       console.error('Follow failed:', e)

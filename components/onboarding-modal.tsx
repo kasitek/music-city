@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Music, User, ArrowRight, Upload, X } from "lucide-react"
 import { useState, useRef } from "react"
-import { useAuth } from "@/hooks/use-auth"
-// import { registerUser as registerUserIC } from "@/lib/ic/backend"
-// import { getIdentity } from "@/lib/ic/auth"
-// import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
+import { useAuth } from "@/hooks/ic/auth-context"
+import { registerUser as registerUserIC } from "@/lib/ic/backend"
+import { getIdentity, loginInternetIdentity } from "@/lib/ic/auth"
+import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
 import type { Identity } from "@dfinity/agent"
 
 interface OnboardingModalProps {
@@ -95,50 +95,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
     if (step < 3) {
       setStep(step + 1)
     } else {
-<<<<<<< HEAD
-      // // Final step: register on IC backend
-      // try {
-      //   let identity: Identity | null = getIdentity() as Identity | null
-
-      //   // Ensure we have an Internet Identity session
-      //   if (!identity) {
-      //     await loginWithII()
-      //     identity = getIdentity() as Identity | null
-      //   }
-
-      //   if (!identity) {
-      //     console.error("No Internet Identity available; aborting registration.")
-      //     return
-      //   }
-
-      //   // Bind identity to backend actor and register user
-      //   setBackendIdentity(identity)
-      //   const res = await registerUserIC({
-      //     displayName: formData.displayName,
-      //     userType: formData.userType === "artist" ? { artist: null } : { fan: null },
-      //     bio: formData.bio,
-      //     location: formData.location,
-      //     genres: formData.genres,
-      //     profileImage: formData.profileImage,
-      //     birthDate: formData.birthDate || null,
-      //   })
-
-      //   if ("ok" in res) {
-      //     localStorage.setItem("icIdentity", "true")
-      //     localStorage.setItem("onboardingComplete", "true")
-      //     onComplete()
-      //   } else if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
-      //     // Gracefully handle already-registered accounts: mark complete and continue
-      //     localStorage.setItem("icIdentity", "true")
-      //     localStorage.setItem("onboardingComplete", "true")
-      //     onComplete()
-      //   } else {
-      //     console.error("IC registerUser failed:", res)
-      //   }
-      // } catch (e) {
-      //   console.warn("registerUser (IC) failed [modal]", e)
-      // }
-=======
       // Final step: register on IC backend
       setIsProcessing(true)
       try {
@@ -148,7 +104,7 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
         if (!identity) {
           try {
             console.log("No identity found, prompting for Internet Identity login...")
-            await loginWithII()
+            await loginInternetIdentity()
             identity = getIdentity() as Identity | null
           } catch (loginError) {
             console.error("Internet Identity login failed:", loginError)
@@ -208,7 +164,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
       } finally {
         setIsProcessing(false)
       }
->>>>>>> 65e52c8 (Fix the type conversation and mops)
     }
   }
 
@@ -494,11 +449,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
               >
                 Back
               </Button>
-<<<<<<< HEAD
-              <Button onClick={handleNext} disabled={!isStepValid()} className="bg-purple-600 hover:bg-purple-700">
-                {step === 3 ? "Complete Setup" : "Next"}
-                <ArrowRight className="h-4 w-4 ml-2" />
-=======
               <Button 
                 onClick={handleNext} 
                 disabled={!isStepValid() || isProcessing} 
@@ -515,7 +465,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </>
                 )}
->>>>>>> 65e52c8 (Fix the type conversation and mops)
               </Button>
             </div>
           </CardContent>

@@ -2,7 +2,6 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { AuthProvider } from "@/hooks/use-auth"
 import { Toaster } from "sonner"
 import { Web3Providers } from "@/hooks/ic/web3Provider"
 
@@ -25,10 +24,8 @@ export default function RootLayout({
       <head />
       <body className={inter.className}>
         <Web3Providers>
-          <AuthProvider>
-            {children}
-            <Toaster richColors position="top-right" />
-          </AuthProvider>
+          {children}
+          <Toaster richColors position="top-right" />
         </Web3Providers>
       </body>
     </html>

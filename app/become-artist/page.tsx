@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react"
 import { becomeArtist, getMyUser } from "@/lib/ic/backend"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/hooks/ic/auth-context"
 import { Button } from "@/components/ui/button"
 
 export default function BecomeArtistPage() {

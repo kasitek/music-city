@@ -8,6 +8,7 @@ import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Shar
 import { useEffect, useRef, useState } from "react"
 import { listTracks, streamTrack } from "@/lib/ic/backend"
 import { getData } from "@/lib/ic/storage"
+
 import { Navigation } from "@/components/navigation"
 import { fromCandidTrack } from "@/lib/mappers"
 import type { TrackModel } from "@/lib/types"
@@ -36,7 +37,7 @@ export default function StreamingPage() {
       setCurrentTrack(track)
       setIsPlaying(false)
       // Expect optional audioAssetId on track
-      const assetId = track.audioAssetId
+      const assetId = Number(track.audioAssetId)
       if (!assetId) {
         console.warn("No audio asset linked to this track")
         return

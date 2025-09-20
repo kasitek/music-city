@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/hooks/ic/auth-context"
+import { WalletType } from "@/hooks/ic/types"
 import { Button } from "@/components/ui/button"
 
 export default function NFIDSignInPage() {
   const router = useRouter()
-  const { loginWithNFID } = useAuth()
+  const { login, backendActor } = useAuth()
   const [status, setStatus] = useState<string>("Opening NFID…")
   const [busy, setBusy] = useState<boolean>(true)
 
@@ -15,9 +16,39 @@ export default function NFIDSignInPage() {
     setBusy(true)
     setStatus("Opening NFID…")
     try {
-      await loginWithNFID()
-      setStatus("Signed in. Redirecting…")
-      router.replace("/dashboard")
+      await login(WalletType.NFID)
+      setStatus("Signed in. Checking profile…")
+      
+      // Wait a moment for the backend actor to be available
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Check user type and redirect appropriately
+      if (backendActor) {
+        try {
+          const icUser = await backendActor.getMyUser()
+          if (icUser && icUser.length > 0) {
+            const user = icUser[0]
+            const isArtist = user?.userType && 'artist' in user.userType
+            
+            if (isArtist) {
+              setStatus("Redirecting to dashboard…")
+              router.replace("/dashboard")
+            } else {
+              setStatus("Redirecting to stream…")
+              router.replace("/stream")
+            }
+          } else {
+            setStatus("Redirecting to complete registration…")
+            router.replace("/auth")
+          }
+        } catch (profileError) {
+          setStatus("Redirecting to complete registration…")
+          router.replace("/auth")
+        }
+      } else {
+        setStatus("Redirecting to complete registration…")
+        router.replace("/auth")
+      }
     } catch (e: any) {
       setStatus(e?.message || "Sign-in failed. You can retry.")
     } finally {

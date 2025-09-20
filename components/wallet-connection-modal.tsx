@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X, Wallet, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
@@ -53,11 +53,15 @@ export default function WalletConnectionModal({ isOpen, onClose }: WalletConnect
     }
   }
 
-  if (isOpen) {
-    document.body.style.overflow = "hidden"
-  } else {
-    document.body.style.overflow = "unset"
-  }
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (isOpen) {
+        document.body.style.overflow = "hidden"
+      } else {
+        document.body.style.overflow = "unset"
+      }
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 

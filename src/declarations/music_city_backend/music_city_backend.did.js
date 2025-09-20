@@ -1,8 +1,11 @@
 export const idlFactory = ({ IDL }) => {
-  const UserType = IDL.Variant({ 'fan' : IDL.Null, 'artist' : IDL.Null });
+  const ApplicationUserType = IDL.Variant({
+    'fan' : IDL.Null,
+    'artist' : IDL.Null,
+  });
   const User = IDL.Record({
     'bio' : IDL.Text,
-    'userType' : UserType,
+    'userType' : ApplicationUserType,
     'balance' : IDL.Nat,
     'birthDate' : IDL.Opt(IDL.Text),
     'displayName' : IDL.Text,
@@ -27,6 +30,7 @@ export const idlFactory = ({ IDL }) => {
     'likes' : IDL.Nat,
     'coverImage' : IDL.Text,
     'genre' : IDL.Text,
+    'createdTimestamp' : IDL.Nat64,
     'artist' : IDL.Principal,
     'plays' : IDL.Nat,
     'price' : IDL.Nat,
@@ -34,45 +38,20 @@ export const idlFactory = ({ IDL }) => {
   });
   const Result_2 = IDL.Variant({ 'ok' : Track, 'err' : IDL.Text });
   const Result_1 = IDL.Variant({ 'ok' : IDL.Bool, 'err' : IDL.Text });
-  const Rarity = IDL.Variant({
-    'epic' : IDL.Null,
-    'legendary' : IDL.Null,
-    'rare' : IDL.Null,
-    'common' : IDL.Null,
-  });
-  const NFT = IDL.Record({
-    'id' : IDL.Nat,
-    'title' : IDL.Text,
-    'owner' : IDL.Opt(IDL.Principal),
-    'description' : IDL.Text,
-    'createdTimestamp' : IDL.Nat64,
-    'artist' : IDL.Principal,
-    'rarity' : Rarity,
-    'image' : IDL.Text,
-    'price' : IDL.Nat,
-  });
-  const Result_3 = IDL.Variant({ 'ok' : NFT, 'err' : IDL.Text });
-  const TxType = IDL.Variant({
+  const TransactionType = IDL.Variant({
     'tip' : IDL.Null,
-    'stream' : IDL.Null,
     'royalty' : IDL.Null,
-    'nft_purchase' : IDL.Null,
   });
   const Transaction = IDL.Record({
     'id' : IDL.Nat,
-    'status' : IDL.Variant({
-      'pending' : IDL.Null,
-      'completed' : IDL.Null,
-      'failed' : IDL.Null,
-    }),
-    'kind' : TxType,
-    'toUser' : IDL.Principal,
-    'trackId' : IDL.Opt(IDL.Nat),
-    'nftId' : IDL.Opt(IDL.Nat),
+    'to' : IDL.Principal,
+    'metadata' : IDL.Opt(IDL.Text),
+    'from' : IDL.Principal,
     'timestamp' : IDL.Nat64,
-    'fromUser' : IDL.Opt(IDL.Principal),
+    'txType' : TransactionType,
     'amount' : IDL.Nat,
   });
+  const UserType = IDL.Variant({ 'fan' : IDL.Null, 'artist' : IDL.Null });
   return IDL.Service({
     'becomeArtist' : IDL.Func([], [Result], []),
     'createTrack' : IDL.Func(
@@ -91,19 +70,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'follow' : IDL.Func([IDL.Principal], [Result_1], []),
     'getMyUser' : IDL.Func([], [IDL.Opt(User)], ['query']),
-    'getNFT' : IDL.Func([IDL.Nat], [IDL.Opt(NFT)], ['query']),
     'getTrack' : IDL.Func([IDL.Nat], [IDL.Opt(Track)], ['query']),
     'getUser' : IDL.Func([IDL.Principal], [IDL.Opt(User)], ['query']),
     'listArtists' : IDL.Func([], [IDL.Vec(User)], ['query']),
-    'listNFTs' : IDL.Func([], [IDL.Vec(NFT)], ['query']),
     'listTracks' : IDL.Func([], [IDL.Vec(Track)], ['query']),
-    'mintNFT' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Nat, Rarity, IDL.Text],
-        [Result_3],
-        [],
-      ),
     'myTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
-    'purchaseNFT' : IDL.Func([IDL.Nat], [Result_1], []),
     'registerUser' : IDL.Func(
         [
           IDL.Text,

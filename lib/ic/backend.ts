@@ -226,20 +226,23 @@ export async function mintNFT(params: {
   )
 }
 
-export async function purchaseNFT(id: number | bigint) {
-  const a = await getActor()
-  return a.purchaseNFT(BigInt(id as any))
-}
+// NFT functionality not yet implemented in backend canister
+// TODO: Implement these functions when NFT support is added to the backend
 
-export async function listNFTs() {
-  const a = await getActor()
-  return a.listNFTs()
-}
+// export async function purchaseNFT(id: number | bigint) {
+//   const a = await getActor()
+//   return a.purchaseNFT(BigInt(id as any))
+// }
 
-export async function getNFT(id: number | bigint) {
-  const a = await getActor()
-  return a.getNFT(BigInt(id as any))
-}
+// export async function listNFTs() {
+//   const a = await getActor()
+//   return a.listNFTs()
+// }
+
+// export async function getNFT(id: number | bigint) {
+//   const a = await getActor()
+//   return a.getNFT(BigInt(id as any))
+// }
 
 // Transactions
 export async function myTransactions() {
