@@ -13,49 +13,39 @@ import WalletConnectionModal from "@/components/wallet-connection-modal"
 
 export default function AuthPage() {
   const {isAuthenticated, login, logout, backendActor} = useAuth()
-
-  console.log("Is authenticated:", isAuthenticated)
   const [isConnected, setIsConnected] = useState(false)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const [showOnboarding, setShowOnboarding] = useState(false)
-    const [isWalletModalOpen, setIsWalletModalOpen] = useState(false)
-
-      const closeWalletModal = () => {
-    setIsWalletModalOpen(false)
-  }
-
-
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [profileExists, setProfileExists] = useState(false)
+  const closeWalletModal = () => setIsWalletModalOpen(false)
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect if already authenticated
     const go = async () => {
       if (isAuthenticated && backendActor) {
+        setLoading(true)
         try {
-          console.log("User is authenticated, checking profile...")
           const icUser = await backendActor.getMyUser()
-          console.log("IC User:", icUser)
-          
           if (icUser && icUser.length > 0) {
-            // User has completed registration
+            setProfileExists(true)
             const user = icUser[0]
             const isArtist = user?.userType && 'artist' in user.userType
-            console.log("User profile found, isArtist:", isArtist)
-            
             if (isArtist) {
               router.push("/dashboard")
             } else {
               router.push("/stream")
             }
           } else {
-            // User is authenticated but hasn't completed registration
-            console.log("User authenticated but no profile found, showing onboarding...")
+            setProfileExists(false)
             setShowOnboarding(true)
           }
         } catch (error) {
-          console.error("Error checking user profile:", error)
-          // If there's an error, assume user needs to complete registration
+          setProfileExists(false)
           setShowOnboarding(true)
+        } finally {
+          setLoading(false)
         }
       }
     }
@@ -133,12 +123,20 @@ export default function AuthPage() {
           <p className="text-gray-400 text-lg">Connect your wallet or sign in with Internet Identity/NFID</p>
         </div>
 
-        {!isAuthenticated && <button
+        {loading && <div className="text-center text-purple-400">Checking your profile...</div>}
+        {!loading && !isAuthenticated && <button
           onClick={() => setIsWalletModalOpen(true)}
           className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded">
           Login
         </button>}
-        {isAuthenticated && (
+        {!loading && isAuthenticated && profileExists && (
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+            Go to Dashboard
+          </button>
+        )}
+        {!loading && isAuthenticated && (
           <button
             onClick={logout}
             className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
@@ -149,7 +147,6 @@ export default function AuthPage() {
           isOpen={isWalletModalOpen}
           onClose={closeWalletModal}
         />
-      
         {/* Footer */}
         <div className="text-center text-xs text-gray-500">
           New to Web3?{" "}
@@ -163,9 +160,8 @@ export default function AuthPage() {
           </a>
         </div>
       </div>
-
       {/* Onboarding Modal */}
-      {showOnboarding && (
+      {showOnboarding && !profileExists && (
         <OnboardingModal
           walletAddress={walletAddress}
           onComplete={handleOnboardingComplete}

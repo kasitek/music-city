@@ -11,6 +11,17 @@ export interface SessionData {
   chainAddress?: string;
   updatedAt?: number;
   setTime: number;
+  // Optional profile fields used across UI components
+  displayName?: string;
+  profileImage?: string;
+  userType?: "artist" | "listener" | string;
+  mccBalance?: number;
+  location?: string;
+  genres?: string[];
+  bio?: string;
+  followers?: number;
+  following?: number;
+  joinedDate?: number; // epoch ms
 }
 
 export const useSessionData = () => {

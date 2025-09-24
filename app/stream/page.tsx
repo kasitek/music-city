@@ -37,28 +37,30 @@ export default function StreamingPage() {
       setCurrentTrack(track)
       setIsPlaying(false)
       // Expect optional audioAssetId on track
-      const assetId = Number(track.audioAssetId)
-      if (!assetId) {
+      const rawAssetId = track.audioAssetId
+      if (rawAssetId === undefined || rawAssetId === null) {
         console.warn("No audio asset linked to this track")
         return
       }
-      const bytesRes = await getData(assetId)
-      if (bytesRes && Array.isArray((bytesRes as any))) {
-        const u8 = new Uint8Array(bytesRes as any)
-        const blob = new Blob([u8], { type: "audio/mpeg" })
-        const url = URL.createObjectURL(blob)
-        // Revoke old URL
-        if (audioUrl) URL.revokeObjectURL(audioUrl)
-        setAudioUrl(url)
-        setTimeout(() => {
-          if (audioRef.current) {
-            audioRef.current.play().catch(() => {/* ignore */})
-          }
-        }, 0)
-        setIsPlaying(true)
-        // Record stream
-        await streamTrack(track.id)
+      const bytesRes = await getData(undefined, BigInt(rawAssetId))
+      const u8 = bytesRes instanceof Uint8Array ? bytesRes : new Uint8Array(bytesRes as any)
+      if (!u8 || u8.length === 0) {
+        console.warn("Audio bytes empty or unavailable")
+        return
       }
+      const blob = new Blob([u8], { type: "audio/mpeg" })
+      const url = URL.createObjectURL(blob)
+      // Revoke old URL
+      if (audioUrl) URL.revokeObjectURL(audioUrl)
+      setAudioUrl(url)
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().catch(() => {/* ignore */})
+        }
+      }, 0)
+      setIsPlaying(true)
+      // Record stream
+      await streamTrack(track.id)
     } catch (e) {
       console.warn("Playback failed", e)
     }
@@ -251,7 +253,7 @@ export default function StreamingPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-semibold text-white">{track.title || "Unknown Track"}</h3>
-                          <p className="text-sm text-gray-400">{track.artist || "Unknown Artist"}</p>
+                          {/* Hide principal id; do not show artist principal text */}
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-gray-400">{track.duration || "3:45"}</div>

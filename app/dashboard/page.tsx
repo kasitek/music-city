@@ -1,22 +1,34 @@
+
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+
+
+import { useEffect, useRef, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Music, Upload, DollarSign, Users, Play, Coins, TrendingUp, Eye, Settings, Shield, Award, Zap } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Music, Upload, DollarSign, Users, Play, Pause, Coins, TrendingUp, Eye, Settings, Shield, Award, Zap, SkipBack, SkipForward, Volume2 } from "lucide-react"
 import { Navigation } from "@/components/navigation"
-import { createTrack, setTrackAssets, myTransactions, getMyUser, listTracks } from "@/lib/ic/backend"
+import { createTrack, setTrackAssets, myTransactions, getMyUser, listTracks, updateTrack, deleteTrack } from "@/lib/ic/backend"
 import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
 import { loginInternetIdentity, loginNFID } from "@/lib/ic/auth"
 
 export default function ArtistDashboard() {
+  // Edit modal state (must be inside component)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editTrack, setEditTrack] = useState<any>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editGenre, setEditGenre] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editFile, setEditFile] = useState<File | null>(null)
+  const [editUploading, setEditUploading] = useState(false)
+  const [editUploadMessage, setEditUploadMessage] = useState("")
   const [userProfile, setUserProfile] = useState<any>(null)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const router = useRouter()
@@ -28,6 +40,7 @@ export default function ArtistDashboard() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState<string>("")
+  const [uploadProgress, setUploadProgress] = useState<number>(0)
   // Auth prompt state
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const [authInProgress, setAuthInProgress] = useState(false)
@@ -36,6 +49,29 @@ export default function ArtistDashboard() {
   // Backend data state
   const [transactions, setTransactions] = useState<any[]>([])
   const [tracks, setTracks] = useState<any[]>([])
+  // Audio playback state
+  const [playingId, setPlayingId] = useState<number | null>(null)
+  const [currentTrack, setCurrentTrack] = useState<any | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [volume, setVolume] = useState<number>(0.7)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Fetch tracks for this artist
+  const fetchTracks = async () => {
+    try {
+      const allTracks = await listTracks();
+      // Show ONLY the current artist's tracks in the dashboard using principal match
+      if (userProfile && userProfile.id) {
+        setTracks(
+          allTracks.filter((t: any) => principalEq(t.artist, userProfile.id))
+        );
+      } else {
+        setTracks([]);
+      }
+    } catch (e) {
+      setTracks([]);
+    }
+  };
 
   // Require authentication and artist role to access dashboard
   useEffect(() => {
@@ -53,13 +89,16 @@ export default function ArtistDashboard() {
           router.push('/')
           return
         }
-        // Map minimal profile for local UI usage
+        // Map minimal profile for local UI usage (use principal as id)
         setUserProfile({
-          id: walletAddress || '',
+          id: (icUser[0]?.owner && typeof icUser[0].owner === 'object' && 'toText' in icUser[0].owner)
+            ? (icUser[0].owner as any).toText()
+            : String(icUser[0]?.owner || ''),
           displayName: icUser[0]?.displayName,
           userType: 'artist',
           profileImage: icUser[0]?.profileImage || '',
         })
+        // Tracks will be fetched when userProfile.id is available via effect below
       } catch (e) {
         router.push('/auth')
       }
@@ -67,23 +106,192 @@ export default function ArtistDashboard() {
     return () => { mounted = false }
   }, [router, walletAddress])
 
+  // Fetch tracks when the artist principal (id) is known
+  useEffect(() => {
+    if (userProfile?.id) {
+      fetchTracks();
+    }
+  }, [userProfile?.id])
+
+  // Fetch transactions when the artist principal (id) is known
+  useEffect(() => {
+    const loadTx = async () => {
+      try {
+        if (!userProfile?.id) return
+        const res = await myTransactions()
+        setTransactions(Array.isArray(res) ? res : [])
+      } catch {
+        setTransactions([])
+      }
+    }
+    loadTx()
+  }, [userProfile?.id])
+
   // Helpers for principals
   const principalText = (p: any) => (p && typeof p === 'object' && 'toText' in p ? (p as any).toText() : String(p))
   const principalEq = (a: any, b: any) => principalText(a) === principalText(b)
+
+  // Build last 30 days analytics series from transactions
+  const { streamSeries, engagementSeries, revenueSeries, deltas } = useMemo(() => {
+    const days = 30
+    const toStartOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x }
+    const now = new Date()
+    const start = toStartOfDay(new Date(now.getTime() - (days - 1) * 24 * 3600 * 1000))
+    const idxForTs = (tsNs: any) => {
+      const tsMs = Number(tsNs || 0) / 1_000_000
+      const d = toStartOfDay(new Date(tsMs))
+      const diff = Math.floor((d.getTime() - start.getTime()) / (24 * 3600 * 1000))
+      return diff >= 0 && diff < days ? diff : -1
+    }
+    const myTrackIds = new Set((tracks || []).map((t: any) => Number(t.id)))
+    const streams = Array(days).fill(0)
+    const engagement = Array(days).fill(0)
+    const revenue = Array(days).fill(0)
+    for (const t of (transactions || [])) {
+      const dayIdx = idxForTs(t.timestamp)
+      if (dayIdx < 0) continue
+      // Revenue: incoming to me, kind: royalty or tip
+      if (userProfile && principalEq(t.toUser, userProfile.id)) {
+        if (t.kind && typeof t.kind === 'object' && (('royalty' in t.kind) || ('tip' in t.kind))) {
+          revenue[dayIdx] += Number(t.amount || 0)
+        }
+        if (t.kind && typeof t.kind === 'object' && ('tip' in t.kind)) {
+          engagement[dayIdx] += 1
+        }
+      }
+      // Streams: kind stream on my tracks
+      if (t.kind && typeof t.kind === 'object' && ('stream' in t.kind)) {
+        const tid = Array.isArray(t.trackId) ? t.trackId[0] : t.trackId
+        const n = tid !== undefined && tid !== null ? Number(tid) : NaN
+        if (!Number.isNaN(n) && myTrackIds.has(n)) {
+          streams[dayIdx] += 1
+        }
+      }
+    }
+    const pctDelta = (arr: number[]) => {
+      const n = arr.length
+      const half = Math.floor(n / 2)
+      const prev = arr.slice(0, half).reduce((a, b) => a + b, 0)
+      const curr = arr.slice(half).reduce((a, b) => a + b, 0)
+      if (prev === 0) return curr > 0 ? 100 : 0
+      return Math.round(((curr - prev) / prev) * 100)
+    }
+    return {
+      streamSeries: streams,
+      engagementSeries: engagement,
+      revenueSeries: revenue,
+      deltas: {
+        streams: pctDelta(streams),
+        engagement: pctDelta(engagement),
+        revenue: pctDelta(revenue),
+      }
+    }
+  }, [transactions, tracks, userProfile])
+
+  // Audio helpers
+  const stopAudio = () => {
+    try { audioRef.current?.pause() } catch {}
+    if (audioUrl) { try { URL.revokeObjectURL(audioUrl) } catch {}
+    }
+    setAudioUrl(null)
+    audioRef.current = null
+    setPlayingId(null)
+    setCurrentTrack(null)
+  }
+
+  const playTrackAudio = async (track: any) => {
+    // If clicking the same track, toggle pause
+    if (playingId === Number(track.id)) {
+      stopAudio()
+      return
+    }
+    // Stop previous
+    stopAudio()
+    // Load from storage bucket if available
+    if (!track.audioAssetId) {
+      alert("No audio asset linked to this track.")
+      return
+    }
+    try {
+      const { getData } = await import("@/lib/ic/storage")
+      const data = await getData(undefined, BigInt(track.audioAssetId))
+      const u8 = data instanceof Uint8Array ? data : new Uint8Array(data as any)
+      if (!u8 || u8.length === 0) {
+        alert("Audio not found in storage bucket.")
+        return
+      }
+      const blob = new Blob([u8], { type: "audio/mpeg" })
+      // Revoke previous URL if any
+      if (audioUrl) { try { URL.revokeObjectURL(audioUrl) } catch {} }
+      const url = URL.createObjectURL(blob)
+      setAudioUrl(url)
+      setPlayingId(Number(track.id))
+      setCurrentTrack(track)
+      // Defer play until audio element binds src
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.volume = volume
+          audioRef.current.play().catch(() => {/* ignore */})
+          audioRef.current.onended = () => {
+            setPlayingId(null)
+            try { URL.revokeObjectURL(url) } catch {}
+            setAudioUrl(null)
+            audioRef.current = null
+            setCurrentTrack(null)
+          }
+        }
+      }, 0)
+    } catch (e) {
+      console.error('Audio playback error:', e)
+      alert('Failed to play audio')
+    }
+  }
+
+  // Skip helpers within current filtered list
+  const getTrackIndex = (id: number) => (tracks || []).findIndex((t: any) => Number(t.id) === Number(id))
+  const playByIndex = (idx: number) => {
+    const list = tracks || []
+    if (idx < 0 || idx >= list.length) return
+    playTrackAudio(list[idx])
+  }
+  const playNext = () => {
+    if (playingId == null) return
+    const idx = getTrackIndex(playingId)
+    if (idx >= 0) playByIndex(idx + 1)
+  }
+  const playPrev = () => {
+    if (playingId == null) return
+    const idx = getTrackIndex(playingId)
+    if (idx >= 0) playByIndex(idx - 1)
+  }
 
   // Drag & Drop state
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleFiles = (files: FileList | null) => {
-    const f = files?.[0] || null
-    if (!f) { setFile(null); return }
-    if (!f.type.startsWith("audio/")) {
+    const f = files?.[0] || null;
+    if (!f) { setFile(null); return; }
+    // Acceptable extensions and MIME types
+    const allowedExts = ["mp3", "wav", "flac", "mp4"];
+    const allowedMimes = [
+      "audio/mpeg", // mp3
+      "audio/wav", "audio/x-wav", // wav
+      "audio/flac", "audio/x-flac", // flac
+      "audio/x-m4a", "audio/mp4", // m4a/mp4
+      "audio/aac", "audio/ogg", "audio/webm", // other common audio
+      "video/mp4" // allow mp4 as video too
+    ];
+    const ext = f.name.split('.').pop()?.toLowerCase() || "";
+    if (
+      !(f.type.startsWith("audio/") || allowedMimes.includes(f.type)) ||
+      !allowedExts.includes(ext)
+    ) {
       setUploadMessage("Invalid file type. Please upload an audio file (MP3, WAV, FLAC).")
-      return
+      return;
     }
-    setUploadMessage("")
-    setFile(f)
+    setUploadMessage("");
+    setFile(f);
   }
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -155,31 +363,52 @@ export default function ArtistDashboard() {
   // Core publish pipeline with improved error handling for IC certificate issues
   const publishWithIc = async () => {
     try {
-      setUploadMessage("Starting publication process...")
-      
+      setUploadMessage("Starting publication process...");
       if (!file) {
-        setUploadMessage("Please select an audio file to upload.")
-        return
+        setUploadMessage("Please select an audio file to upload.");
+        return;
       }
-
       if (!title.trim()) {
-        setUploadMessage("Please enter a track title.")
-        return
+        setUploadMessage("Please enter a track title.");
+        return;
       }
+      setUploading(true)
+      setUploadProgress(0)
+      setUploadMessage("Uploading audio file... 0%")
 
-      setUploadMessage("Uploading audio file...")
-
-      // 1. Upload the audio file to storage
-      let audioAssetId = null
+      // 1. Upload the audio file to Motoko storage bucket in chunks
+      let audioAssetId = null;
       try {
-        const audioBuffer = await file.arrayBuffer()
-        const audioBytes = new Uint8Array(audioBuffer)
-        const audioBlob = new Blob([audioBytes], { type: file.type });
-        audioAssetId = await createStorageAsset(audioBlob, file.type)
-        setUploadMessage("Audio uploaded. Creating track record...")
+        const audioBuffer = await file.arrayBuffer();
+        const audioBytes = new Uint8Array(audioBuffer);
+        const chunkSize = 1024 * 1024; // 1MB
+        const totalChunks = Math.ceil(audioBytes.length / chunkSize);
+        const assetId = BigInt(Date.now());
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * chunkSize;
+          const end = Math.min(start + chunkSize, audioBytes.length);
+          const chunk = audioBytes.slice(start, end);
+          await uploadBlobToBucket(undefined, assetId, BigInt(i), chunk);
+          const percent = Math.round(((i + 1) / totalChunks) * 100)
+          setUploadProgress(percent)
+          setUploadMessage(`Uploading audio file... ${percent}%`)
+        }
+        // Commit the batch
+        const commitResult = await createStorageAsset(
+          assetId,
+          totalChunks,
+          file.type,
+          file.size
+        );
+        if (commitResult) {
+          audioAssetId = assetId;
+          setUploadMessage("Audio uploaded (100%). Creating track record...")
+        } else {
+          throw new Error("Failed to commit audio upload");
+        }
       } catch (uploadError: any) {
-        console.warn('Audio upload failed, creating track without audio asset:', uploadError)
-        setUploadMessage("Creating track record...")
+        console.warn('Audio upload failed, creating track without audio asset:', uploadError);
+        setUploadMessage("Creating track record...");
       }
 
       // 2. Create the track record in the backend
@@ -192,14 +421,12 @@ export default function ArtistDashboard() {
         price: 0, // free tracks
         releaseDate: new Date().toISOString(),
         description: description.trim() || ""
-      })
-
+      });
       if ('err' in trackResult) {
-        throw new Error(trackResult.err)
+        throw new Error(trackResult.err);
       }
-
-      const track = trackResult.ok
-      setUploadMessage("Track created. Linking audio asset...")
+      const track = trackResult.ok;
+      setUploadMessage("Track created. Linking audio asset...");
 
       // 3. Link the audio asset to the track if upload was successful
       if (audioAssetId && track.id) {
@@ -208,33 +435,36 @@ export default function ArtistDashboard() {
             trackId: Number(track.id),
             audioAssetId: audioAssetId,
             imageAssetId: null // no image asset yet
-          })
+          });
           if ('err' in setAssetsResult) {
-            console.warn('Failed to link audio asset:', setAssetsResult.err)
+            console.warn('Failed to link audio asset:', setAssetsResult.err);
           }
         } catch (linkError) {
-          console.warn('Failed to link audio asset:', linkError)
+          console.warn('Failed to link audio asset:', linkError);
         }
       }
 
-      setUploadMessage("Track published successfully! 🎵")
-      
-      // Reset form
-      setFile(null)
-      setTitle("")
-      setArtistName("")
-      setGenre("")
-      setDescription("")
-
+  setUploadMessage("Track published successfully! 🎵");
+  setUploadProgress(0)
+  setUploading(false)
+  // Reset form
+  setFile(null);
+  setTitle("");
+  setArtistName("");
+  setGenre("");
+  setDescription("");
+  // Refresh tracks list
+  await fetchTracks();
     } catch (error: any) {
-      console.error('Upload error:', error)
-      const errorMsg = error?.message || String(error)
-      
+      console.error('Upload error:', error);
+      const errorMsg = error?.message || String(error);
       if (errorMsg.includes('certificate') || errorMsg.includes('signature')) {
-        setUploadMessage("Connection issue with IC network. Please try again later.")
+        setUploadMessage("Connection issue with IC network. Please try again later.");
       } else {
-        setUploadMessage(`Upload failed: ${errorMsg}`)
+        setUploadMessage(`Upload failed: ${errorMsg}`);
       }
+      setUploading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -261,21 +491,27 @@ useEffect(() => {
 const getUserStats = () => {
   if (!userProfile) return { earnings: 0, streams: 0, followers: 0, tokens: 0 }
 
-  // Earnings from incoming royalties and tips
+  // Earnings from backend transactions
   const incoming = (transactions || []).filter((t: any) => principalEq(t.toUser, userProfile.id))
   const earnings = incoming
     .filter((t: any) => ('royalty' in t.kind) || ('tip' in t.kind))
     .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
 
-  // Streams from artist's tracks
+  // Streams from backend tracks
   const myTracks = (tracks || [])
   const streams = myTracks.reduce((sum: number, tr: any) => sum + Number(tr.plays || 0), 0)
+
+  // Followers from backend userProfile if available
+  const followers = userProfile.followers || 0
+
+  // MCC tokens (mock: 10x earnings)
+  const tokens = Math.floor(earnings * 10)
 
   return {
     earnings,
     streams,
-    followers: userProfile.followers || 0,
-    tokens: Math.floor(earnings * 10),
+    followers,
+    tokens,
   }
 }
 
@@ -283,13 +519,21 @@ const getUserTracks = () => {
   if (!userProfile || userProfile.userType !== "artist") return []
   const myTracks = (tracks || [])
   const txs = (transactions || [])
+  const isRoyalty = (k: any) => {
+    if (!k) return false
+    return typeof k === 'string' ? k === 'royalty' : (typeof k === 'object' && 'royalty' in k)
+  }
   return myTracks.map((track: any) => {
     // Sum royalties for this track
     const trackTxs = txs.filter((t: any) => {
-      const tTrackId = Array.isArray(t.trackId) ? t.trackId[0] : t.trackId
-      return ('royalty' in t.kind) && tTrackId !== undefined && tTrackId !== null && BigInt(tTrackId as any) === BigInt(track.id as any)
+      const tTrackId = Array.isArray(t?.trackId) ? t.trackId[0] : t?.trackId
+      return (
+        isRoyalty(t?.kind) &&
+        tTrackId !== undefined && tTrackId !== null &&
+        BigInt(tTrackId as any) === BigInt(track.id as any)
+      )
     })
-    const earnings = trackTxs.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
+    const earnings = trackTxs.reduce((sum: number, t: any) => sum + Number(t?.amount || 0), 0)
     return {
       ...track,
       id: Number(track.id),
@@ -323,6 +567,59 @@ const getTransactionDescription = (transaction: any): string => {
   }
   return 'Unknown transaction';
 };
+
+  // Mini chart components for professional-looking analytics
+  const MiniLineChart: React.FC<{ values: number[]; stroke: string }> = ({ values, stroke }) => {
+    const width = 260;
+    const height = 64;
+    const padding = 6;
+    const max = Math.max(1, ...values);
+    const points = values
+      .map((v, i) => {
+        const x = padding + (i * (width - padding * 2)) / (values.length - 1 || 1);
+        const y = height - padding - (v / max) * (height - padding * 2);
+        return `${x},${y}`;
+      })
+      .join(' ');
+    return (
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+        <defs>
+          <linearGradient id="fillGradient" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polyline fill="none" stroke={stroke} strokeWidth="2" points={points} />
+        <polygon
+          fill="url(#fillGradient)"
+          points={`${points} ${width - padding},${height - padding} ${padding},${height - padding}`}
+        />
+      </svg>
+    );
+  };
+
+  const ChartCard: React.FC<{
+    title: string;
+    subtitle: string;
+    deltaText: string;
+    lineColor: string;
+    bgFrom: string;
+    bgTo: string;
+    data: number[];
+  }> = ({ title, subtitle, deltaText, lineColor, bgFrom, bgTo, data }) => (
+    <div className="p-4 rounded-lg border border-gray-700 bg-gray-800">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-sm text-gray-400">{subtitle}</div>
+          <div className="text-white font-semibold mt-1">{title}</div>
+        </div>
+        <div className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-200">{deltaText}</div>
+      </div>
+      <div className={`mt-3 rounded-md p-2 bg-gradient-to-b ${bgFrom} ${bgTo}`}>
+        <MiniLineChart values={data} stroke={lineColor} />
+      </div>
+    </div>
+  );
 
   if (!userProfile) {
     return (
@@ -416,13 +713,13 @@ const getTransactionDescription = (transaction: any): string => {
               {/* Recent Tracks */}
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
-                  <CardTitle className="text-white">Your Recent Tracks</CardTitle>
+                  <CardTitle className="text-white">Your Tracks</CardTitle>
                   <CardDescription className="text-gray-400">Latest uploads and performance</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {userTracks.length > 0 ? (
-                    userTracks.map((track, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                    userTracks.map((track) => (
+                      <div key={track.id ?? track.title} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
                             <Music className="h-5 w-5" />
@@ -432,9 +729,122 @@ const getTransactionDescription = (transaction: any): string => {
                             <div className="text-sm text-gray-400">{track.streams.toLocaleString()} streams</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium text-green-400">${track.earnings.toFixed(2)}</div>
-                          <div className="text-sm text-gray-400">Total earned</div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm inline-flex items-center gap-1"
+                            onClick={() => playTrackAudio(track)}
+                            aria-label={playingId === Number(track.id) ? 'Pause' : 'Play'}
+                          >
+                            {playingId === Number(track.id) ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                            {playingId === Number(track.id) ? 'Pause' : 'Play'}
+                          </button>
+                          <button
+                            className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
+                            onClick={() => {
+                              setEditTrack(track)
+                              setEditTitle(track.title)
+                              setEditGenre(track.genre)
+                              setEditDescription(track.description)
+                              setEditFile(null)
+                              setEditUploadMessage("")
+                              setEditModalOpen(true)
+                            }}
+                          >
+                            ✎ Edit
+                          </button>
+      {/* Edit Track Modal */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-start justify-center pt-24 p-4">
+          <div className="w-full max-w-2xl bg-gray-800 border border-gray-700 rounded-lg p-8 relative" onClick={e => e.stopPropagation()}>
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-white" onClick={() => setEditModalOpen(false)}>&times;</button>
+            <div className="text-white text-xl font-semibold mb-2">Edit Track</div>
+            <div className="text-gray-400 mb-6">Update your track details and audio file if needed.</div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-title" className="text-gray-300">Track Title</Label>
+                  <Input id="edit-title" className="bg-gray-700 border-gray-600 text-white" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="edit-genre" className="text-gray-300">Genre</Label>
+                  <Input id="edit-genre" className="bg-gray-700 border-gray-600 text-white" value={editGenre} onChange={e => setEditGenre(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-description" className="text-gray-300">Description</Label>
+                  <Textarea id="edit-description" className="bg-gray-700 border-gray-600 text-white min-h-[120px]" value={editDescription} onChange={e => setEditDescription(e.target.value)} />
+                </div>
+              </div>
+            </div>
+            {/* File Upload for Edit */}
+            <div className={`border-2 border-dashed rounded-lg p-8 text-center mt-6 transition-colors ${editFile ? "border-purple-500 bg-purple-500/10" : "border-gray-600"}`}
+              onDrop={e => { e.preventDefault(); if (e.dataTransfer.files?.[0]) setEditFile(e.dataTransfer.files[0]) }}
+              onDragOver={e => e.preventDefault()}
+              role="button"
+              tabIndex={0}
+              aria-label="Upload new audio file by dropping or clicking"
+              onClick={() => document.getElementById('edit-audio-input')?.click()}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") document.getElementById('edit-audio-input')?.click() }}
+            >
+              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <div className="text-lg font-medium text-white mb-2">{editFile ? `Selected: ${editFile.name}` : "Drop new audio file here (optional)"}</div>
+              <div className="text-gray-400 mb-4">or click to browse (MP3, WAV, FLAC)</div>
+              <input id="edit-audio-input" type="file" accept="audio/*" className="hidden" onChange={e => setEditFile(e.target.files?.[0] || null)} />
+              <Button type="button" className="bg-purple-600 hover:bg-purple-700" onClick={() => document.getElementById('edit-audio-input')?.click()}>{editFile ? "Change File" : "Choose File"}</Button>
+              {editFile && (<div className="mt-3 text-sm text-gray-300">Size: {(editFile.size / (1024 * 1024)).toFixed(2)} MB • Type: {editFile.type || "unknown"}</div>)}
+              {editUploadMessage && (<div className="mt-3 text-sm text-red-300">{editUploadMessage}</div>)}
+            </div>
+            <div className="flex justify-end space-x-4 mt-8">
+              <Button type="button" variant="outline" className="border-gray-600 text-gray-300 bg-transparent" onClick={() => setEditModalOpen(false)}>Cancel</Button>
+              <Button className="bg-yellow-600 hover:bg-yellow-700" disabled={editUploading} onClick={async () => {
+                setEditUploadMessage("")
+                if (!editTitle) { setEditUploadMessage("Please enter a track title."); return }
+                setEditUploading(true)
+                try {
+                  // If a new file is selected, upload it and update assetId (not implemented here, but can be added)
+                  // For now, only update metadata
+                  const res = await updateTrack({ trackId: editTrack.id, title: editTitle, genre: editGenre, description: editDescription })
+                  if (res?.ok) {
+                    setEditModalOpen(false)
+                    await fetchTracks()
+                  } else {
+                    setEditUploadMessage(res?.err || "Failed to update track")
+                  }
+                } catch (e) {
+                  setEditUploadMessage("Error updating track: " + (e as any)?.message)
+                } finally {
+                  setEditUploading(false)
+                }
+              }}>{editUploading ? "Saving…" : "Save Changes"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+                          <button
+                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                            onClick={async () => {
+                              if (confirm(`Are you sure you want to delete "${track.title}"?`)) {
+                                try {
+                                  const res = await deleteTrack(track.id);
+                                  if (res?.ok) {
+                                    alert("Track deleted!");
+                                    await fetchTracks();
+                                  } else {
+                                    alert(res?.err || "Failed to delete track");
+                                  }
+                                } catch (e) {
+                                  alert("Error deleting track: " + (e as any)?.message);
+                                }
+                              }
+                            }}
+                          >
+                            🗑 Delete
+                          </button>
+                          <div className="text-right">
+                            <div className="font-medium text-green-400">${track.earnings.toFixed(2)}</div>
+                            <div className="text-sm text-gray-400">Total earned</div>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -454,27 +864,35 @@ const getTransactionDescription = (transaction: any): string => {
                   <CardTitle className="text-white">Performance Analytics</CardTitle>
                   <CardDescription className="text-gray-400">Your music's reach and engagement</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Stream Growth</span>
-                      <span className="text-green-400">+23%</span>
-                    </div>
-                    <Progress value={75} className="bg-gray-700" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Fan Engagement</span>
-                      <span className="text-blue-400">+18%</span>
-                    </div>
-                    <Progress value={60} className="bg-gray-700" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Revenue Growth</span>
-                      <span className="text-purple-400">+31%</span>
-                    </div>
-                    <Progress value={85} className="bg-gray-700" />
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <ChartCard
+                      title="Stream Growth"
+                      subtitle="Last 30 days"
+                      deltaText={`${deltas.streams >= 0 ? '+' : ''}${deltas.streams}%`}
+                      lineColor="#22c55e"
+                      bgFrom="from-green-500/10"
+                      bgTo="to-green-500/0"
+                      data={streamSeries}
+                    />
+                    <ChartCard
+                      title="Fan Engagement"
+                      subtitle="Last 30 days"
+                      deltaText={`${deltas.engagement >= 0 ? '+' : ''}${deltas.engagement}%`}
+                      lineColor="#3b82f6"
+                      bgFrom="from-blue-500/10"
+                      bgTo="to-blue-500/0"
+                      data={engagementSeries}
+                    />
+                    <ChartCard
+                      title="Revenue Growth"
+                      subtitle="Last 30 days"
+                      deltaText={`${deltas.revenue >= 0 ? '+' : ''}${deltas.revenue}%`}
+                      lineColor="#a855f7"
+                      bgFrom="from-purple-500/10"
+                      bgTo="to-purple-500/0"
+                      data={revenueSeries}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -972,6 +1390,61 @@ const getTransactionDescription = (transaction: any): string => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Now Playing Bar */}
+      {currentTrack && (
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 z-40">
+          <div className="container mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <img
+                src={currentTrack.coverImage || "/placeholder.svg?height=48&width=48"}
+                alt={currentTrack.title}
+                className="w-12 h-12 rounded-lg object-cover"
+              />
+              <div>
+                <div className="font-semibold text-white">{currentTrack.title}</div>
+                <div className="text-sm text-gray-400">{currentTrack.genre} • {currentTrack.duration || "--:--"}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <Button size="sm" variant="ghost" onClick={playPrev}>
+                <SkipBack className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700"
+                onClick={() => {
+                  if (!audioRef.current) return
+                  if (!audioRef.current.paused) { audioRef.current.pause(); }
+                  else { audioRef.current.play().catch(() => {/* ignore */}); }
+                }}
+              >
+                {audioRef.current && !audioRef.current.paused ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={playNext}>
+                <SkipForward className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Volume2 className="h-4 w-4 text-gray-400" />
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                onChange={(e) => { const v = parseFloat(e.target.value); setVolume(v); if (audioRef.current) audioRef.current.volume = v; }}
+                className="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+          </div>
+          {/* Hidden audio element bound to the object URL */}
+          <audio ref={audioRef} src={audioUrl ?? undefined} />
+        </div>
+      )}
+
       {/* Auth Prompt Modal */}
       {showAuthPrompt && (
         <div

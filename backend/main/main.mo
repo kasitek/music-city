@@ -1,3 +1,4 @@
+  // ...existing code...
 import Principal "mo:base/Principal";
 import Time "mo:base/Time";
 import Nat "mo:base/Nat";
@@ -14,6 +15,22 @@ import TransactionManagement "./transaction_management";
 import ApplicationConstants "./constants";
 
 persistent actor {
+  public shared ({ caller }) func updateTrack(
+    trackId : Nat,
+    title : ?Text,
+    genre : ?Text,
+    description : ?Text
+  ) : async Result.Result<ApplicationTypes.Track, Text> {
+    TrackManagement.updateTrack(tracksMap, caller, trackId, title, genre, description)
+  };
+
+  public shared ({ caller }) func deleteTrack(
+    trackId : Nat
+  ) : async Result.Result<Bool, Text> {
+    TrackManagement.deleteTrack(tracksMap, caller, trackId)
+  };
+  // ...existing code...
+
   
   // Using HashMaps for testing - will migrate to stable maps later
   stable var userEntries : [(Principal, ApplicationTypes.User)] = [];

@@ -20,7 +20,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-start justify-center pt-24 p-4"> {/* pt-24 moves modal below header */}
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <Card className="bg-gray-800 border-gray-700">
           <CardContent className="p-6">
@@ -33,6 +33,11 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
               <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-400 hover:text-white">
                 <X className="h-5 w-5" />
               </Button>
+            </div>
+            {/* Dashboard Button */}
+            <div className="mb-4 flex gap-2">
+              <Button onClick={() => router.push('/dashboard')} className="bg-blue-600 hover:bg-blue-700 text-white">Dashboard</Button>
+              <Button onClick={logout} className="bg-red-600 hover:bg-red-700 text-white">Logout</Button>
             </div>
 
             {/* Content */}

@@ -18,7 +18,7 @@ export const idlFactory = ({ IDL }) => {
     'following' : IDL.Nat,
     'location' : IDL.Text,
   });
-  const Result = IDL.Variant({ 'ok' : User, 'err' : IDL.Text });
+  const Result_1 = IDL.Variant({ 'ok' : User, 'err' : IDL.Text });
   const Track = IDL.Record({
     'id' : IDL.Nat,
     'title' : IDL.Text,
@@ -36,8 +36,8 @@ export const idlFactory = ({ IDL }) => {
     'price' : IDL.Nat,
     'releaseDate' : IDL.Text,
   });
-  const Result_2 = IDL.Variant({ 'ok' : Track, 'err' : IDL.Text });
-  const Result_1 = IDL.Variant({ 'ok' : IDL.Bool, 'err' : IDL.Text });
+  const Result = IDL.Variant({ 'ok' : Track, 'err' : IDL.Text });
+  const Result_2 = IDL.Variant({ 'ok' : IDL.Bool, 'err' : IDL.Text });
   const TransactionType = IDL.Variant({
     'tip' : IDL.Null,
     'royalty' : IDL.Null,
@@ -53,7 +53,7 @@ export const idlFactory = ({ IDL }) => {
   });
   const UserType = IDL.Variant({ 'fan' : IDL.Null, 'artist' : IDL.Null });
   return IDL.Service({
-    'becomeArtist' : IDL.Func([], [Result], []),
+    'becomeArtist' : IDL.Func([], [Result_1], []),
     'createTrack' : IDL.Func(
         [
           IDL.Text,
@@ -65,10 +65,11 @@ export const idlFactory = ({ IDL }) => {
           IDL.Text,
           IDL.Text,
         ],
-        [Result_2],
+        [Result],
         [],
       ),
-    'follow' : IDL.Func([IDL.Principal], [Result_1], []),
+    'deleteTrack' : IDL.Func([IDL.Nat], [Result_2], []),
+    'follow' : IDL.Func([IDL.Principal], [Result_2], []),
     'getMyUser' : IDL.Func([], [IDL.Opt(User)], ['query']),
     'getTrack' : IDL.Func([IDL.Nat], [IDL.Opt(Track)], ['query']),
     'getUser' : IDL.Func([IDL.Principal], [IDL.Opt(User)], ['query']),
@@ -85,17 +86,17 @@ export const idlFactory = ({ IDL }) => {
           IDL.Text,
           IDL.Opt(IDL.Text),
         ],
-        [Result],
+        [Result_1],
         [],
       ),
     'setTrackAssets' : IDL.Func(
         [IDL.Nat, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
-        [Result_2],
+        [Result],
         [],
       ),
-    'streamTrack' : IDL.Func([IDL.Nat], [Result_1], []),
-    'tip' : IDL.Func([IDL.Principal, IDL.Nat], [Result_1], []),
-    'unfollow' : IDL.Func([IDL.Principal], [Result_1], []),
+    'streamTrack' : IDL.Func([IDL.Nat], [Result_2], []),
+    'tip' : IDL.Func([IDL.Principal, IDL.Nat], [Result_2], []),
+    'unfollow' : IDL.Func([IDL.Principal], [Result_2], []),
     'updateProfile' : IDL.Func(
         [
           IDL.Opt(IDL.Text),
@@ -104,6 +105,11 @@ export const idlFactory = ({ IDL }) => {
           IDL.Opt(IDL.Vec(IDL.Text)),
           IDL.Opt(IDL.Text),
         ],
+        [Result_1],
+        [],
+      ),
+    'updateTrack' : IDL.Func(
+        [IDL.Nat, IDL.Opt(IDL.Text), IDL.Opt(IDL.Text), IDL.Opt(IDL.Text)],
         [Result],
         [],
       ),

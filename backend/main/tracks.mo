@@ -4,6 +4,58 @@ import Result "mo:base/Result";
 
 import T "./types";
 
+
+  public func updateTrack(
+    tracksMap: HashMap.HashMap<Nat, T.Track>,
+    caller: Principal,
+    trackId: Nat,
+    title: ?Text,
+    genre: ?Text,
+    description: ?Text
+  ) : Result.Result<T.Track, Text> {
+    switch (tracksMap.get(trackId)) {
+      case null { #err("Track not found") };
+      case (?track) {
+        if (track.artist != caller) { return #err("Only the artist can edit this track") };
+        let updated: T.Track = {
+          id = track.id;
+          title = switch (title) { case (?t) t; case null track.title };
+          artist = track.artist;
+          duration = track.duration;
+          genre = switch (genre) { case (?g) g; case null track.genre };
+          coverImage = track.coverImage;
+          audioUrl = track.audioUrl;
+          audioAssetId = track.audioAssetId;
+          imageAssetId = track.imageAssetId;
+          plays = track.plays;
+          likes = track.likes;
+          price = track.price;
+          releaseDate = track.releaseDate;
+          description = switch (description) { case (?d) d; case null track.description };
+          createdTimestamp = track.createdTimestamp;
+        };
+        tracksMap.put(trackId, updated);
+        #ok(updated)
+      }
+    }
+  };
+
+  public func deleteTrack(
+    tracksMap: HashMap.HashMap<Nat, T.Track>,
+    caller: Principal,
+    trackId: Nat
+  ) : Result.Result<Bool, Text> {
+    switch (tracksMap.get(trackId)) {
+      case null { #err("Track not found") };
+      case (?track) {
+        if (track.artist != caller) { return #err("Only the artist can delete this track") };
+        ignore tracksMap.remove(trackId);
+        #ok(true)
+      }
+    }
+  };
+
+
 module {
   public func create(
     tracks : [T.Track],

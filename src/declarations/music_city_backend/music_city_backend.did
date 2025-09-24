@@ -55,17 +55,17 @@ type Track =
 type Result_2 = 
  variant {
    err: text;
-   ok: Track;
+   ok: bool;
  };
 type Result_1 = 
  variant {
    err: text;
-   ok: bool;
+   ok: User;
  };
 type Result = 
  variant {
    err: text;
-   ok: User;
+   ok: Track;
  };
 type ApplicationUserType = 
  variant {
@@ -73,11 +73,12 @@ type ApplicationUserType =
    fan;
  };
 service : {
-  becomeArtist: () -> (Result);
+  becomeArtist: () -> (Result_1);
   createTrack: (title: text, duration: text, genre: text, coverImage: 
    text, audioUrl: text, price: nat, releaseDate: text, description: 
-   text) -> (Result_2);
-  follow: (artist: principal) -> (Result_1);
+   text) -> (Result);
+  deleteTrack: (trackId: nat) -> (Result_2);
+  follow: (artist: principal) -> (Result_2);
   getMyUser: () -> (opt User) query;
   getTrack: (trackId: nat) -> (opt Track) query;
   getUser: ("principal": principal) -> (opt User) query;
@@ -86,12 +87,14 @@ service : {
   myTransactions: () -> (vec Transaction) query;
   registerUser: (displayName: text, userType: UserType, bio: text, location:
    text, genres: vec text, profileImage: text, birthDate: opt text) ->
-   (Result);
+   (Result_1);
   setTrackAssets: (trackId: nat, audioAssetId: opt nat, imageAssetId:
-   opt nat) -> (Result_2);
-  streamTrack: (trackId: nat) -> (Result_1);
-  tip: (artist: principal, amount: nat) -> (Result_1);
-  unfollow: (artist: principal) -> (Result_1);
+   opt nat) -> (Result);
+  streamTrack: (trackId: nat) -> (Result_2);
+  tip: (artist: principal, amount: nat) -> (Result_2);
+  unfollow: (artist: principal) -> (Result_2);
   updateProfile: (displayName: opt text, bio: opt text, location: opt text,
-   genres: opt vec text, profileImage: opt text) -> (Result);
+   genres: opt vec text, profileImage: opt text) -> (Result_1);
+  updateTrack: (trackId: nat, title: opt text, genre: opt text, description:
+   opt text) -> (Result);
 }

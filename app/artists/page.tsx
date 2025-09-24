@@ -3,9 +3,9 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, Star, Share2, Music } from 'lucide-react'
+import { Users, Star, Share2, Music, Play, Pause } from 'lucide-react'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Navigation } from "@/components/navigation"
 import { listArtists, resetActor } from "@/lib/ic/backend"
 import { fromCandidUser, fromCandidTrack } from "@/lib/mappers"
@@ -20,10 +20,15 @@ export default function ArtistsPage() {
   const [artist, setArtist] = useState<UserModel | null>(null)
   const [tracks, setTracks] = useState<TrackModel[]>([])
   const [following, setFollowing] = useState<Record<string, boolean>>({})
+  // Audio playback state
+  const [playingId, setPlayingId] = useState<string | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [volume, setVolume] = useState<number>(0.7)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const searchParams = useSearchParams()
   const owner = searchParams.get('owner') || ''
   const router = useRouter()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, principalId } = useAuth()
 
   useEffect(() => {
     let mounted = true
@@ -89,9 +94,67 @@ export default function ArtistsPage() {
     return () => { mounted = false }
   }, [owner])
 
+  // Audio helpers
+  const stopAudio = () => {
+    try { audioRef.current?.pause() } catch {}
+    if (audioUrl) { try { URL.revokeObjectURL(audioUrl) } catch {} }
+    setAudioUrl(null)
+    audioRef.current = null
+    setPlayingId(null)
+  }
+
+  const playTrackAudio = async (t: TrackModel) => {
+    const id = String(t.id)
+    if (playingId === id) {
+      stopAudio()
+      return
+    }
+    stopAudio()
+    if (t.audioAssetId === undefined || t.audioAssetId === null) {
+      alert('No audio asset linked to this track.')
+      return
+    }
+    try {
+      const { getData } = await import('@/lib/ic/storage')
+      const assetIdBig = typeof t.audioAssetId === 'bigint' ? t.audioAssetId : BigInt(t.audioAssetId as any)
+      const bytes = await getData(undefined, assetIdBig)
+      const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes as any)
+      if (!u8 || u8.length === 0) {
+        alert('Audio not found in storage bucket.')
+        return
+      }
+      const blob = new Blob([u8], { type: 'audio/mpeg' })
+      // Revoke previous URL if any
+      if (audioUrl) { try { URL.revokeObjectURL(audioUrl) } catch {} }
+      const url = URL.createObjectURL(blob)
+      setAudioUrl(url)
+      setPlayingId(id)
+      // Defer play until audio element binds src
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.volume = volume
+          audioRef.current.play().catch(() => {/* ignore */})
+          audioRef.current.onended = () => {
+            setPlayingId(null)
+            try { URL.revokeObjectURL(url) } catch {}
+            setAudioUrl(null)
+            audioRef.current = null
+          }
+        }
+      }, 0)
+    } catch (e) {
+      console.error('Audio playback error:', e)
+      alert('Failed to play audio')
+    }
+  }
+
   async function onFollow(a: UserModel) {
     try {
       if (!isAuthenticated) { router.push('/auth'); return }
+      // Prevent following yourself
+      if (principalId && String(principalId) === String(a.owner)) {
+        return
+      }
       const { follow } = await import('@/lib/ic/backend')
       const res = await follow(a.owner)
       if ('ok' in res && res.ok) {
@@ -192,9 +255,11 @@ export default function ArtistsPage() {
                       </div>
                       {artist.bio && <p className="mt-3 text-gray-300 max-w-2xl">{artist.bio}</p>}
                       <div className="flex gap-2 mt-4">
-                        <Button className="bg-purple-600 hover:bg-purple-700" disabled={!!following[artist.owner]} onClick={() => onFollow(artist)}>
-                          {following[artist.owner] ? 'Following' : 'Follow'}
-                        </Button>
+                        {!(principalId && String(principalId) === String(artist.owner)) && (
+                          <Button className="bg-purple-600 hover:bg-purple-700" disabled={!!following[artist.owner]} onClick={() => onFollow(artist)}>
+                            {following[artist.owner] ? 'Following' : 'Follow'}
+                          </Button>
+                        )}
                         <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent" onClick={() => onShare(artist)}>
                           <Share2 className="h-4 w-4" />
                         </Button>
@@ -218,7 +283,15 @@ export default function ArtistsPage() {
                             <div className="text-white font-semibold">{t.title}</div>
                             <div className="text-sm text-gray-400">{t.genre} • {t.duration}</div>
                           </div>
-                          <Button size="sm" className="bg-purple-600 hover:bg-purple-700">Play</Button>
+                          <Button
+                            size="sm"
+                            className="bg-purple-600 hover:bg-purple-700 inline-flex items-center gap-1"
+                            onClick={() => playTrackAudio(t)}
+                            aria-label={playingId === String(t.id) ? 'Pause' : 'Play'}
+                          >
+                            {playingId === String(t.id) ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                            {playingId === String(t.id) ? 'Pause' : 'Play'}
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -229,6 +302,8 @@ export default function ArtistsPage() {
           </>
         )}
       </div>
+      {/* Hidden audio element bound to object URL for stable playback */}
+      <audio ref={audioRef} src={audioUrl ?? undefined} />
     </div>
   )
 }

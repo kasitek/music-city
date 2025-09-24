@@ -4,11 +4,11 @@ import type { IDL } from '@dfinity/candid';
 
 export type ApplicationUserType = { 'fan' : null } |
   { 'artist' : null };
-export type Result = { 'ok' : User } |
+export type Result = { 'ok' : Track } |
   { 'err' : string };
-export type Result_1 = { 'ok' : boolean } |
+export type Result_1 = { 'ok' : User } |
   { 'err' : string };
-export type Result_2 = { 'ok' : Track } |
+export type Result_2 = { 'ok' : boolean } |
   { 'err' : string };
 export interface Track {
   'id' : bigint,
@@ -56,12 +56,13 @@ export interface User {
 export type UserType = { 'fan' : null } |
   { 'artist' : null };
 export interface _SERVICE {
-  'becomeArtist' : ActorMethod<[], Result>,
+  'becomeArtist' : ActorMethod<[], Result_1>,
   'createTrack' : ActorMethod<
     [string, string, string, string, string, bigint, string, string],
-    Result_2
+    Result
   >,
-  'follow' : ActorMethod<[Principal], Result_1>,
+  'deleteTrack' : ActorMethod<[bigint], Result_2>,
+  'follow' : ActorMethod<[Principal], Result_2>,
   'getMyUser' : ActorMethod<[], [] | [User]>,
   'getTrack' : ActorMethod<[bigint], [] | [Track]>,
   'getUser' : ActorMethod<[Principal], [] | [User]>,
@@ -70,15 +71,15 @@ export interface _SERVICE {
   'myTransactions' : ActorMethod<[], Array<Transaction>>,
   'registerUser' : ActorMethod<
     [string, UserType, string, string, Array<string>, string, [] | [string]],
-    Result
+    Result_1
   >,
   'setTrackAssets' : ActorMethod<
     [bigint, [] | [bigint], [] | [bigint]],
-    Result_2
+    Result
   >,
-  'streamTrack' : ActorMethod<[bigint], Result_1>,
-  'tip' : ActorMethod<[Principal, bigint], Result_1>,
-  'unfollow' : ActorMethod<[Principal], Result_1>,
+  'streamTrack' : ActorMethod<[bigint], Result_2>,
+  'tip' : ActorMethod<[Principal, bigint], Result_2>,
+  'unfollow' : ActorMethod<[Principal], Result_2>,
   'updateProfile' : ActorMethod<
     [
       [] | [string],
@@ -87,6 +88,10 @@ export interface _SERVICE {
       [] | [Array<string>],
       [] | [string],
     ],
+    Result_1
+  >,
+  'updateTrack' : ActorMethod<
+    [bigint, [] | [string], [] | [string], [] | [string]],
     Result
   >,
 }

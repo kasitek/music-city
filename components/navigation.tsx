@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Music, Menu, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -57,7 +57,10 @@ export default function Navigation({ currentPage }: NavigationProps) {
               Music City
             </span>
           </Link>
-
+          {/* Dashboard Link for Artists */}
+          {isAuthenticated && sessionData?.userType === 'artist' && (
+            <Link href="/dashboard" className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold">Dashboard</Link>
+          )}
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {sessionData?.userType === 'artist' && (
@@ -146,9 +149,9 @@ export default function Navigation({ currentPage }: NavigationProps) {
                 </DropdownMenu>
               </div>
             ) : (
-              <Link href="/auth">
-                <Button className="bg-purple-600 hover:bg-purple-700 text-white">Sign In</Button>
-              </Link>
+              <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Link href="/auth">Sign In</Link>
+              </Button>
             )}
           </div>
 
@@ -245,9 +248,9 @@ export default function Navigation({ currentPage }: NavigationProps) {
                     </button>
                   </div>
                 ) : (
-                  <Link href="/auth" onClick={() => setIsMenuOpen(false)}>
-                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">Sign In</Button>
-                  </Link>
+                  <Button asChild className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                    <Link href="/auth" onClick={() => setIsMenuOpen(false)}>Sign In</Link>
+                  </Button>
                 )}
               </div>
             </div>

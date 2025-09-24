@@ -1,3 +1,18 @@
+export async function updateTrack(params: { trackId: number | bigint; title?: string; genre?: string; description?: string }) {
+  const a = await getActor();
+  const opt = <T,>(v: T | undefined) => (v === undefined ? [] : [v]);
+  return a.updateTrack(
+    BigInt(params.trackId as any),
+    opt(params.title),
+    opt(params.genre),
+    opt(params.description)
+  );
+}
+
+export async function deleteTrack(trackId: number | bigint) {
+  const a = await getActor();
+  return a.deleteTrack(BigInt(trackId as any));
+}
 import type { ActorSubclass } from '@dfinity/agent'
 import { createActor, getDefaultHost, shouldFetchRootKey } from './agent'
 import { getBackendCanisterId } from './canister'
