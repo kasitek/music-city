@@ -1,6 +1,6 @@
 export async function updateTrack(params: { trackId: number | bigint; title?: string; genre?: string; description?: string }) {
   const a = await getActor();
-  const opt = <T,>(v: T | undefined) => (v === undefined ? [] : [v]);
+  const opt = <T,>(v: T | undefined): [] | [T] => (v === undefined ? [] : [v]);
   return a.updateTrack(
     BigInt(params.trackId as any),
     opt(params.title),
@@ -14,45 +14,31 @@ export async function deleteTrack(trackId: number | bigint) {
   return a.deleteTrack(BigInt(trackId as any));
 }
 import type { ActorSubclass } from '@dfinity/agent'
-import { createActor, getDefaultHost, shouldFetchRootKey } from './agent'
-import { getBackendCanisterId } from './canister'
-import type { _SERVICE } from './idl'
+import { createActor, shouldFetchRootKey } from './agent'
+import type { _SERVICE } from '../../src/declarations/music_city_backend/music_city_backend.did'
 import type { Identity } from '@dfinity/agent'
+import { backendCanisterId } from '../../hooks/constants/canisters-config'
+import { host as configuredHost } from '../../hooks/constants/urls'
 
 let actorPromise: Promise<ActorSubclass<_SERVICE>> | null = null
 let currentIdentity: Identity | undefined
-let loggedConfig = false
 
 export function setIdentity(identity?: Identity) {
-  console.log('[Backend] Setting identity:', identity ? identity.getPrincipal().toText() : 'anonymous')
   currentIdentity = identity
   // reset so next call builds an actor with the new identity
   actorPromise = null
-  loggedConfig = false // Reset logging flag too
 }
 
 export function resetActor() {
   actorPromise = null
-  loggedConfig = false
 }
 
 async function getActor(): Promise<ActorSubclass<_SERVICE>> {
   if (!actorPromise) {
-    const canisterId = await getBackendCanisterId()
-    const host = getDefaultHost()
+    const canisterId = backendCanisterId
+    const host = configuredHost
     const identity = currentIdentity
     const shouldFetch = shouldFetchRootKey(host)
-    
-    if (!loggedConfig) {
-      console.info('[IC backend] creating actor', { 
-        canisterId, 
-        host, 
-        fetchRootKey: shouldFetch, 
-        hasIdentity: !!identity,
-        identityPrincipal: identity ? identity.getPrincipal().toText() : 'anonymous'
-      })
-      loggedConfig = true
-    }
     
     actorPromise = createActor<_SERVICE>({
       canisterId,
@@ -60,8 +46,6 @@ async function getActor(): Promise<ActorSubclass<_SERVICE>> {
       fetchRootKey: shouldFetch,
       identity,
     }).catch(async (error) => {
-      console.error('[Backend] Actor creation failed with identity:', error)
-      console.warn('[Backend] Retrying without identity for fallback...')
       // Reset and try again without identity as fallback
       return createActor<_SERVICE>({
         canisterId,
@@ -84,15 +68,8 @@ export async function registerUser(params: {
   profileImage: string
   birthDate?: string | null
 }) {
-  console.log('[Backend] registerUser called with params:', {
-    ...params,
-    birthDate: params.birthDate || 'null'
-  })
-  
   try {
     const a = await getActor()
-    console.log('[Backend] Got actor, calling registerUser...')
-    
     const res = await a.registerUser(
       params.displayName,
       params.userType as any,
@@ -102,11 +79,8 @@ export async function registerUser(params: {
       params.profileImage,
       params.birthDate ? [params.birthDate] : []
     )
-    
-    console.log('[Backend] registerUser response:', res)
     return res
   } catch (error) {
-    console.error('[Backend] registerUser failed:', error)
     throw error
   }
 }
@@ -124,13 +98,10 @@ export async function getUser(principalText: string) {
 
 export async function listArtists() {
   const a = await getActor()
-  console.log('[Backend] Calling listArtists...')
   try {
     const result = await a.listArtists()
-    console.log('[Backend] listArtists success:', result)
     return result
   } catch (error) {
-    console.error('[Backend] listArtists error:', error)
     throw error
   }
 }
@@ -143,7 +114,7 @@ export async function updateProfile(params: {
   profileImage?: string
 }) {
   const a = await getActor()
-  const opt = <T,>(v: T | undefined) => (v === undefined ? [] : [v])
+  const opt = <T,>(v: T | undefined): [] | [T] => (v === undefined ? [] : [v])
   return a.updateProfile(
     opt(params.displayName),
     opt(params.bio),
@@ -199,7 +170,7 @@ export async function streamTrack(id: number | bigint) {
 
 export async function setTrackAssets(params: { trackId: number | bigint; audioAssetId?: number | bigint | null; imageAssetId?: number | bigint | null }) {
   const a = await getActor()
-  const opt = <T,>(v: T | undefined | null) => (v === undefined || v === null ? [] : [BigInt(v as any)])
+  const opt = (v: number | bigint | undefined | null): [] | [bigint] => (v === undefined || v === null ? [] : [BigInt(v as any)])
   return a.setTrackAssets(BigInt(params.trackId as any), opt(params.audioAssetId), opt(params.imageAssetId))
 }
 
@@ -224,22 +195,8 @@ export async function unfollow(artistPrincipalText: string) {
 }
 
 // NFTs
-export async function mintNFT(params: {
-  title: string
-  image: string
-  price: number | bigint
-  rarity: { common?: null; rare?: null; epic?: null; legendary?: null }
-  description: string
-}) {
-  const a = await getActor()
-  return a.mintNFT(
-    params.title,
-    params.image,
-    BigInt(params.price as any),
-    params.rarity as any,
-    params.description
-  )
-}
+// Note: mintNFT not implemented in backend canister IDL
+// export async function mintNFT(...) { /* implement when backend supports it */ }
 
 // NFT functionality not yet implemented in backend canister
 // TODO: Implement these functions when NFT support is added to the backend

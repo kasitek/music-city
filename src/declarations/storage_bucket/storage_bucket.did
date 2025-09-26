@@ -6,9 +6,11 @@ type Result =
 type Blob = vec nat8;
 type AssetId = nat;
 service : {
-  commit_batch: (id: AssetId, _totalChunks: nat, _contentType: text, _size:
+  commit_batch: (id: AssetId, totalChunks: nat, _contentType: text, _size:
    nat) -> (Result);
   delete: (id: AssetId) -> (Result);
+  get_chunk: (id: AssetId, offset: nat, size: nat) -> (opt Blob) query;
   get_data: (id: AssetId) -> (opt Blob) query;
-  put_chunk: (id: AssetId, _chunkNo: nat, data: Blob) -> (Result);
+  get_len: (id: AssetId) -> (opt nat) query;
+  put_chunk: (id: AssetId, chunkNo: nat, data: Blob) -> (Result);
 }

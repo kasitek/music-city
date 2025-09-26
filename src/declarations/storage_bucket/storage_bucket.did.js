@@ -9,7 +9,13 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'delete' : IDL.Func([AssetId], [Result], []),
+    'get_chunk' : IDL.Func(
+        [AssetId, IDL.Nat, IDL.Nat],
+        [IDL.Opt(Blob)],
+        ['query'],
+      ),
     'get_data' : IDL.Func([AssetId], [IDL.Opt(Blob)], ['query']),
+    'get_len' : IDL.Func([AssetId], [IDL.Opt(IDL.Nat)], ['query']),
     'put_chunk' : IDL.Func([AssetId, IDL.Nat, Blob], [Result], []),
   });
 };

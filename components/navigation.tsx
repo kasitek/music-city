@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Menu, X } from 'lucide-react'
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/hooks/ic/auth-context"
 import {
   DropdownMenu,
@@ -14,6 +14,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getMyUser } from "@/lib/ic/backend"
+import { fromCandidUser } from "@/lib/mappers"
 import Image from "next/image"
 import ProfileModal from "@/components/profile-modal"
 
@@ -26,6 +28,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const { principalId, sessionData, isAuthenticated, logout } = useAuth()
+  const [isArtistRemote, setIsArtistRemote] = useState<boolean>(false)
+  const isArtist = !!(sessionData && ((sessionData as any).isArtist === true || (sessionData.userType || '').toLowerCase() === 'artist')) || isArtistRemote
   const balance = sessionData?.mccBalance ?? 0
   const shortPrincipal = (addr?: string) => {
     if (!addr || addr.length < 10) return addr || 'User'
@@ -39,6 +43,26 @@ export default function Navigation({ currentPage }: NavigationProps) {
     setIsMenuOpen(false)
     router.push('/')
   }
+
+  useEffect(() => {
+    let mounted = true
+    async function check() {
+      try {
+        if (!isAuthenticated) { setIsArtistRemote(false); return }
+        const opt = await getMyUser()
+        if (!mounted) return
+        const u = Array.isArray(opt) ? opt[0] : opt
+        if (u) {
+          const mapped = fromCandidUser(u as any)
+          setIsArtistRemote((mapped.userType || '').toLowerCase() === 'artist')
+        }
+      } catch {
+        if (mounted) setIsArtistRemote(false)
+      }
+    }
+    check()
+    return () => { mounted = false }
+  }, [isAuthenticated])
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-md border-b border-gray-800">
@@ -57,13 +81,10 @@ export default function Navigation({ currentPage }: NavigationProps) {
               Music City
             </span>
           </Link>
-          {/* Dashboard Link for Artists */}
-          {isAuthenticated && sessionData?.userType === 'artist' && (
-            <Link href="/dashboard" className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold">Dashboard</Link>
-          )}
+          {/* Removed duplicate Dashboard button near logo; Dashboard remains in nav sections for artists */}
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {sessionData?.userType === 'artist' && (
+            {isArtist && (
               <Link 
                 href="/dashboard" 
                 className={`text-gray-300 hover:text-white transition-colors ${
@@ -131,7 +152,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
                       <p className="text-xs text-gray-400 capitalize">{sessionData?.userType}</p>
                     </div>
                     <DropdownMenuSeparator className="bg-gray-700" />
-                    {sessionData?.userType === 'artist' && (
+                    {isArtist && (
                       <DropdownMenuItem asChild>
                         <Link href="/dashboard" className="text-gray-300 hover:text-white">
                           Dashboard
@@ -167,7 +188,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 rounded-lg mt-2">
-              {sessionData?.userType === 'artist' && (
+              {isArtist && (
                 <Link
                   href="/dashboard"
                   className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
@@ -231,7 +252,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
                         </div>
                       </div>
                     </div>
-                    {sessionData?.userType === 'artist' && (
+                    {isArtist && (
                       <Link
                         href="/dashboard"
                         className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"

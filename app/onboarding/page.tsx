@@ -15,6 +15,7 @@ import { registerUser as registerUserIC } from "@/lib/ic/backend"
 import { getIdentity } from "@/lib/ic/auth"
 import { setIdentity as setBackendIdentity } from "@/lib/ic/backend"
 import { toast } from "sonner"
+import { GENRES } from "@/lib/constants"
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1)
@@ -38,18 +39,7 @@ export default function OnboardingPage() {
     }
   }, [isAuthenticated, router])
 
-  const genres = [
-    "Afrobeat",
-    "Afro-fusion",
-    "Highlife",
-    "Amapiano",
-    "Gospel",
-    "Hip-hop",
-    "R&B",
-    "Reggae",
-    "Jazz",
-    "World Music",
-  ]
+  // Genres are centrally defined in lib/constants.ts as GENRES
 
   const handleGenreToggle = (genre: string) => {
     setFormData((prev) => ({
@@ -288,7 +278,7 @@ export default function OnboardingPage() {
                 <div>
                   <Label className="text-gray-300 mb-3 block">Select your favorite genres (choose at least one)</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {genres.map((genre) => (
+                    {GENRES.map((genre) => (
                       <Badge
                         key={genre}
                         variant="outline"

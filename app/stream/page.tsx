@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter, Coins, DollarSign, Zap, Gift } from 'lucide-react'
+import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter, Coins, DollarSign, Zap, Gift, Shuffle, Repeat, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from "react"
 import { listTracks, streamTrack } from "@/lib/ic/backend"
-import { getData } from "@/lib/ic/storage"
+import { getAssetData } from "@/lib/ic/storage_client"
+import { toast } from "sonner"
 
 import { Navigation } from "@/components/navigation"
+import { GENRES } from "@/lib/constants"
+import { useAuth } from "@/hooks/ic/auth-context"
+import { useRouter } from "next/navigation"
 import { fromCandidTrack } from "@/lib/mappers"
 import type { TrackModel } from "@/lib/types"
 
@@ -18,37 +22,143 @@ export default function StreamingPage() {
   const [currentTrack, setCurrentTrack] = useState<TrackModel | null>(null)
   const [tracks, setTracks] = useState<TrackModel[]>([])
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [currentDuration, setCurrentDuration] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0) // seconds
+  const [duration, setDuration] = useState(0) // seconds
+  const [volume, setVolume] = useState(0.8)
+  const [shuffle, setShuffle] = useState(false)
+  const [repeat, setRepeat] = useState(false)
+  const [queue, setQueue] = useState<TrackModel[]>([])
+  const [queueIndex, setQueueIndex] = useState<number>(-1)
+  const [recentlyPlayed, setRecentlyPlayed] = useState<TrackModel[]>([])
+  const [currentArtistName, setCurrentArtistName] = useState<string>('')
+  const [currentArtistFollowers, setCurrentArtistFollowers] = useState<number>(0)
+  const [selectedGenre, setSelectedGenre] = useState<string>('All')
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
+  const [query, setQuery] = useState<string>('')
+  const [artistNames, setArtistNames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     // Load tracks from backend canister
     listTracks()
       .then((res: any[]) => {
         const mapped = (res || []).map((t: any) => fromCandidTrack(t))
-        setTracks(mapped)
+        // Sort by plays desc for trending
+        const sorted = [...mapped].sort((a, b) => Number(b.plays || 0) - Number(a.plays || 0))
+        setTracks(sorted)
+        // Preload artist names for search
+        const unique = Array.from(new Set(sorted.map(t => String(t.artist))))
+        ;(async () => {
+          try {
+            const { getUser } = await import("@/lib/ic/backend")
+            const entries = await Promise.all(unique.map(async (p) => {
+              try {
+                const uOpt: any = await getUser(p as any)
+                const u: any = Array.isArray(uOpt) ? (uOpt[0] || null) : uOpt
+                return [p, u?.displayName || ''] as const
+              } catch { return [p, ''] as const }
+            }))
+            const map: Record<string, string> = {}
+            for (const [k, v] of entries) map[k] = v || ''
+            setArtistNames(map)
+          } catch {}
+        })()
       })
       .catch(() => {
         // leave empty gracefully if backend not available
       })
+    // Load recently played from localStorage (kept for future, but not shown now)
+    try {
+      const raw = localStorage.getItem('mc_recently_played')
+      if (raw) {
+        const arr = JSON.parse(raw) as TrackModel[]
+        setRecentlyPlayed(arr)
+      }
+    } catch {}
   }, [])
 
-  const loadAndPlay = async (track: TrackModel) => {
+  // Bind audio events for progress/duration updates and auto-next
+  useEffect(() => {
+    const a = audioRef.current
+    if (!a) return
+    const onTime = () => setProgress(a.currentTime || 0)
+    const onLoaded = () => {
+      const d = a.duration || 0
+      setDuration(d)
+      if (d && isFinite(d)) setCurrentDuration(formatDuration(d))
+    }
+    const onEnded = () => {
+      handleNext()
+    }
+    a.addEventListener('timeupdate', onTime)
+    a.addEventListener('loadedmetadata', onLoaded)
+    a.addEventListener('ended', onEnded)
+    return () => {
+      a.removeEventListener('timeupdate', onTime)
+      a.removeEventListener('loadedmetadata', onLoaded)
+      a.removeEventListener('ended', onEnded)
+    }
+  }, [audioRef.current])
+
+  // Keep audio element volume in sync
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume
+  }, [volume])
+
+  const loadAndPlay = async (track: TrackModel, opts?: { setAsQueueFrom?: 'trending' | 'recent' | 'single' }) => {
     try {
+      if (!isAuthenticated) { router.push('/auth'); return }
       setCurrentTrack(track)
+      // Resolve artist display name for Now Playing
+      try {
+        const { getUser } = await import("@/lib/ic/backend")
+        const uOpt: any = await getUser(track.artist as any)
+        const u: any = Array.isArray(uOpt) ? (uOpt[0] || null) : uOpt
+        if (u) {
+          setCurrentArtistName(String(u.displayName || ''))
+          setCurrentArtistFollowers(Number(u.followers || 0))
+        } else {
+          setCurrentArtistName('')
+          setCurrentArtistFollowers(0)
+        }
+      } catch {
+        setCurrentArtistName('')
+        setCurrentArtistFollowers(0)
+      }
       setIsPlaying(false)
+      setCurrentDuration(null)
+      setProgress(0)
+      setDuration(0)
+      // Setup queue if requested
+      if (opts?.setAsQueueFrom === 'trending') {
+        const list = tracks
+        const startIdx = list.findIndex(t => String(t.id) === String(track.id))
+        setQueue(list)
+        setQueueIndex(startIdx >= 0 ? startIdx : 0)
+      } else if (opts?.setAsQueueFrom === 'recent') {
+        const list = recentlyPlayed
+        const startIdx = list.findIndex(t => String(t.id) === String(track.id))
+        setQueue(list)
+        setQueueIndex(startIdx >= 0 ? startIdx : 0)
+      } else if (opts?.setAsQueueFrom === 'single') {
+        setQueue([track])
+        setQueueIndex(0)
+      }
       // Expect optional audioAssetId on track
       const rawAssetId = track.audioAssetId
       if (rawAssetId === undefined || rawAssetId === null) {
-        console.warn("No audio asset linked to this track")
+        toast.error("No audio asset linked to this track")
         return
       }
-      const bytesRes = await getData(undefined, BigInt(rawAssetId))
-      const u8 = bytesRes instanceof Uint8Array ? bytesRes : new Uint8Array(bytesRes as any)
+      const asset = await getAssetData(BigInt(rawAssetId))
+      const u8 = asset?.bytes
       if (!u8 || u8.length === 0) {
-        console.warn("Audio bytes empty or unavailable")
+        toast.error("Audio bytes empty or unavailable")
         return
       }
-      const blob = new Blob([u8], { type: "audio/mpeg" })
+      const blob = new Blob([u8], { type: asset?.contentType || "audio/mpeg" })
       const url = URL.createObjectURL(blob)
       // Revoke old URL
       if (audioUrl) URL.revokeObjectURL(audioUrl)
@@ -61,9 +171,63 @@ export default function StreamingPage() {
       setIsPlaying(true)
       // Record stream
       await streamTrack(track.id)
+      // Update Recently Played
+      try {
+        const updated = [track, ...recentlyPlayed.filter(t => String(t.id) !== String(track.id))].slice(0, 20)
+        setRecentlyPlayed(updated)
+        localStorage.setItem('mc_recently_played', JSON.stringify(updated))
+      } catch {}
     } catch (e) {
-      console.warn("Playback failed", e)
+      toast.error("Playback failed")
     }
+  }
+
+  const handlePrev = () => {
+    if (!queue || queue.length === 0) return
+    if (shuffle) {
+      const idx = Math.floor(Math.random() * queue.length)
+      loadAndPlay(queue[idx], { setAsQueueFrom: 'single' })
+      setQueueIndex(idx)
+      return
+    }
+    let nextIdx = queueIndex - 1
+    if (nextIdx < 0) nextIdx = repeat ? (queue.length - 1) : 0
+    if (nextIdx !== queueIndex) {
+      setQueueIndex(nextIdx)
+      loadAndPlay(queue[nextIdx], { setAsQueueFrom: 'single' })
+    }
+  }
+
+  const handleNext = () => {
+    if (!queue || queue.length === 0) return
+    if (shuffle) {
+      const idx = Math.floor(Math.random() * queue.length)
+      loadAndPlay(queue[idx], { setAsQueueFrom: 'single' })
+      setQueueIndex(idx)
+      return
+    }
+    let nextIdx = queueIndex + 1
+    if (nextIdx >= queue.length) nextIdx = repeat ? 0 : queueIndex
+    if (nextIdx !== queueIndex) {
+      setQueueIndex(nextIdx)
+      loadAndPlay(queue[nextIdx], { setAsQueueFrom: 'single' })
+    }
+  }
+
+  const onSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value)
+    if (audioRef.current) {
+      audioRef.current.currentTime = v
+      setProgress(v)
+    }
+  }
+
+  const formatDuration = (sec: number) => {
+    const s = Math.floor(sec % 60)
+    const m = Math.floor((sec / 60) % 60)
+    const h = Math.floor(sec / 3600)
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
   }
 
   return (
@@ -83,6 +247,8 @@ export default function StreamingPage() {
               <Input
                 placeholder="Search for artists, tracks, or genres..."
                 className="pl-10 bg-gray-800 border-gray-700 text-white"
+                value={query}
+                onChange={(e)=>setQuery(e.target.value)}
               />
             </div>
             <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent">
@@ -93,209 +259,83 @@ export default function StreamingPage() {
 
           {/* Genre Tags */}
           <div className="flex flex-wrap gap-2">
-            {["All", "Afrobeat", "Hip-hop", "R&B", "Afro-fusion", "Gospel", "Highlife", "Pop", "Jazz", "Electronic"].map((genre) => (
+            {["All", ...GENRES].map((genre) => (
               <Badge
                 key={genre}
+                onClick={() => setSelectedGenre(genre)}
                 variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-purple-600 hover:border-purple-600 cursor-pointer"
+                className={`border ${selectedGenre === genre ? 'bg-purple-600/30 border-purple-500 text-white' : 'border-gray-600 text-gray-300 hover:bg-purple-600 hover:border-purple-600'} cursor-pointer`}
               >
                 {genre}
               </Badge>
             ))}
           </div>
         </div>
-
-        {/* Most Popular Track - Real Data */}
-        {tracks.length > 0 && (() => {
-          const mostPopular = tracks.reduce((prev, current) => 
-            (Number(prev.plays) > Number(current.plays)) ? prev : current
-          )
-          
-          return (
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold mb-4">Most Popular Track</h2>
-              <Card className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-purple-600/30">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-20 h-20 bg-purple-600 rounded-lg flex items-center justify-center">
-                      <Music className="h-10 w-10" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-white">{mostPopular.title}</h3>
-                      <p className="text-gray-300">{mostPopular.description}</p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <span className="text-sm text-green-400">{Number(mostPopular.plays)} plays</span>
-                        <span className="text-sm text-purple-400">{mostPopular.genre}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )
-        })()}
-
-        {/* Streaming Rewards Section */}
-        <div className="mb-8">
-          <Card className="bg-gradient-to-r from-green-600/20 to-blue-600/20 border-green-600/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
-                    <Zap className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">Streaming Rewards</h3>
-                    <p className="text-gray-300">Earn MCC tokens while listening & support artists</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-green-400">1,247 MCC</div>
-                  <div className="text-sm text-gray-400">Your Balance</div>
-                </div>
-              </div>
-              
-              <div className="grid md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Play className="h-4 w-4 text-blue-400" />
-                    <div className="text-sm text-blue-400">Per Stream</div>
-                  </div>
-                  <div className="text-lg font-bold text-white">0.01 MCC</div>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="h-4 w-4 text-green-400" />
-                    <div className="text-sm text-green-400">To Artist</div>
-                  </div>
-                  <div className="text-lg font-bold text-white">90%</div>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Coins className="h-4 w-4 text-purple-400" />
-                    <div className="text-sm text-purple-400">Platform Fee</div>
-                  </div>
-                  <div className="text-lg font-bold text-white">10%</div>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Gift className="h-4 w-4 text-orange-400" />
-                    <div className="text-sm text-orange-400">Bonus Rewards</div>
-                  </div>
-                  <div className="text-lg font-bold text-white">Active</div>
-                </div>
-              </div>
-
-              <div className="bg-gray-800/30 p-4 rounded-lg mb-4">
-                <h4 className="text-lg font-semibold text-white mb-2">How Streaming Rewards Work</h4>
-                <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-300">
-                  <div>
-                    <p className="mb-2">✓ <strong>Listen & Earn:</strong> Get 0.01 MCC per song streamed</p>
-                    <p className="mb-2">✓ <strong>Support Artists:</strong> 90% goes directly to the artist instantly</p>
-                  </div>
-                  <div>
-                    <p className="mb-2">✓ <strong>Bonus Multipliers:</strong> Premium users earn 2x rewards</p>
-                    <p className="mb-2">✓ <strong>Instant Payouts:</strong> No waiting periods or minimums</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <Button className="bg-green-600 hover:bg-green-700">
-                  <Coins className="h-4 w-4 mr-2" />
-                  Buy MCC Tokens
-                </Button>
-                <Button variant="outline" className="border-green-600 text-green-400">
-                  <Gift className="h-4 w-4 mr-2" />
-                  Tip Artist
-                </Button>
-                <div className="text-sm text-gray-400 ml-auto">
-                  Next reward in: <span className="text-white font-medium">2:47</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Only display songs with functional filters */}
 
         {/* Track List */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">Trending Tracks</h2>
-            <div className="text-sm text-gray-400">
-              Every stream earns <span className="text-green-400 font-medium">0.01 MCC</span> for you and rewards the artist
-            </div>
+            <h2 className="text-2xl font-bold">Songs</h2>
           </div>
-          <div className="space-y-3">
-            {tracks.map((track) => (
-              <Card key={track.id} className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="relative">
-                      <img
-                        src={track.coverImage || "/placeholder.svg?height=48&width=48"}
-                        alt={track.title}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                      <Button
-                        size="sm"
-                        className="absolute inset-0 bg-black/50 hover:bg-black/70 w-full h-full rounded-lg"
-                        onClick={() => loadAndPlay(track)}
+          <div className="space-y-1">
+            {(selectedGenre === 'All' ? tracks : tracks.filter(t => (t.genre || '').toLowerCase() === selectedGenre.toLowerCase()))
+              .filter(t => {
+                const q = query.trim().toLowerCase()
+                if (!q) return true
+                const title = (t.title || '').toLowerCase()
+                const genre = (t.genre || '').toLowerCase()
+                const artistName = (artistNames[String(t.artist)] || '').toLowerCase()
+                return title.includes(q) || artistName.includes(q) || genre.includes(q)
+              })
+              .map((track, idx) => {
+                const active = currentTrack && String(currentTrack.id) === String(track.id)
+                return (
+                  <div
+                    key={String(track.id)}
+                    className={`grid grid-cols-12 items-center px-3 py-2 rounded-md ${active ? 'bg-gray-700/60' : 'hover:bg-gray-800'} transition-colors`}
+                  >
+                    {/* Index / Play */}
+                    <div className="col-span-1 flex items-center gap-2 text-sm text-gray-400">
+                      <span className={`${active ? 'hidden' : 'block'}`}>{idx + 1}</span>
+                      <button
+                        className={`p-1 rounded ${active ? 'bg-gray-600' : 'bg-transparent hover:bg-gray-700'}`}
+                        onClick={() => {
+                          if (currentTrack && String(currentTrack.id) === String(track.id)) {
+                            if (!audioRef.current) return
+                            if (isPlaying) { audioRef.current.pause(); setIsPlaying(false) }
+                            else { audioRef.current.play().catch(()=>{}); setIsPlaying(true) }
+                          } else {
+                            loadAndPlay(track, { setAsQueueFrom: 'trending' })
+                          }
+                        }}
+                        aria-label="Play/Pause"
                       >
-                        {isPlaying && currentTrack?.id === track.id ? (
-                          <Pause className="h-4 w-4" />
-                        ) : (
-                          <Play className="h-4 w-4" />
-                        )}
-                      </Button>
+                        {active && isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                      </button>
                     </div>
 
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-white">{track.title || "Unknown Track"}</h3>
-                          {/* Hide principal id; do not show artist principal text */}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-400">{track.duration || "3:45"}</div>
-                          <div className="text-xs text-gray-500">{Number(track.plays || 0).toLocaleString()} plays</div>
-                        </div>
+                    {/* Artwork + Title */}
+                    <div className="col-span-6 flex items-center gap-3 overflow-hidden">
+                      <img src={track.coverImage || '/placeholder.svg?height=40&width=40'} alt={track.title} className="w-10 h-10 rounded object-cover flex-none" />
+                      <div className="truncate">
+                        <div className={`truncate ${active ? 'text-green-400' : 'text-white'} font-medium`}>{track.title || 'Unknown Track'}</div>
+                        <div className="text-xs text-gray-400 truncate">{artistNames[String(track.artist)] || track.genre || 'Music'}</div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end space-y-1">
-                      <Badge className="bg-gray-700 text-gray-300">{track.genre || "Music"}</Badge>
-                      <div className="flex items-center gap-1 text-xs">
-                        <Coins className="h-3 w-3 text-green-400" />
-                        <span className="text-green-400">+0.01 MCC</span>
-                      </div>
-                      <div className="text-xs text-gray-400">per stream</div>
+                    {/* Plays */}
+                    <div className="col-span-3 text-gray-300 text-sm">
+                      {Number(track.plays || 0).toLocaleString()}
                     </div>
 
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Button size="sm" variant="ghost" className="text-gray-400 hover:text-red-400">
-                          <Heart className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-gray-400 hover:text-blue-400">
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1">
-                        <Gift className="h-3 w-3 mr-1" />
-                        Tip
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-purple-600 hover:bg-purple-700"
-                        onClick={() => loadAndPlay(track)}
-                      >
-                        Stream
-                      </Button>
+                    {/* Duration */}
+                    <div className="col-span-2 text-gray-400 text-sm text-right">
+                      {track.duration || '3:45'}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                )
+            })}
           </div>
         </div>
 
@@ -311,14 +351,24 @@ export default function StreamingPage() {
                 />
                 <div>
                   <div className="font-semibold text-white">{currentTrack.title || "Unknown Track"}</div>
-                  <div className="text-sm text-gray-400">{currentTrack.artist || "Unknown Artist"}</div>
+                  <div className="text-sm text-gray-400 flex items-center gap-2">
+                    <span>{currentArtistName || "Unknown Artist"}</span>
+                    <span className="inline-flex items-center gap-1 text-gray-500">
+                      <Users className="h-3 w-3" />
+                      {currentArtistFollowers.toLocaleString()} followers
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-4">
-                <Button size="sm" variant="ghost">
-                  <SkipBack className="h-4 w-4" />
-                </Button>
+              <div className="flex flex-col items-center gap-2 w-[40%]">
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setShuffle(s => !s)} aria-label="Shuffle">
+                    <Shuffle className={`h-4 w-4 ${shuffle ? 'text-purple-400' : ''}`} />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handlePrev} aria-label="Previous">
+                    <SkipBack className="h-4 w-4" />
+                  </Button>
                 <Button
                   size="sm"
                   className="bg-purple-600 hover:bg-purple-700"
@@ -330,16 +380,25 @@ export default function StreamingPage() {
                 >
                   {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </Button>
-                <Button size="sm" variant="ghost">
-                  <SkipForward className="h-4 w-4" />
-                </Button>
+                  <Button size="sm" variant="ghost" onClick={handleNext} aria-label="Next">
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setRepeat(r => !r)} aria-label="Repeat">
+                    <Repeat className={`h-4 w-4 ${repeat ? 'text-purple-400' : ''}`} />
+                  </Button>
+                </div>
+                {/* Seek bar */}
+                <div className="flex items-center gap-2 w-full">
+                  <span className="text-xs text-gray-400 w-10 text-right">{formatDuration(progress)}</span>
+                  <input type="range" min={0} max={Math.max(1, duration)} step={1} value={Math.min(progress, duration)} onChange={onSeek} className="w-full" />
+                  <span className="text-xs text-gray-400 w-10">{formatDuration(Math.max(0, (duration || 0) - (progress || 0)))}</span>
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3 w-[20%] justify-end">
                 <Volume2 className="h-4 w-4 text-gray-400" />
-                <div className="w-20 h-1 bg-gray-600 rounded-full">
-                  <div className="w-1/2 h-full bg-purple-500 rounded-full"></div>
-                </div>
+                <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="w-28" />
+                {currentDuration && (<div className="text-xs text-gray-400">{currentDuration}</div>)}
               </div>
             </div>
             {/* Hidden audio element */}

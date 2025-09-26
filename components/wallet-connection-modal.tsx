@@ -105,7 +105,7 @@ export default function WalletConnectionModal({ isOpen, onClose }: WalletConnect
               >
                 <div className="w-8 h-8 mr-3 relative">
                   <Image
-                    src="/wallets/icp.png"
+                    src="/icp_logo.svg"
                     alt="Internet Identity"
                     fill
                     className="object-contain"
@@ -122,7 +122,7 @@ export default function WalletConnectionModal({ isOpen, onClose }: WalletConnect
               >
                 <div className="w-8 h-8 mr-3 relative">
                   <Image
-                    src="/wallets/email.png"
+                    src="/images/nfid.png"
                     alt="NFID"
                     fill
                     className="object-contain"

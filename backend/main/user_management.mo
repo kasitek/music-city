@@ -1,6 +1,7 @@
 import Principal "mo:base/Principal";
 import Time "mo:base/Time";
 import Nat64 "mo:base/Nat64";
+import Nat "mo:base/Nat";
 import Result "mo:base/Result";
 import HashMap "mo:base/HashMap";
 import Array "mo:base/Array";
@@ -211,9 +212,52 @@ module {
     caller : Principal,
     artist : Principal
   ) : Result.Result<Bool, Text> {
-    // Implementation for following - would need additional data structures
-    // to track follows efficiently
-    #ok(true)
+    if (Principal.equal(caller, artist)) {
+      return #err("Cannot follow yourself")
+    };
+    switch (usersMap.get(caller)) {
+      case null { return #err("User not found") };
+      case (?followerUser) {
+        switch (usersMap.get(artist)) {
+          case null { return #err("Artist not found") };
+          case (?artistUser) {
+            let updatedFollower : ApplicationTypes.User = {
+              owner = followerUser.owner;
+              displayName = followerUser.displayName;
+              userType = followerUser.userType;
+              bio = followerUser.bio;
+              location = followerUser.location;
+              genres = followerUser.genres;
+              profileImage = followerUser.profileImage;
+              isVerified = followerUser.isVerified;
+              followers = followerUser.followers;
+              following = followerUser.following + 1;
+              balance = followerUser.balance;
+              joinedTimestamp = followerUser.joinedTimestamp;
+              birthDate = followerUser.birthDate;
+            };
+            let updatedArtist : ApplicationTypes.User = {
+              owner = artistUser.owner;
+              displayName = artistUser.displayName;
+              userType = artistUser.userType;
+              bio = artistUser.bio;
+              location = artistUser.location;
+              genres = artistUser.genres;
+              profileImage = artistUser.profileImage;
+              isVerified = artistUser.isVerified;
+              followers = artistUser.followers + 1;
+              following = artistUser.following;
+              balance = artistUser.balance;
+              joinedTimestamp = artistUser.joinedTimestamp;
+              birthDate = artistUser.birthDate;
+            };
+            usersMap.put(caller, updatedFollower);
+            usersMap.put(artist, updatedArtist);
+            #ok(true)
+          };
+        }
+      };
+    }
   };
 
   public func unfollowArtist(
@@ -221,8 +265,54 @@ module {
     caller : Principal,
     artist : Principal
   ) : Result.Result<Bool, Text> {
-    // Implementation for unfollowing - would need additional data structures
-    // to track follows efficiently
-    #ok(true)
+    if (Principal.equal(caller, artist)) {
+      return #err("Cannot unfollow yourself")
+    };
+    switch (usersMap.get(caller)) {
+      case null { return #err("User not found") };
+      case (?followerUser) {
+        switch (usersMap.get(artist)) {
+          case null { return #err("Artist not found") };
+          case (?artistUser) {
+            let newFollowing = if (followerUser.following > 0) followerUser.following - 1 else 0;
+            let newFollowers = if (artistUser.followers > 0) artistUser.followers - 1 else 0;
+            let updatedFollower : ApplicationTypes.User = {
+              owner = followerUser.owner;
+              displayName = followerUser.displayName;
+              userType = followerUser.userType;
+              bio = followerUser.bio;
+              location = followerUser.location;
+              genres = followerUser.genres;
+              profileImage = followerUser.profileImage;
+              isVerified = followerUser.isVerified;
+              followers = followerUser.followers;
+              following = newFollowing;
+              balance = followerUser.balance;
+              joinedTimestamp = followerUser.joinedTimestamp;
+              birthDate = followerUser.birthDate;
+            };
+            let updatedArtist : ApplicationTypes.User = {
+              owner = artistUser.owner;
+              displayName = artistUser.displayName;
+              userType = artistUser.userType;
+              bio = artistUser.bio;
+              location = artistUser.location;
+              genres = artistUser.genres;
+              profileImage = artistUser.profileImage;
+              isVerified = artistUser.isVerified;
+              followers = newFollowers;
+              following = artistUser.following;
+              balance = artistUser.balance;
+              joinedTimestamp = artistUser.joinedTimestamp;
+              birthDate = artistUser.birthDate;
+            };
+            usersMap.put(caller, updatedFollower);
+            usersMap.put(artist, updatedArtist);
+            #ok(true)
+          };
+        }
+      };
+    }
   };
-}
+
+};

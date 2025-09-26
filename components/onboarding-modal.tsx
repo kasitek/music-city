@@ -103,7 +103,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
         // Ensure we have an Internet Identity session
         if (!identity) {
           try {
-            console.log("No identity found, prompting for Internet Identity login...")
             await loginInternetIdentity()
             identity = getIdentity() as Identity | null
           } catch (loginError) {
@@ -122,12 +121,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
           return
         }
 
-        console.log("Registering user with IC backend...", {
-          displayName: formData.displayName,
-          userType: formData.userType,
-          principal: identity.getPrincipal().toText()
-        })
-
         // Bind identity to backend actor and register user
         setBackendIdentity(identity)
         const res = await registerUserIC({
@@ -140,18 +133,14 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
           birthDate: formData.birthDate || null,
         })
 
-        console.log("Registration response:", res)
-
         if ("ok" in res) {
           localStorage.setItem("icIdentity", "true")
           localStorage.setItem("onboardingComplete", "true")
-          console.log("User registration successful!")
           onComplete()
         } else if (res && typeof res === 'object' && 'err' in res && (res as any).err === 'User already registered') {
           // Gracefully handle already-registered accounts: mark complete and continue
           localStorage.setItem("icIdentity", "true")
           localStorage.setItem("onboardingComplete", "true")
-          console.log("User already registered, proceeding...")
           onComplete()
         } else {
           console.error("IC registerUser failed:", res)

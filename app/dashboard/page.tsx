@@ -17,7 +17,9 @@ import { Music, Upload, DollarSign, Users, Play, Pause, Coins, TrendingUp, Eye, 
 import { Navigation } from "@/components/navigation"
 import { createTrack, setTrackAssets, myTransactions, getMyUser, listTracks, updateTrack, deleteTrack } from "@/lib/ic/backend"
 import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
+import { getAssetData, uploadAudioAsset } from "@/lib/ic/storage_client"
 import { loginInternetIdentity, loginNFID } from "@/lib/ic/auth"
+import { GENRES } from "@/lib/constants"
 
 export default function ArtistDashboard() {
   // Edit modal state (must be inside component)
@@ -213,14 +215,13 @@ export default function ArtistDashboard() {
       return
     }
     try {
-      const { getData } = await import("@/lib/ic/storage")
-      const data = await getData(undefined, BigInt(track.audioAssetId))
-      const u8 = data instanceof Uint8Array ? data : new Uint8Array(data as any)
+      const asset = await getAssetData(BigInt(track.audioAssetId))
+      const u8 = asset?.bytes
       if (!u8 || u8.length === 0) {
         alert("Audio not found in storage bucket.")
         return
       }
-      const blob = new Blob([u8], { type: "audio/mpeg" })
+      const blob = new Blob([u8], { type: asset?.contentType || "audio/mpeg" })
       // Revoke previous URL if any
       if (audioUrl) { try { URL.revokeObjectURL(audioUrl) } catch {} }
       const url = URL.createObjectURL(blob)
@@ -376,39 +377,40 @@ export default function ArtistDashboard() {
       setUploadProgress(0)
       setUploadMessage("Uploading audio file... 0%")
 
-      // 1. Upload the audio file to Motoko storage bucket in chunks
-      let audioAssetId = null;
+      // 1. Upload via storage index/bucket helper (allocates, chunks, commits)
+      let audioAssetId = null as null | bigint;
       try {
         const audioBuffer = await file.arrayBuffer();
         const audioBytes = new Uint8Array(audioBuffer);
-        const chunkSize = 1024 * 1024; // 1MB
-        const totalChunks = Math.ceil(audioBytes.length / chunkSize);
-        const assetId = BigInt(Date.now());
-        for (let i = 0; i < totalChunks; i++) {
-          const start = i * chunkSize;
-          const end = Math.min(start + chunkSize, audioBytes.length);
-          const chunk = audioBytes.slice(start, end);
-          await uploadBlobToBucket(undefined, assetId, BigInt(i), chunk);
-          const percent = Math.round(((i + 1) / totalChunks) * 100)
-          setUploadProgress(percent)
-          setUploadMessage(`Uploading audio file... ${percent}%`)
+        const ext = (file.name.split('.').pop() || '').toLowerCase() || 'mp3'
+        setUploadMessage("Uploading audio file...")
+        // Note: uploadAudioAsset internally chunks the file and commits in the bucket
+        console.log('Starting uploadAudioAsset...')
+        const newAssetId = await uploadAudioAsset(audioBytes, file.type || 'audio/mpeg', ext);
+        console.log('Upload completed, assetId:', newAssetId)
+        
+        // Verify bytes are retrievable before proceeding (with retry for timing issues)
+        setUploadMessage("Verifying upload...")
+        let verify = await getAssetData(newAssetId)
+        if (!verify || !verify.bytes || verify.bytes.length === 0) {
+          console.log('First verification failed, retrying after delay...')
+          await new Promise(r => setTimeout(r, 1000)) // Wait 1 second
+          verify = await getAssetData(newAssetId)
+          if (!verify || !verify.bytes || verify.bytes.length === 0) {
+            console.error('Verification failed twice:', { assetId: newAssetId, verify })
+            throw new Error(`Verification failed: asset ${newAssetId} bytes not retrievable after upload and retry`)
+          }
         }
-        // Commit the batch
-        const commitResult = await createStorageAsset(
-          assetId,
-          totalChunks,
-          file.type,
-          file.size
-        );
-        if (commitResult) {
-          audioAssetId = assetId;
-          setUploadMessage("Audio uploaded (100%). Creating track record...")
-        } else {
-          throw new Error("Failed to commit audio upload");
-        }
+        console.log('Verification successful:', { assetId: newAssetId, bytesLength: verify.bytes.length, contentType: verify.contentType })
+        audioAssetId = newAssetId
+        setUploadProgress(100)
+        setUploadMessage("Audio uploaded (100%). Creating track record...")
       } catch (uploadError: any) {
-        console.warn('Audio upload failed, creating track without audio asset:', uploadError);
-        setUploadMessage("Creating track record...");
+        console.warn('Audio upload failed or verification failed:', uploadError);
+        setUploadMessage("Audio upload failed. Please try again.");
+        setUploading(false)
+        setUploadProgress(0)
+        return
       }
 
       // 2. Create the track record in the backend
@@ -767,7 +769,17 @@ const getTransactionDescription = (transaction: any): string => {
                 </div>
                 <div>
                   <Label htmlFor="edit-genre" className="text-gray-300">Genre</Label>
-                  <Input id="edit-genre" className="bg-gray-700 border-gray-600 text-white" value={editGenre} onChange={e => setEditGenre(e.target.value)} />
+                  <select
+                    id="edit-genre"
+                    className="mt-1 w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    value={editGenre}
+                    onChange={e => setEditGenre(e.target.value)}
+                  >
+                    <option value="">Select a genre</option>
+                    {GENRES.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="space-y-4">
@@ -805,11 +817,13 @@ const getTransactionDescription = (transaction: any): string => {
                   // If a new file is selected, upload it and update assetId (not implemented here, but can be added)
                   // For now, only update metadata
                   const res = await updateTrack({ trackId: editTrack.id, title: editTitle, genre: editGenre, description: editDescription })
-                  if (res?.ok) {
+                  if (res && typeof res === 'object' && 'ok' in res) {
                     setEditModalOpen(false)
                     await fetchTracks()
+                  } else if (res && typeof res === 'object' && 'err' in res) {
+                    setEditUploadMessage(res.err || "Failed to update track")
                   } else {
-                    setEditUploadMessage(res?.err || "Failed to update track")
+                    setEditUploadMessage("Failed to update track")
                   }
                 } catch (e) {
                   setEditUploadMessage("Error updating track: " + (e as any)?.message)
@@ -827,11 +841,13 @@ const getTransactionDescription = (transaction: any): string => {
                               if (confirm(`Are you sure you want to delete "${track.title}"?`)) {
                                 try {
                                   const res = await deleteTrack(track.id);
-                                  if (res?.ok) {
+                                  if (res && 'ok' in res && res.ok) {
                                     alert("Track deleted!");
                                     await fetchTracks();
+                                  } else if (res && 'err' in res) {
+                                    alert(res.err || "Failed to delete track");
                                   } else {
-                                    alert(res?.err || "Failed to delete track");
+                                    alert("Failed to delete track");
                                   }
                                 } catch (e) {
                                   alert("Error deleting track: " + (e as any)?.message);
@@ -938,13 +954,17 @@ const getTransactionDescription = (transaction: any): string => {
                       <Label htmlFor="genre" className="text-gray-300">
                         Genre
                       </Label>
-                      <Input
+                      <select
                         id="genre"
-                        placeholder="e.g., Afrobeat, Hip-hop"
-                        className="bg-gray-700 border-gray-600 text-white"
+                        className="mt-1 w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
                         value={genre}
                         onChange={(e) => setGenre(e.target.value)}
-                      />
+                      >
+                        <option value="">Select a genre</option>
+                        {GENRES.map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="space-y-4">

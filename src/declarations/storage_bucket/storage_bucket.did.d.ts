@@ -9,7 +9,9 @@ export type Result = { 'ok' : boolean } |
 export interface _SERVICE {
   'commit_batch' : ActorMethod<[AssetId, bigint, string, bigint], Result>,
   'delete' : ActorMethod<[AssetId], Result>,
+  'get_chunk' : ActorMethod<[AssetId, bigint, bigint], [] | [Blob]>,
   'get_data' : ActorMethod<[AssetId], [] | [Blob]>,
+  'get_len' : ActorMethod<[AssetId], [] | [bigint]>,
   'put_chunk' : ActorMethod<[AssetId, bigint, Blob], Result>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;

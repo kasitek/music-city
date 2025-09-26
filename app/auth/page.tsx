@@ -9,10 +9,11 @@ import OnboardingModal from "@/components/onboarding-modal"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/ic/auth-context"
+import { setIdentity as setBackendIdentity, getMyUser as getMyUserIC } from "@/lib/ic/backend"
 import WalletConnectionModal from "@/components/wallet-connection-modal"
 
 export default function AuthPage() {
-  const {isAuthenticated, login, logout, backendActor} = useAuth()
+  const {isAuthenticated, login, logout, backendActor, identity} = useAuth()
   const [isConnected, setIsConnected] = useState(false)
   const [walletAddress, setWalletAddress] = useState<string>("")
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -24,10 +25,22 @@ export default function AuthPage() {
 
   useEffect(() => {
     const go = async () => {
-      if (isAuthenticated && backendActor) {
+      if (isAuthenticated && (identity || backendActor)) {
         setLoading(true)
         try {
-          const icUser = await backendActor.getMyUser()
+          let icUser: any[] | null = null
+          // Prefer the same lib path and identity binding used by registration
+          if (identity) {
+            try {
+              setBackendIdentity(identity as any)
+              icUser = await getMyUserIC()
+            } catch (e) {
+              // Fallback to context actor on error
+            }
+          }
+          if (!icUser && backendActor) {
+            icUser = await backendActor.getMyUser()
+          }
           if (icUser && icUser.length > 0) {
             setProfileExists(true)
             const user = icUser[0]
@@ -50,7 +63,7 @@ export default function AuthPage() {
       }
     }
     go()
-  }, [isAuthenticated, backendActor, router])
+  }, [isAuthenticated, backendActor, identity, router])
 
   const handleConnect = async (address: string, email?: string, name?: string) => {
     setIsConnected(true)
@@ -79,14 +92,23 @@ export default function AuthPage() {
   const handleOnboardingComplete = async () => {
     setShowOnboarding(false)
     try {
-      if (backendActor) {
-        const icUser = await backendActor.getMyUser()
-        console.log("Onboarding complete, user profile:", icUser)
+      if (identity || backendActor) {
+        let icUser: any[] | null = null
+        if (identity) {
+          try {
+            setBackendIdentity(identity as any)
+            icUser = await getMyUserIC()
+          } catch (e) {
+            // Fallback to context actor on error
+          }
+        }
+        if (!icUser && backendActor) {
+          icUser = await backendActor.getMyUser()
+        }
         
         if (icUser && icUser.length > 0) {
           const user = icUser[0]
           const isArtist = user?.userType && 'artist' in user.userType
-          console.log("Redirecting user, isArtist:", isArtist)
           
           if (isArtist) {
             router.push("/dashboard")

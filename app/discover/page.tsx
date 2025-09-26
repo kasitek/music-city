@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Music, Search, Play, Users, Star, Clock, Globe, Share2 } from "lucide-react"
 import { useState, useEffect, useMemo } from "react"
 import { Navigation } from "@/components/navigation"
+import { GENRES } from "@/lib/constants"
 import { fromCandidTrack, fromCandidUser } from "@/lib/mappers"
 import type { TrackModel, UserModel } from "@/lib/types"
 import { useAuth } from "@/hooks/ic/auth-context"
@@ -116,19 +117,22 @@ export default function DiscoverPage() {
     },
   ] : []
 
-  // Calculate real genres from tracks
+  // Calculate track counts by genre and show all predefined genres from constants
   const genreCounts = allTracks.reduce((acc, track) => {
-    const genre = track.genre || 'Other'
-    acc[genre] = (acc[genre] || 0) + 1
+    const g = (track.genre || 'Other') as string
+    acc[g] = (acc[g] || 0) + 1
     return acc
   }, {} as Record<string, number>)
 
   const colors = ["bg-purple-600", "bg-blue-600", "bg-green-600", "bg-yellow-600", "bg-red-600", "bg-indigo-600"]
-  const genres = Object.entries(genreCounts).map(([name, count], index) => ({
-    name,
-    count: `${count} track${count !== 1 ? 's' : ''}`,
-    color: colors[index % colors.length]
-  }))
+  const genres = GENRES.map((name, index) => {
+    const count = genreCounts[name] || 0
+    return {
+      name,
+      count: `${count} track${count !== 1 ? 's' : ''}`,
+      color: colors[index % colors.length],
+    }
+  })
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">

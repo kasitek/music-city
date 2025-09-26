@@ -12,6 +12,7 @@ import { AuthClient } from "@dfinity/auth-client";
 import { getAuthClient } from "./nfid";
 import { host, network } from "../constants/urls";
 import { backendCanisterId, backendIDL } from "../constants/canisters-config";
+import { setIdentity as setBackendIdentity } from "@/lib/ic/backend";
 
 interface AuthContextType {
   login: (walletType: WalletType) => Promise<void>;
@@ -85,6 +86,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     deleteSessionData();
+    // Unset backend actor identity used by lib/ic/backend
+    try { setBackendIdentity(undefined) } catch {}
     setIsAuthenticated(false);
   };
 
@@ -104,6 +107,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsAuthenticated(false);
     setBackendActor(null);
     deleteSessionData();
+    try { setBackendIdentity(undefined) } catch {}
   };
 
 
@@ -145,6 +149,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
         setBackendActor(_backendActor);
         setIdentity(identity);
+        // Also set identity for lib/ic/backend actor factory
+        try { setBackendIdentity(identity as any) } catch {}
         setIsAuthenticated(isAuthenticated);
         syncSessionData();
       }
@@ -175,6 +181,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         canisterId: backendCanisterId,
       });
       setBackendActor(_backendActor);
+      // Also set identity for lib/ic/backend actor factory
+      try { setBackendIdentity(identity as any) } catch {}
       syncSessionData();
     }
   };

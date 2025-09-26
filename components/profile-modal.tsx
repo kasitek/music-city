@@ -7,6 +7,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { X, MapPin, Music2, Wallet } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/ic/auth-context"
+import { useEffect, useState } from "react"
+import { getMyUser } from "@/lib/ic/backend"
+import { fromCandidUser } from "@/lib/mappers"
+import type { UserModel } from "@/lib/types"
 
 interface ProfileModalProps {
   open: boolean
@@ -16,6 +20,39 @@ interface ProfileModalProps {
 export default function ProfileModal({ open, onClose }: ProfileModalProps) {
   const router = useRouter()
   const { principalId, sessionData, logout } = useAuth()
+  const [myUser, setMyUser] = useState<UserModel | null>(null)
+
+  const formatJoined = (ts?: bigint | number | null) => {
+    try {
+      if (ts === null || ts === undefined) return ''
+      const n = typeof ts === 'bigint' ? Number(ts) : Number(ts)
+      if (!isFinite(n) || n <= 0) return ''
+      // Unit inference: seconds, ms, or ns
+      let ms = n
+      if (n < 1e11) { // likely seconds
+        ms = n * 1000
+      } else if (n > 1e13) { // likely nanoseconds
+        ms = Math.floor(n / 1e6)
+      }
+      const d = new Date(ms)
+      if (isNaN(d.getTime())) return ''
+      return d.toLocaleDateString()
+    } catch { return '' }
+  }
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      try {
+        const opt = await getMyUser()
+        if (!mounted) return
+        const u = Array.isArray(opt) ? opt[0] : opt
+        if (u) setMyUser(fromCandidUser(u as any))
+      } catch {}
+    }
+    if (open) load()
+    return () => { mounted = false }
+  }, [open])
 
   if (!open) return null
 
@@ -34,9 +71,8 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            {/* Dashboard Button */}
+            {/* Actions */}
             <div className="mb-4 flex gap-2">
-              <Button onClick={() => router.push('/dashboard')} className="bg-blue-600 hover:bg-blue-700 text-white">Dashboard</Button>
               <Button onClick={logout} className="bg-red-600 hover:bg-red-700 text-white">Logout</Button>
             </div>
 
@@ -46,25 +82,25 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 {/* Top section */}
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={sessionData?.profileImage || "/placeholder.svg"} alt={sessionData?.displayName || principalId} />
+                    <AvatarImage src={myUser?.profileImage || sessionData?.profileImage || "/placeholder.svg"} alt={myUser?.displayName || sessionData?.displayName || principalId} />
                     <AvatarFallback className="bg-purple-600 text-white">
-                      {sessionData?.displayName?.charAt(0)?.toUpperCase() || principalId?.charAt(0)?.toUpperCase() || "U"}
+                      {(myUser?.displayName || sessionData?.displayName || principalId || 'U').charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-semibold text-white">{sessionData?.displayName || principalId}</h3>
+                      <h3 className="text-xl font-semibold text-white">{myUser?.displayName || sessionData?.displayName || principalId}</h3>
                       <Badge className="capitalize bg-purple-600/20 text-purple-300 border-purple-600/30">
-                        {sessionData?.userType || "User"}
+                        {myUser?.userType || sessionData?.userType || "User"}
                       </Badge>
                     </div>
                     <div className="mt-1 flex items-center gap-4 text-gray-300 text-sm">
                       <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" /> {(sessionData?.location && sessionData.location.trim()) || "Unknown"}
+                        <MapPin className="h-3.5 w-3.5" /> {(myUser?.location && myUser.location.trim()) || (sessionData?.location && sessionData.location.trim()) || "Unknown"}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Music2 className="h-3.5 w-3.5" />
-                        {Array.isArray(sessionData?.genres) && sessionData.genres.length > 0 ? sessionData.genres[0] : "Music"}
+                        {Array.isArray(myUser?.genres) && myUser.genres.length > 0 ? myUser.genres[0] : (Array.isArray(sessionData?.genres) && sessionData.genres.length > 0 ? sessionData.genres[0] : "Music")}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Wallet className="h-3.5 w-3.5" /> {new Intl.NumberFormat().format(sessionData?.mccBalance || 0)} MCC
@@ -74,19 +110,19 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 </div>
 
                 {/* Bio */}
-                {sessionData?.bio && (
+                {(myUser?.bio || sessionData?.bio) && (
                   <div>
                     <h4 className="text-white font-medium mb-1">Bio</h4>
-                    <p className="text-gray-300 text-sm leading-relaxed">{sessionData.bio}</p>
+                    <p className="text-gray-300 text-sm leading-relaxed">{myUser?.bio || sessionData?.bio}</p>
                   </div>
                 )}
 
                 {/* Genres */}
-                {Array.isArray(sessionData?.genres) && sessionData.genres.length ? (
+                {(Array.isArray(myUser?.genres) && myUser.genres.length) || (Array.isArray(sessionData?.genres) && sessionData.genres.length) ? (
                   <div>
                     <h4 className="text-white font-medium mb-2">Genres</h4>
                     <div className="flex flex-wrap gap-2">
-                      {sessionData.genres.map((g) => (
+                      {(myUser?.genres?.length ? myUser.genres : (sessionData?.genres || [])).map((g) => (
                         <Badge key={g} className="bg-gray-700 border-gray-600 text-gray-200">{g}</Badge>
                       ))}
                     </div>
@@ -97,19 +133,17 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="p-3 rounded-lg bg-gray-700/50 border border-gray-700">
                     <div className="text-gray-400">Followers</div>
-                    <div className="text-white font-semibold">{new Intl.NumberFormat().format(sessionData?.followers || 0)}</div>
+                    <div className="text-white font-semibold">{new Intl.NumberFormat().format(Number(myUser?.followers ?? sessionData?.followers ?? 0))}</div>
                   </div>
                   <div className="p-3 rounded-lg bg-gray-700/50 border border-gray-700">
                     <div className="text-gray-400">Following</div>
-                    <div className="text-white font-semibold">{new Intl.NumberFormat().format(sessionData?.following || 0)}</div>
+                    <div className="text-white font-semibold">{new Intl.NumberFormat().format(Number(myUser?.following ?? sessionData?.following ?? 0))}</div>
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="flex justify-between items-center pt-2">
-                  <div className="text-xs text-gray-400">
-                    Joined {new Date(sessionData?.joinedDate || Date.now()).toLocaleDateString()}
-                  </div>
+                  <div className="text-xs text-gray-400">Joined {formatJoined(myUser?.joinedTimestamp) || (sessionData?.joinedDate ? new Date(sessionData.joinedDate).toLocaleDateString() : '')}</div>
                   <div className="flex gap-2">
                     <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent" onClick={onClose}>
                       Close

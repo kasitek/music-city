@@ -1,0 +1,26 @@
+// Centralized shared constants for the app
+
+export const GENRES: string[] = [
+  "Afrobeat",
+  "Afro-fusion",
+  "Highlife",
+  "Amapiano",
+  "Gospel",
+  "Hip-hop",
+  "R&B",
+  "Reggae",
+  "Jazz",
+  "World Music",
+  "Pop",
+  "Rock",
+  "Electronic",
+  "House",
+  "Dance",
+  "Classical",
+  "Country",
+  "Folk",
+  "Metal",
+  "Soul",
+  "Alternative",
+  "Other",
+];
