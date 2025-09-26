@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Music, Search, Coins, Crown, Zap, Eye, Heart, Filter, TrendingUp } from 'lucide-react'
+import { Music, Search, Coins, Crown, Zap, Eye, Heart, TrendingUp } from 'lucide-react'
 import Link from "next/link"
 // import { listNFTs } from "@/lib/ic/backend" // NFT functionality not yet implemented in backend
 import { useState, useEffect } from "react"
@@ -56,7 +56,7 @@ export default function NFTMarketplace() {
             Discover exclusive music experiences and collectibles from your favorite artists
           </p>
 
-          {/* Search and Filters */}
+          {/* Search */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -65,10 +65,6 @@ export default function NFTMarketplace() {
                 className="pl-10 bg-gray-800 border-gray-700 text-white"
               />
             </div>
-            <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent">
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-            </Button>
           </div>
 
           {/* Category Tags */}
@@ -86,7 +82,7 @@ export default function NFTMarketplace() {
         </div>
 
         {/* Stats Section - Real Data */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Total Volume</CardTitle>
