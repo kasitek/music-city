@@ -1,10 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Menu, X } from 'lucide-react'
+import { Menu, X, Moon, Sun } from 'lucide-react'
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useTheme } from "next-themes"
 import { useAuth } from "@/hooks/ic/auth-context"
 import {
   DropdownMenu,
@@ -28,6 +29,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const { principalId, sessionData, isAuthenticated, logout } = useAuth()
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [isArtistRemote, setIsArtistRemote] = useState<boolean>(false)
   const isArtist = !!(sessionData && ((sessionData as any).isArtist === true || (sessionData.userType || '').toLowerCase() === 'artist')) || isArtistRemote
   const balance = sessionData?.mccBalance ?? 0
@@ -37,6 +40,11 @@ export default function Navigation({ currentPage }: NavigationProps) {
   }
   const displayLabel = principalId ? (sessionData?.displayName || shortPrincipal(principalId)) : 'User'
   const displayInitial = (displayLabel?.charAt(0) || 'U').toUpperCase()
+
+  // Avoid hydration mismatch by only rendering theme icon after mount
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -128,8 +136,25 @@ export default function Navigation({ currentPage }: NavigationProps) {
             </Link>
           </div>
 
-          {/* Auth Section */}
+          {/* Right Section: Theme toggle + Auth */}
           <div className="hidden md:flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Toggle theme"
+              className="text-gray-300 hover:text-white"
+              onClick={() => setTheme((resolvedTheme === 'dark' ? 'light' : 'dark'))}
+            >
+              {mounted ? (
+                resolvedTheme === 'dark' ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )
+              ) : (
+                <span className="block h-5 w-5" />
+              )}
+            </Button>
             {isAuthenticated && principalId ? (
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-300">
@@ -187,7 +212,26 @@ export default function Navigation({ currentPage }: NavigationProps) {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 rounded-lg mt-2">
+            <div className="px-2 pt-2 pb-3 space-y-2 bg-gray-800 rounded-lg mt-2">
+              <div className="flex items-center justify-end px-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Toggle theme"
+                  className="text-gray-300 hover:text-white"
+                  onClick={() => setTheme((resolvedTheme === 'dark' ? 'light' : 'dark'))}
+                >
+                  {mounted ? (
+                    resolvedTheme === 'dark' ? (
+                      <Sun className="h-5 w-5" />
+                    ) : (
+                      <Moon className="h-5 w-5" />
+                    )
+                  ) : (
+                    <span className="block h-5 w-5" />
+                  )}
+                </Button>
+              </div>
               {isArtist && (
                 <Link
                   href="/dashboard"

@@ -61,23 +61,17 @@ export async function createActor<T = Service>({ canisterId, host, fetchRootKey,
   return actor
 }
 
-export function getDefaultHost(): string | undefined {
-  // If explicit host is provided, use it (helps across Windows/WSL boundary)
-  const explicit = process.env.NEXT_PUBLIC_IC_HOST
-  if (explicit) return explicit
-
-  // Use NEXT_PUBLIC_DFX_NETWORK to decide local vs ic
-  const net = process.env.NEXT_PUBLIC_DFX_NETWORK
-  if (!net || net === 'local') return 'http://127.0.0.1:4943'
-  // Mainnet boundary node
-  return 'https://icp0.io'
+export function getDefaultHost(): string {
+  // Use a single env selector to choose environment; default to local
+  const env = process.env.NEXT_PUBLIC_ENVIRONMENT
+  return env === 'ic' ? 'https://icp0.io' : 'http://127.0.0.1:4943'
 }
 
 // Decide whether to fetch the root key for certificate validation in dev.
 // We enable it when connecting to a local replica even if NEXT_PUBLIC_DFX_NETWORK is not set.
 export function shouldFetchRootKey(host?: string): boolean {
-  const net = process.env.NEXT_PUBLIC_DFX_NETWORK
-  if (net && net === 'ic') return false
+  const env = process.env.NEXT_PUBLIC_ENVIRONMENT
+  if (env === 'ic') return false
   const h = host ?? getDefaultHost() ?? ''
   // Treat common local dev hosts as requiring root key fetch
   // Includes 127.0.0.1, localhost, 0.0.0.0, and typical LAN IPs

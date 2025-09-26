@@ -646,8 +646,8 @@ const getTransactionDescription = (transaction: any): string => {
           <p className="text-gray-400">Manage your music, track earnings, and connect with fans</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        {/* Stats Cards (2 per row on mobile, 4 per row on md+) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Total Earnings</CardTitle>
@@ -1417,7 +1417,7 @@ const getTransactionDescription = (transaction: any): string => {
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <img
-                src={currentTrack.coverImage || "/placeholder.svg?height=48&width=48"}
+                src={currentTrack.coverImage || userProfile?.profileImage || "/placeholder.svg?height=48&width=48"}
                 alt={currentTrack.title}
                 className="w-12 h-12 rounded-lg object-cover"
               />

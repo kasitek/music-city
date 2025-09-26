@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "sonner"
 import { Web3Providers } from "@/hooks/ic/web3Provider"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -20,13 +21,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head />
       <body className={inter.className}>
-        <Web3Providers>
-          {children}
-          <Toaster richColors position="top-right" />
-        </Web3Providers>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <Web3Providers>
+            {children}
+            <Toaster richColors position="top-right" />
+          </Web3Providers>
+        </ThemeProvider>
       </body>
     </html>
   )

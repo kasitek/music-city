@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Users, Star, Share2, Music, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Heart } from 'lucide-react'
+import { Users, CheckCircle, Share2, Music, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2 } from 'lucide-react'
 
 import { useState, useEffect, useRef } from "react"
 import { Navigation } from "@/components/navigation"
 import { listArtists, resetActor } from "@/lib/ic/backend"
+import { GENRES } from "@/lib/constants"
 import { fromCandidUser, fromCandidTrack } from "@/lib/mappers"
 import type { UserModel, TrackModel } from "@/lib/types"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -38,8 +39,7 @@ export default function ArtistsPage() {
   const owner = searchParams.get('owner') || ''
   const router = useRouter()
   const { isAuthenticated, principalId } = useAuth()
-  const [artistStats, setArtistStats] = useState<Record<string, { likes: number; streams: number }>>({})
-  const [likedArtists, setLikedArtists] = useState<Record<string, boolean>>({})
+  const [artistStats, setArtistStats] = useState<Record<string, { likes: number; streams: number; tracks: number }>>({})
   const [editOpen, setEditOpen] = useState<boolean>(false)
   const [editName, setEditName] = useState<string>('')
   const [editBio, setEditBio] = useState<string>('')
@@ -47,6 +47,7 @@ export default function ArtistsPage() {
   const [editGenres, setEditGenres] = useState<string>('')
   const [editImage, setEditImage] = useState<string>('')
   const [artistSearch, setArtistSearch] = useState<string>('')
+  const [selectedGenre, setSelectedGenre] = useState<string>('All')
 
   useEffect(() => {
     let mounted = true
@@ -91,12 +92,13 @@ export default function ArtistsPage() {
             const tr = await (await import('@/lib/ic/backend')).listTracks()
             if (!mounted) return
             const mappedTracks: TrackModel[] = (tr || []).map((t: any) => fromCandidTrack(t))
-            const agg: Record<string, { likes: number; streams: number }> = {}
+            const agg: Record<string, { likes: number; streams: number; tracks: number }> = {}
             for (const t of mappedTracks) {
               const key = String(t.artist)
-              if (!agg[key]) agg[key] = { likes: 0, streams: 0 }
+              if (!agg[key]) agg[key] = { likes: 0, streams: 0, tracks: 0 }
               agg[key].likes += Number(t.likes || 0)
               agg[key].streams += Number(t.plays || 0)
+              agg[key].tracks += 1
             }
             setArtistStats(agg)
           } catch {}
@@ -121,24 +123,17 @@ export default function ArtistsPage() {
     return () => { mounted = false }
   }, [owner])
 
-  // Initialize follow/like state from localStorage for the signed-in user
+  // Initialize follow state from localStorage for the signed-in user
   useEffect(() => {
     try {
       const pid = principalId ? String(principalId) : null
       if (!pid) return
       const followKey = `mc_following_${pid}`
-      const likeKey = `mc_liked_artists_${pid}`
       const savedFollows = JSON.parse(localStorage.getItem(followKey) || '[]') as string[]
-      const savedLikes = JSON.parse(localStorage.getItem(likeKey) || '[]') as string[]
       if (Array.isArray(savedFollows) && savedFollows.length) {
         const map: Record<string, boolean> = {}
         for (const owner of savedFollows) map[owner] = true
         setFollowing(prev => ({ ...prev, ...map }))
-      }
-      if (Array.isArray(savedLikes) && savedLikes.length) {
-        const map: Record<string, boolean> = {}
-        for (const owner of savedLikes) map[owner] = true
-        setLikedArtists(prev => ({ ...prev, ...map }))
       }
     } catch {}
   }, [principalId, artists.length])
@@ -346,56 +341,99 @@ export default function ArtistsPage() {
                   className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
                 />
               </div>
+              {/* Genre Filter Chips */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {["All", ...GENRES].map((g) => (
+                  <Badge
+                    key={g}
+                    onClick={() => setSelectedGenre(g)}
+                    variant="outline"
+                    className={`border cursor-pointer ${selectedGenre === g ? 'bg-purple-600/30 border-purple-500 text-white' : 'border-gray-600 text-gray-300 hover:bg-purple-600 hover:border-purple-600'}`}
+                  >
+                    {g}
+                  </Badge>
+                ))}
+              </div>
             </div>
             <section>
               {loading && <div className="text-gray-400">Loading artists…</div>}
               {error && <div className="text-red-400">{error}</div>}
               {!loading && !error && (
-                <div className="grid gap-6 grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {artists
                     .filter((a) => {
+                      // Search filter
                       const q = (artistSearch || "").trim().toLowerCase()
-                      if (!q) return true
-                      const name = (a.displayName || "").toLowerCase()
-                      const loc = (a.location || "").toLowerCase()
-                      return name.includes(q) || loc.includes(q)
+                      const matchSearch = !q || (a.displayName || "").toLowerCase().includes(q) || (a.location || "").toLowerCase().includes(q)
+                      // Genre filter
+                      const matchGenre = selectedGenre === 'All' || (Array.isArray(a.genres) && a.genres.some(g => (g || '').toLowerCase() === selectedGenre.toLowerCase()))
+                      return matchSearch && matchGenre
                     })
                     .map((a) => (
-                    <div key={a.owner} className="flex flex-col items-center group">
-                      <button onClick={() => router.push(`/artists?owner=${a.owner}`)} className="focus:outline-none">
-                        <div className="relative">
-                          <img src={a.profileImage || "/placeholder.svg"} alt={a.displayName} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ring-1 ring-gray-700 group-hover:ring-purple-500 transition" />
-                          {a.isVerified && (
-                            <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 ring-2 ring-gray-900">
-                              <Star className="h-3 w-3 text-white fill-current" />
+                    <Card
+                      key={a.owner}
+                      className="bg-gray-800 border-gray-700 hover:border-purple-600/50 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/artists?owner=${a.owner}`)}
+                    >
+                      <CardContent className="p-3 text-center">
+                        <div className="relative mb-3">
+                          <img
+                            src={a.profileImage || "/placeholder.svg"}
+                            alt={a.displayName}
+                            className="w-14 h-14 rounded-full mx-auto object-cover"
+                          />
+                          <div className="absolute -top-1 -right-1 bg-blue-600 rounded-full p-0.5">
+                            <CheckCircle className="h-2.5 w-2.5 text-white" />
+                          </div>
+                        </div>
+                        <h3 className="text-xs font-semibold text-white mb-1 truncate flex items-center gap-1">
+                          <span className="truncate">{a.displayName}</span>
+                          <span className="text-[10px] text-blue-400 font-semibold shrink-0">Verified</span>
+                        </h3>
+                        <Badge className="mb-2 bg-purple-600/20 text-purple-300 border-purple-600/30 px-2 py-0.5 text-[10px]">
+                          {(a.genres && a.genres[0]) || "Music"}
+                        </Badge>
+                        <div className="space-y-1 text-[10px] text-gray-400">
+                          <div className="flex items-center justify-center space-x-3">
+                            <div className="flex items-center space-x-1.5">
+                              <Users className="h-3 w-3"/>
+                              <span className="leading-none">{Number(a.followers || 0).toLocaleString()}</span>
                             </div>
+                            <div className="flex items-center space-x-1.5">
+                              <Music className="h-3 w-3"/>
+                              <span className="leading-none">{(artistStats[a.owner]?.tracks || 0).toLocaleString()}</span>
+                            </div>
+                          </div>
+                          {a.location && (
+                            <p className="text-[9px] text-gray-500 truncate">{a.location}</p>
                           )}
                         </div>
-                      </button>
-                      <div className="mt-2 text-sm text-white truncate max-w-[6rem] text-center">{a.displayName}</div>
-                      <div className="text-[11px] text-gray-400 flex items-center gap-3 mt-1">
-                        <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{Number(a.followers || 0).toLocaleString()} followers</span>
-                        <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" />{(artistStats[a.owner]?.likes || 0).toLocaleString()}</span>
-                      </div>
-                      {a.location && <div className="text-[11px] text-gray-500 mt-1 truncate max-w-[7rem] text-center">{a.location}</div>}
-                      <div className="flex items-center gap-2 mt-2">
-                        {!(principalId && String(principalId) === String(a.owner)) && (
-                          <Button size="xs" className="h-6 px-2 bg-purple-600 hover:bg-purple-700" onClick={() => onFollow(a)}>
-                            {following[a.owner] ? 'Unfollow' : 'Follow'}
+                        <div className="flex gap-2 mt-2 justify-center">
+                          {!(principalId && String(principalId) === String(a.owner)) && (
+                            <Button
+                              className="h-7 px-2 text-xs bg-purple-600 hover:bg-purple-700"
+                              onClick={(e) => { e.stopPropagation(); onFollow(a) }}
+                            >
+                              {following[a.owner] ? 'Unfollow' : 'Follow'}
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            className="h-7 w-7 p-0 border-gray-600 text-gray-300 bg-transparent"
+                            onClick={(e) => { e.stopPropagation(); onShare(a) }}
+                            aria-label="Share Artist"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
                           </Button>
-                        )}
-                        <Button size="icon" variant="ghost" className={`h-6 w-6 ${likedArtists[a.owner] ? 'text-red-400' : 'text-gray-300'}`} aria-label="Like Artist" onClick={() => setLikedArtists(prev => ({ ...prev, [a.owner]: !prev[a.owner] }))}>
-                          <Heart className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                   {artists.filter((a) => {
                     const q = (artistSearch || "").trim().toLowerCase()
-                    if (!q) return true
-                    const name = (a.displayName || "").toLowerCase()
-                    const loc = (a.location || "").toLowerCase()
-                    return name.includes(q) || loc.includes(q)
+                    const matchSearch = !q || (a.displayName || "").toLowerCase().includes(q) || (a.location || "").toLowerCase().includes(q)
+                    const matchGenre = selectedGenre === 'All' || (Array.isArray(a.genres) && a.genres.some(g => (g || '').toLowerCase() === selectedGenre.toLowerCase()))
+                    return matchSearch && matchGenre
                   }).length === 0 && (
                     <div className="text-gray-400 col-span-full">No artists found.</div>
                   )}
@@ -423,9 +461,24 @@ export default function ArtistsPage() {
                     <img src={artist.profileImage || "/placeholder.svg"} alt={artist.displayName} className="w-20 h-20 md:w-24 md:h-24 rounded-md object-cover border border-white/10" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 text-sm text-gray-300">
-                        {artist.isVerified && <span className="inline-flex items-center gap-1 text-blue-400"><Star className="h-4 w-4" /> Verified Artist</span>}
+                        {(artist.isVerified ?? true) && (
+                          <span className="inline-flex items-center gap-1 text-blue-400">
+                            <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-blue-600"><CheckCircle className="h-3 w-3 text-white" /></span>
+                            Verified
+                          </span>
+                        )}
                       </div>
-                      <h1 className="text-3xl md:text-5xl font-extrabold mt-1">{artist.displayName}</h1>
+                      <h1 className="text-3xl md:text-5xl font-extrabold mt-1 flex items-center gap-2">
+                        <span>{artist.displayName}</span>
+                        {(artist.isVerified ?? true) && (
+                          <>
+                            <span title="Verified" className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-blue-600">
+                              <CheckCircle className="h-4 w-4 text-white" />
+                            </span>
+                            <span className="text-xs md:text-sm text-blue-400 font-semibold">Verified</span>
+                          </>
+                        )}
+                      </h1>
                       <div className="text-gray-300 text-sm mt-1">
                         {tracks.reduce((s, t) => s + Number(t.plays || 0), 0).toLocaleString()} total streams
                         <span className="mx-2 text-gray-500">•</span>
@@ -436,8 +489,8 @@ export default function ArtistsPage() {
                 </div>
                 {/* Controls row */}
                 <div className="bg-gradient-to-b from-gray-800/60 to-transparent px-4 py-3 flex items-center gap-3">
-                  <Button size="icon" className="h-10 w-10 rounded-full bg-green-500 hover:bg-green-600" onClick={() => { if (tracks.length) playTrackAudio(tracks[0]) }} aria-label="Play">
-                    <Play className="h-5 w-5 text-black" />
+                  <Button size="icon" className="h-10 w-10 rounded-full bg-purple-600 hover:bg-purple-700" onClick={() => { if (tracks.length) playTrackAudio(tracks[0]) }} aria-label="Play">
+                    <Play className="h-5 w-5 text-white" />
                   </Button>
                   <Button size="icon" variant="ghost" className="text-gray-300" aria-label="Shuffle">
                     <Music className="h-5 w-5" />
@@ -485,7 +538,7 @@ export default function ArtistsPage() {
                         </div>
                         {/* artwork + title */}
                         <div className="col-span-6 flex items-center gap-3 overflow-hidden">
-                          <img src={t.coverImage || '/placeholder.svg?height=40&width=40'} alt={t.title} className="w-10 h-10 rounded object-cover" />
+                          <img src={t.coverImage || artist?.profileImage || '/placeholder.svg?height=40&width=40'} alt={t.title} className="w-10 h-10 rounded object-cover" />
                           <div className={`truncate ${active ? 'text-green-400' : 'text-white'} font-medium`}>{t.title || 'Unknown Track'}</div>
                         </div>
                         {/* plays */}
@@ -508,21 +561,16 @@ export default function ArtistsPage() {
       {playingId && (
         <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 border-t border-gray-800 p-3 z-40">
           <div className="container mx-auto flex items-center justify-between">
-            {/* Left: track title + artist */}
+            {/* Left: artwork + track title + artist */}
             <div className="flex items-center gap-3 w-[25%] overflow-hidden">
-              {/* Optionally show current track artwork if available */}
-              {/* <img src={tracks.find(t => String(t.id)===playingId)?.coverImage || '/placeholder.svg?height=40&width=40'} className="w-10 h-10 rounded object-cover"/> */}
+              <img
+                src={(tracks.find(t => String(t.id)===playingId)?.coverImage) || (artist?.profileImage || '/placeholder.svg?height=40&width=40')}
+                className="w-10 h-10 rounded object-cover"
+                alt={tracks.find(t => String(t.id)===playingId)?.title || 'Playing artwork'}
+              />
               <div className="truncate">
                 <div className="text-white font-medium truncate">{tracks.find(t => String(t.id)===playingId)?.title || 'Playing'}</div>
-                <div className="text-xs text-gray-400 truncate flex items-center gap-2">
-                  <span>{artist?.displayName || 'Artist'}</span>
-                  {artist && (
-                    <span className="inline-flex items-center gap-1 text-gray-500">
-                      <Users className="h-3 w-3" />
-                      {Number(artist.followers || 0).toLocaleString()}
-                    </span>
-                  )}
-                </div>
+                <div className="text-xs text-gray-400 truncate">{artist?.displayName || 'Artist'}</div>
               </div>
             </div>
 

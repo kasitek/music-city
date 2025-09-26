@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter, Coins, DollarSign, Zap, Gift, Shuffle, Repeat, Users } from 'lucide-react'
+import { Music, Search, Play, Pause, SkipForward, SkipBack, Volume2, Heart, Share2, Filter, Coins, DollarSign, Zap, Gift, Shuffle, Repeat, Users, CheckCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from "react"
 import { listTracks, streamTrack } from "@/lib/ic/backend"
 import { getAssetData } from "@/lib/ic/storage_client"
@@ -39,6 +39,8 @@ export default function StreamingPage() {
   const router = useRouter()
   const [query, setQuery] = useState<string>('')
   const [artistNames, setArtistNames] = useState<Record<string, string>>({})
+  const [artistImages, setArtistImages] = useState<Record<string, string>>({})
+  const [artistVerified, setArtistVerified] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     // Load tracks from backend canister
@@ -48,7 +50,7 @@ export default function StreamingPage() {
         // Sort by plays desc for trending
         const sorted = [...mapped].sort((a, b) => Number(b.plays || 0) - Number(a.plays || 0))
         setTracks(sorted)
-        // Preload artist names for search
+        // Preload artist names and images for search and artwork fallback
         const unique = Array.from(new Set(sorted.map(t => String(t.artist))))
         ;(async () => {
           try {
@@ -57,12 +59,16 @@ export default function StreamingPage() {
               try {
                 const uOpt: any = await getUser(p as any)
                 const u: any = Array.isArray(uOpt) ? (uOpt[0] || null) : uOpt
-                return [p, u?.displayName || ''] as const
-              } catch { return [p, ''] as const }
+                return [p, { name: u?.displayName || '', image: u?.profileImage || '', verified: !!u?.isVerified }] as const
+              } catch { return [p, { name: '', image: '' }] as const }
             }))
-            const map: Record<string, string> = {}
-            for (const [k, v] of entries) map[k] = v || ''
-            setArtistNames(map)
+            const nameMap: Record<string, string> = {}
+            const imageMap: Record<string, string> = {}
+            const verMap: Record<string, boolean> = {}
+            for (const [k, v] of entries) { nameMap[k] = v.name || ''; imageMap[k] = v.image || ''; verMap[k] = !!(v as any).verified }
+            setArtistNames(nameMap)
+            setArtistImages(imageMap)
+            setArtistVerified(verMap)
           } catch {}
         })()
       })
@@ -163,6 +169,15 @@ export default function StreamingPage() {
       // Revoke old URL
       if (audioUrl) URL.revokeObjectURL(audioUrl)
       setAudioUrl(url)
+      // Persist now-playing metadata for cross-page mini player
+      try {
+        const meta = {
+          title: track.title || 'Unknown Track',
+          artist: (artistNames[String(track.artist)] || currentArtistName || ''),
+          cover: track.coverImage || artistImages[String(track.artist)] || '/placeholder.svg?height=48&width=48',
+        }
+        localStorage.setItem('mc_now_playing_meta', JSON.stringify(meta))
+      } catch {}
       setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.play().catch(() => {/* ignore */})
@@ -240,7 +255,7 @@ export default function StreamingPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-4">Stream Music</h1>
 
-          {/* Search and Filters */}
+          {/* Search */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -251,20 +266,17 @@ export default function StreamingPage() {
                 onChange={(e)=>setQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="border-gray-600 text-gray-300 bg-transparent">
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-            </Button>
           </div>
 
           {/* Genre Tags */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 overflow-x-auto sm:overflow-visible no-scrollbar py-1 -mx-1 sm:mx-0 w-full">
             {["All", ...GENRES].map((genre) => (
               <Badge
                 key={genre}
                 onClick={() => setSelectedGenre(genre)}
                 variant="outline"
-                className={`border ${selectedGenre === genre ? 'bg-purple-600/30 border-purple-500 text-white' : 'border-gray-600 text-gray-300 hover:bg-purple-600 hover:border-purple-600'} cursor-pointer`}
+                aria-pressed={selectedGenre === genre}
+                className={`rounded-full px-3 py-1 text-xs md:text-sm transition-colors whitespace-nowrap ${selectedGenre === genre ? 'bg-purple-600/30 border-purple-500 text-white' : 'border-gray-600 text-gray-300 hover:bg-purple-600/40 hover:border-purple-600'}`}
               >
                 {genre}
               </Badge>
@@ -317,7 +329,7 @@ export default function StreamingPage() {
 
                     {/* Artwork + Title */}
                     <div className="col-span-6 flex items-center gap-3 overflow-hidden">
-                      <img src={track.coverImage || '/placeholder.svg?height=40&width=40'} alt={track.title} className="w-10 h-10 rounded object-cover flex-none" />
+                      <img src={track.coverImage || artistImages[String(track.artist)] || '/placeholder.svg?height=40&width=40'} alt={track.title} className="w-10 h-10 rounded object-cover flex-none" />
                       <div className="truncate">
                         <div className={`truncate ${active ? 'text-green-400' : 'text-white'} font-medium`}>{track.title || 'Unknown Track'}</div>
                         <div className="text-xs text-gray-400 truncate">{artistNames[String(track.artist)] || track.genre || 'Music'}</div>
@@ -345,17 +357,16 @@ export default function StreamingPage() {
             <div className="container mx-auto flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <img
-                  src={currentTrack.coverImage || "/placeholder.svg?height=48&width=48"}
+                  src={currentTrack.coverImage || artistImages[String(currentTrack.artist)] || "/placeholder.svg?height=48&width=48"}
                   alt={currentTrack.title}
                   className="w-12 h-12 rounded-lg object-cover"
                 />
                 <div>
                   <div className="font-semibold text-white">{currentTrack.title || "Unknown Track"}</div>
-                  <div className="text-sm text-gray-400 flex items-center gap-2">
+                  <div className="text-sm text-gray-400 flex items-center gap-1">
                     <span>{currentArtistName || "Unknown Artist"}</span>
-                    <span className="inline-flex items-center gap-1 text-gray-500">
-                      <Users className="h-3 w-3" />
-                      {currentArtistFollowers.toLocaleString()} followers
+                    <span title="Verified Artist" className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-green-600">
+                      <CheckCircle className="h-3 w-3 text-white" />
                     </span>
                   </div>
                 </div>

@@ -33,10 +33,10 @@ export default function LandingPage() {
             <span className="text-purple-300 font-medium"> No middlemen, just music.</span>
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+          <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-row sm:gap-6 justify-center items-center">
             <Button
               size="lg"
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-10 py-4 rounded-full shadow-2xl shadow-purple-500/25 transition-all duration-300 hover:scale-105"
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-6 py-4 rounded-full shadow-2xl shadow-purple-500/25 transition-all duration-300 hover:scale-105"
             >
               <Play className="mr-2 h-5 w-5" />
               <Link href="/auth">Start Creating</Link>
@@ -44,7 +44,7 @@ export default function LandingPage() {
             <Button
               size="lg"
               variant="outline"
-              className="border-2 border-gray-600/50 text-gray-200 hover:bg-gray-800/50 text-lg px-10 py-4 rounded-full bg-gray-900/30 backdrop-blur-sm transition-all duration-300 hover:scale-105"
+              className="w-full border-2 border-gray-600/50 text-gray-200 hover:bg-gray-800/50 text-lg px-6 py-4 rounded-full bg-gray-900/30 backdrop-blur-sm transition-all duration-300 hover:scale-105"
             >
               <TrendingUp className="mr-2 h-5 w-5" />
               <Link href="/discover">Explore Music</Link>
@@ -68,11 +68,11 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Key Features - Four cards in a row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Key Features - Two per row on mobile, four on large */}
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {/* Instant Royalties */}
             <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-purple-500/50 transition-all duration-300 group">
-              <CardContent className="p-8">
+              <CardContent className="p-6 md:p-8">
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <Zap className="h-6 w-6 text-white" />
@@ -89,7 +89,7 @@ export default function LandingPage() {
 
             {/* Unbreakable Security */}
             <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-blue-500/50 transition-all duration-300 group">
-              <CardContent className="p-8">
+              <CardContent className="p-6 md:p-8">
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <Shield className="h-6 w-6 text-white" />
@@ -106,7 +106,7 @@ export default function LandingPage() {
 
             {/* Direct Fan Power */}
             <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-green-500/50 transition-all duration-300 group">
-              <CardContent className="p-8">
+              <CardContent className="p-6 md:p-8">
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <Music className="h-6 w-6 text-white" />
@@ -123,7 +123,7 @@ export default function LandingPage() {
 
             {/* Global Reach */}
             <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 hover:border-yellow-500/50 transition-all duration-300 group">
-              <CardContent className="p-8">
+              <CardContent className="p-6 md:p-8">
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <Globe className="h-6 w-6 text-white" />
