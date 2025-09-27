@@ -40,48 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing IC authentication and load real user data
     const checkAuth = async () => {
       try {
-        // const isIcAuthenticated = await icIsAuthenticated()
-        // if (isIcAuthenticated) {
-        //   const identity = getIdentity()
-        //   if (identity) {
-        //     setBackendIdentity(identity)
-        //     setStorageIdentity(identity)
-        //     await setBucketPrincipal().catch(() => { /* ignore init errors */ })
-            
-        //     // Try to get user from IC backend
-        //     try {
-        //       const icUser = await getMyUser()
-        //       if (icUser) {
-        //         // Convert IC user format (per IDL) to local User format
-        //         const isArtist = icUser.userType && typeof icUser.userType === 'object' && 'artist' in icUser.userType
-        //         const user: User = {
-        //           id: identity.getPrincipal().toText(),
-        //           walletAddress: identity.getPrincipal().toText(),
-        //           displayName: icUser.displayName,
-        //           email: icUser.bio || '', // Using bio field for email temporarily
-        //           userType: isArtist ? 'artist' : 'fan',
-        //           bio: icUser.bio,
-        //           location: icUser.location,
-        //           genres: icUser.genres,
-        //           profileImage: icUser.profileImage,
-        //           accountBalance: Number(icUser.balance || 0),
-        //           totalEarnings: 0,
-        //           joinedAt: new Date(Number(icUser.joinedTimestamp || 0) / 1000000).toISOString()
-        //         }
-        //         setUser(user)
-        //       }
-        //     } catch (e) {
-        //       console.log('No IC user found, user needs to register')
-        //     }
-        //   }
-        // }
+        
       } catch (e) {
         console.log('IC authentication check failed, clearing stale auth:', e)
-        // Clear any stale authentication state
+        
         try {
-          // await icLogout()
-          // setBackendIdentity(undefined)
-          // setStorageIdentity(undefined)
+        
           localStorage.removeItem("icIdentity")
           localStorage.removeItem("walletConnected")
           localStorage.removeItem("onboardingComplete")
@@ -97,9 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (walletAddress: string, email?: string, name?: string): Promise<User | null> => {
     try {
-      // This function is mainly for Web3Auth flow
-      // For IC auth, users should use loginWithII/loginWithNFID directly
-      // Store temp data for onboarding if needed
+      
       if (email) localStorage.setItem("userEmail", email)
       if (name) localStorage.setItem("userName", name)
       return null
@@ -129,8 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const updatedUser = { ...user, ...updates }
       setUser(updatedUser)
       
-      // TODO: Implement updateProfile call to IC backend
-      // This would require adding updateProfile function call here
+      
     }
   }
 

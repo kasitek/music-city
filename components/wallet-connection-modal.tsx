@@ -111,7 +111,7 @@ export default function WalletConnectionModal({ isOpen, onClose }: WalletConnect
                     className="object-contain"
                   />
                 </div>
-                <span>Internet Identity</span>
+                <span>Sign in with Internet Identity</span>
               </Button>
 
               <Button
@@ -128,7 +128,7 @@ export default function WalletConnectionModal({ isOpen, onClose }: WalletConnect
                     className="object-contain"
                   />
                 </div>
-                <span>Sign in with Email (NFID)</span>
+                <span>Sign in with NFID</span>
               </Button>
 
             </div>

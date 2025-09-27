@@ -68,7 +68,6 @@ export function getDefaultHost(): string {
 }
 
 // Decide whether to fetch the root key for certificate validation in dev.
-// We enable it when connecting to a local replica even if NEXT_PUBLIC_DFX_NETWORK is not set.
 export function shouldFetchRootKey(host?: string): boolean {
   const env = process.env.NEXT_PUBLIC_ENVIRONMENT
   if (env === 'ic') return false

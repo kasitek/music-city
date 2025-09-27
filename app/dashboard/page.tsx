@@ -17,9 +17,7 @@ import { Music, Upload, DollarSign, Users, Play, Pause, Coins, TrendingUp, Eye, 
 import { Navigation } from "@/components/navigation"
 import { createTrack, setTrackAssets, myTransactions, getMyUser, listTracks, updateTrack, deleteTrack } from "@/lib/ic/backend"
 import { createAsset as createStorageAsset, uploadBlobToBucket } from "@/lib/ic/storage"
-import { getAssetData, uploadAudioAsset } from "@/lib/ic/storage_client"
 import { loginInternetIdentity, loginNFID } from "@/lib/ic/auth"
-import { GENRES } from "@/lib/constants"
 
 export default function ArtistDashboard() {
   // Edit modal state (must be inside component)
@@ -215,8 +213,9 @@ export default function ArtistDashboard() {
       return
     }
     try {
+      const { getAssetData } = await import("@/lib/ic/storage_client")
       const asset = await getAssetData(BigInt(track.audioAssetId))
-      const u8 = asset?.bytes
+      const u8 = asset?.bytes instanceof Uint8Array ? asset.bytes : (asset ? new Uint8Array(asset as any) : null)
       if (!u8 || u8.length === 0) {
         alert("Audio not found in storage bucket.")
         return
@@ -377,40 +376,39 @@ export default function ArtistDashboard() {
       setUploadProgress(0)
       setUploadMessage("Uploading audio file... 0%")
 
-      // 1. Upload via storage index/bucket helper (allocates, chunks, commits)
-      let audioAssetId = null as null | bigint;
+      // 1. Upload the audio file to Motoko storage bucket in chunks
+      let audioAssetId = null;
       try {
         const audioBuffer = await file.arrayBuffer();
         const audioBytes = new Uint8Array(audioBuffer);
-        const ext = (file.name.split('.').pop() || '').toLowerCase() || 'mp3'
-        setUploadMessage("Uploading audio file...")
-        // Note: uploadAudioAsset internally chunks the file and commits in the bucket
-        console.log('Starting uploadAudioAsset...')
-        const newAssetId = await uploadAudioAsset(audioBytes, file.type || 'audio/mpeg', ext);
-        console.log('Upload completed, assetId:', newAssetId)
-        
-        // Verify bytes are retrievable before proceeding (with retry for timing issues)
-        setUploadMessage("Verifying upload...")
-        let verify = await getAssetData(newAssetId)
-        if (!verify || !verify.bytes || verify.bytes.length === 0) {
-          console.log('First verification failed, retrying after delay...')
-          await new Promise(r => setTimeout(r, 1000)) // Wait 1 second
-          verify = await getAssetData(newAssetId)
-          if (!verify || !verify.bytes || verify.bytes.length === 0) {
-            console.error('Verification failed twice:', { assetId: newAssetId, verify })
-            throw new Error(`Verification failed: asset ${newAssetId} bytes not retrievable after upload and retry`)
-          }
+        const chunkSize = 1024 * 1024; // 1MB
+        const totalChunks = Math.ceil(audioBytes.length / chunkSize);
+        const assetId = BigInt(Date.now());
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * chunkSize;
+          const end = Math.min(start + chunkSize, audioBytes.length);
+          const chunk = audioBytes.slice(start, end);
+          await uploadBlobToBucket(undefined, assetId, BigInt(i), chunk);
+          const percent = Math.round(((i + 1) / totalChunks) * 100)
+          setUploadProgress(percent)
+          setUploadMessage(`Uploading audio file... ${percent}%`)
         }
-        console.log('Verification successful:', { assetId: newAssetId, bytesLength: verify.bytes.length, contentType: verify.contentType })
-        audioAssetId = newAssetId
-        setUploadProgress(100)
-        setUploadMessage("Audio uploaded (100%). Creating track record...")
+        // Commit the batch
+        const commitResult = await createStorageAsset(
+          assetId,
+          totalChunks,
+          file.type,
+          file.size
+        );
+        if (commitResult) {
+          audioAssetId = assetId;
+          setUploadMessage("Audio uploaded (100%). Creating track record...")
+        } else {
+          throw new Error("Failed to commit audio upload");
+        }
       } catch (uploadError: any) {
-        console.warn('Audio upload failed or verification failed:', uploadError);
-        setUploadMessage("Audio upload failed. Please try again.");
-        setUploading(false)
-        setUploadProgress(0)
-        return
+        console.warn('Audio upload failed, creating track without audio asset:', uploadError);
+        setUploadMessage("Creating track record...");
       }
 
       // 2. Create the track record in the backend
@@ -646,8 +644,8 @@ const getTransactionDescription = (transaction: any): string => {
           <p className="text-gray-400">Manage your music, track earnings, and connect with fans</p>
         </div>
 
-        {/* Stats Cards (2 per row on mobile, 4 per row on md+) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Total Earnings</CardTitle>
@@ -769,17 +767,7 @@ const getTransactionDescription = (transaction: any): string => {
                 </div>
                 <div>
                   <Label htmlFor="edit-genre" className="text-gray-300">Genre</Label>
-                  <select
-                    id="edit-genre"
-                    className="mt-1 w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
-                    value={editGenre}
-                    onChange={e => setEditGenre(e.target.value)}
-                  >
-                    <option value="">Select a genre</option>
-                    {GENRES.map(g => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
+                  <Input id="edit-genre" className="bg-gray-700 border-gray-600 text-white" value={editGenre} onChange={e => setEditGenre(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-4">
@@ -820,10 +808,9 @@ const getTransactionDescription = (transaction: any): string => {
                   if (res && typeof res === 'object' && 'ok' in res) {
                     setEditModalOpen(false)
                     await fetchTracks()
-                  } else if (res && typeof res === 'object' && 'err' in res) {
-                    setEditUploadMessage(res.err || "Failed to update track")
                   } else {
-                    setEditUploadMessage("Failed to update track")
+                    const errMsg = (res && typeof res === 'object' && 'err' in res && (res as any).err) || "Failed to update track"
+                    setEditUploadMessage(String(errMsg))
                   }
                 } catch (e) {
                   setEditUploadMessage("Error updating track: " + (e as any)?.message)
@@ -841,13 +828,12 @@ const getTransactionDescription = (transaction: any): string => {
                               if (confirm(`Are you sure you want to delete "${track.title}"?`)) {
                                 try {
                                   const res = await deleteTrack(track.id);
-                                  if (res && 'ok' in res && res.ok) {
+                                  if (res && typeof res === 'object' && 'ok' in res) {
                                     alert("Track deleted!");
                                     await fetchTracks();
-                                  } else if (res && 'err' in res) {
-                                    alert(res.err || "Failed to delete track");
                                   } else {
-                                    alert("Failed to delete track");
+                                    const errMsg = (res && typeof res === 'object' && 'err' in res && (res as any).err) || "Failed to delete track"
+                                    alert(String(errMsg));
                                   }
                                 } catch (e) {
                                   alert("Error deleting track: " + (e as any)?.message);
@@ -954,17 +940,13 @@ const getTransactionDescription = (transaction: any): string => {
                       <Label htmlFor="genre" className="text-gray-300">
                         Genre
                       </Label>
-                      <select
+                      <Input
                         id="genre"
-                        className="mt-1 w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        placeholder="e.g., Afrobeat, Hip-hop"
+                        className="bg-gray-700 border-gray-600 text-white"
                         value={genre}
                         onChange={(e) => setGenre(e.target.value)}
-                      >
-                        <option value="">Select a genre</option>
-                        {GENRES.map(g => (
-                          <option key={g} value={g}>{g}</option>
-                        ))}
-                      </select>
+                      />
                     </div>
                   </div>
                   <div className="space-y-4">
@@ -1074,7 +1056,7 @@ const getTransactionDescription = (transaction: any): string => {
               <CardContent>
                 <div className="space-y-6">
                   {/* Enhanced Earnings Summary */}
-                  <div className="grid md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gradient-to-br from-green-600/20 to-green-500/10 p-4 rounded-lg border border-green-500/20">
                       <div className="flex items-center gap-2 mb-2">
                         <DollarSign className="h-4 w-4 text-green-400" />
@@ -1115,7 +1097,7 @@ const getTransactionDescription = (transaction: any): string => {
                       <Zap className="h-4 w-4 text-yellow-400" />
                       Real-time Distribution
                     </h3>
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <div className="text-sm text-gray-400 mb-1">Distribution Rate</div>
                         <div className="text-lg font-semibold text-white">0.01 MCC per stream</div>
@@ -1197,7 +1179,7 @@ const getTransactionDescription = (transaction: any): string => {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <Button className="bg-purple-600 hover:bg-purple-700">
                       <Settings className="h-4 w-4 mr-2" />
                       Manage Rights
@@ -1226,7 +1208,7 @@ const getTransactionDescription = (transaction: any): string => {
               <CardContent>
                 <div className="space-y-6">
                   {/* NFT Statistics */}
-                  <div className="grid md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                     <div className="bg-gradient-to-br from-purple-600/20 to-purple-500/10 p-4 rounded-lg border border-purple-500/20">
                       <div className="text-2xl font-bold text-white">12</div>
                       <div className="text-sm text-purple-400">NFTs Minted</div>
@@ -1312,7 +1294,7 @@ const getTransactionDescription = (transaction: any): string => {
                     {/* NFT Collection */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold text-white mb-4">Your NFT Collection</h3>
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                      <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                         {[
                           { 
                             title: "Unreleased Track - 'Midnight Dreams'", 
@@ -1393,7 +1375,7 @@ const getTransactionDescription = (transaction: any): string => {
                   {/* NFT Marketplace Integration */}
                   <div className="bg-gray-700/30 p-4 rounded-lg">
                     <h3 className="text-lg font-semibold text-white mb-3">Marketplace Integration</h3>
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4">
                       <div>
                         <div className="text-sm text-gray-400 mb-1">Active Listings</div>
                         <div className="text-2xl font-bold text-white">15</div>
@@ -1417,7 +1399,7 @@ const getTransactionDescription = (transaction: any): string => {
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <img
-                src={currentTrack.coverImage || userProfile?.profileImage || "/placeholder.svg?height=48&width=48"}
+                src={currentTrack.coverImage || "/placeholder.svg?height=48&width=48"}
                 alt={currentTrack.title}
                 className="w-12 h-12 rounded-lg object-cover"
               />
