@@ -1,5 +1,3 @@
-// Centralized shared constants for the app
-
 export const GENRES: string[] = [
   "Afrobeat",
   "Afro-fusion",

@@ -1,13 +1,11 @@
 import { NFTModel, Rarity, TrackModel, TransactionModel, TxKind, TxStatus, UserModel, UserType } from './types'
 
-// Helpers
 export function variantToKey<T extends Record<string, unknown>>(v: T): keyof T {
   return Object.keys(v)[0] as keyof T
 }
 
 export function optToUndef<T>(o: [] | [T] | undefined | null): T | undefined {
   if (!o) return undefined
-  // Candid Opt is encoded as [] or [T]
   return (Array.isArray(o) && (o as any).length > 0) ? (o as any)[0] : undefined
 }
 
