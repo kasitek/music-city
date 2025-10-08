@@ -14,12 +14,10 @@ export default function BecomeArtistPage() {
     try {
       setStatus("")
       setLoading(true)
-      // Ensure signed in (prefer existing session)
       if (!user) {
         try {
           await loginWithII()
         } catch {
-          // fallback to NFID if II blocked/cancelled
           await loginWithNFID()
         }
       }

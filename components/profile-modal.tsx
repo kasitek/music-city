@@ -27,11 +27,11 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
       if (ts === null || ts === undefined) return ''
       const n = typeof ts === 'bigint' ? Number(ts) : Number(ts)
       if (!isFinite(n) || n <= 0) return ''
-      // Unit inference: seconds, ms, or ns
+      
       let ms = n
-      if (n < 1e11) { // likely seconds
+      if (n < 1e11) { 
         ms = n * 1000
-      } else if (n > 1e13) { // likely nanoseconds
+      } else if (n > 1e13) { 
         ms = Math.floor(n / 1e6)
       }
       const d = new Date(ms)

@@ -1,4 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
@@ -33,7 +32,6 @@ next-env.d.ts
 lib/ic/canister.ts
 lib/ic/idl.d.ts
 lib/ic/idl.js
-lib/ic/storage.ts
 
-#claude-code README.md
-.claude/
+
+

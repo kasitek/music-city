@@ -1,3 +1,10 @@
+import type { ActorSubclass } from '@dfinity/agent'
+import { createActor, shouldFetchRootKey } from './agent'
+import type { _SERVICE } from '../../src/declarations/music_city_backend/music_city_backend.did'
+import type { Identity } from '@dfinity/agent'
+import { backendCanisterId } from '../../hooks/constants/canisters-config'
+import { host as configuredHost } from '../../hooks/constants/urls'
+
 export async function updateTrack(params: { trackId: number | bigint; title?: string; genre?: string; description?: string }) {
   const a = await getActor();
   const opt = <T,>(v: T | undefined): [] | [T] => (v === undefined ? [] : [v]);
@@ -13,19 +20,12 @@ export async function deleteTrack(trackId: number | bigint) {
   const a = await getActor();
   return a.deleteTrack(BigInt(trackId as any));
 }
-import type { ActorSubclass } from '@dfinity/agent'
-import { createActor, shouldFetchRootKey } from './agent'
-import type { _SERVICE } from '../../src/declarations/music_city_backend/music_city_backend.did'
-import type { Identity } from '@dfinity/agent'
-import { backendCanisterId } from '../../hooks/constants/canisters-config'
-import { host as configuredHost } from '../../hooks/constants/urls'
 
 let actorPromise: Promise<ActorSubclass<_SERVICE>> | null = null
 let currentIdentity: Identity | undefined
 
 export function setIdentity(identity?: Identity) {
   currentIdentity = identity
-  // reset so next call builds an actor with the new identity
   actorPromise = null
 }
 
@@ -46,7 +46,6 @@ async function getActor(): Promise<ActorSubclass<_SERVICE>> {
       fetchRootKey: shouldFetch,
       identity,
     }).catch(async (error) => {
-      // Reset and try again without identity as fallback
       return createActor<_SERVICE>({
         canisterId,
         host,
@@ -58,7 +57,6 @@ async function getActor(): Promise<ActorSubclass<_SERVICE>> {
   return actorPromise
 }
 
-// User APIs
 export async function registerUser(params: {
   displayName: string
   userType: { artist?: null; fan?: null }
@@ -194,29 +192,6 @@ export async function unfollow(artistPrincipalText: string) {
   return a.unfollow(Principal.fromText(artistPrincipalText))
 }
 
-// NFTs
-// Note: mintNFT not implemented in backend canister IDL
-// export async function mintNFT(...) { /* implement when backend supports it */ }
-
-// NFT functionality not yet implemented in backend canister
-// TODO: Implement these functions when NFT support is added to the backend
-
-// export async function purchaseNFT(id: number | bigint) {
-//   const a = await getActor()
-//   return a.purchaseNFT(BigInt(id as any))
-// }
-
-// export async function listNFTs() {
-//   const a = await getActor()
-//   return a.listNFTs()
-// }
-
-// export async function getNFT(id: number | bigint) {
-//   const a = await getActor()
-//   return a.getNFT(BigInt(id as any))
-// }
-
-// Transactions
 export async function myTransactions() {
   const a = await getActor()
   return a.myTransactions()

@@ -55,17 +55,9 @@ export default function ArtistsPage() {
       setLoading(true)
       setError(null)
       try {
-        // Reset actor cache to ensure fresh connection
         resetActor()
-        console.log('[Artists] Attempting to load artists from backend...')
-        console.log('[Artists] Environment check:', {
-          NEXT_PUBLIC_DFX_NETWORK: process.env.NEXT_PUBLIC_DFX_NETWORK,
-          NEXT_PUBLIC_IC_HOST: process.env.NEXT_PUBLIC_IC_HOST,
-          NEXT_PUBLIC_MUSIC_CITY_BACKEND_CANISTER_ID: process.env.NEXT_PUBLIC_MUSIC_CITY_BACKEND_CANISTER_ID
-        })
 
         if (owner) {
-          // Detail view: load specific artist and their tracks
           const { getUser, listTracks } = await import("@/lib/ic/backend")
           const uOpt = await getUser(owner)
           const u = (Array.isArray(uOpt) ? uOpt[0] : uOpt) as any | undefined
@@ -80,14 +72,12 @@ export default function ArtistsPage() {
           const mine = allTracks.filter(t => String(t.artist) === String(owner))
           setTracks(mine)
         } else {
-          // Index view: list all artists + aggregate likes/streams from tracks
           const res = await listArtists()
           if (!mounted) return
           const all: UserModel[] = (res || []).map((u: any) => fromCandidUser(u))
           const uniqueArtists = Array.from(new Map(all.map((a: UserModel) => [String(a.owner).toLowerCase(), a])).values())
           setArtists(uniqueArtists)
 
-          // Build per-artist stats from tracks
           try {
             const tr = await (await import('@/lib/ic/backend')).listTracks()
             if (!mounted) return
@@ -107,7 +97,7 @@ export default function ArtistsPage() {
         if (!mounted) return
         console.error('[Artists] Error loading artists:', e)
         const msg = e?.message || String(e)
-        // Common local dev issue: agent didn't fetch root key or wrong host
+
         if (msg.includes('node signatures') || msg.includes('certificate') || msg.includes('IC0503')) {
           setError(
             'Query failed certificate validation. Ensure NEXT_PUBLIC_DFX_NETWORK=local and NEXT_PUBLIC_IC_HOST=http://127.0.0.1:4943 are set, the local replica is running (dfx start), and canister IDs match your local deploy.'
@@ -123,7 +113,6 @@ export default function ArtistsPage() {
     return () => { mounted = false }
   }, [owner])
 
-  // Initialize follow state from localStorage for the signed-in user
   useEffect(() => {
     try {
       const pid = principalId ? String(principalId) : null
@@ -138,12 +127,10 @@ export default function ArtistsPage() {
     } catch {}
   }, [principalId, artists.length])
 
-  // Listen for follow changes from other pages/tabs and refresh the index
   useEffect(() => {
     if (owner) return // only care on index grid
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'mc_follow_changed') {
-        // Trigger a lightweight refresh of the artist list and per-artist stats
         (async () => {
           try {
             const res = await listArtists()

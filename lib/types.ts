@@ -1,5 +1,3 @@
-// Shared domain types mirroring the canister IDL shapes, adapted for ergonomic UI usage
-
 export type UserType = 'artist' | 'fan'
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 export type TxKind = 'stream' | 'tip' | 'nft_purchase' | 'royalty'

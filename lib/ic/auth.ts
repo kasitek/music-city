@@ -23,7 +23,7 @@ export async function isAuthenticated(): Promise<boolean> {
     return ok
   } catch (e) {
     console.warn('Authentication check failed, clearing auth state:', e)
-    // Clear any stale authentication state
+
     currentIdentity = null
     try {
       const client = await getAuthClient()
@@ -36,16 +36,14 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 function getIIProvider(): string | undefined {
-  // Always use explicit override if provided
+
   if (process.env.NEXT_PUBLIC_II_PROVIDER) return process.env.NEXT_PUBLIC_II_PROVIDER
   
   const net = process.env.NEXT_PUBLIC_DFX_NETWORK
   if (!net || net === 'local') {
-    // For local development without local II, use production II
-    // This allows us to use prod II with local backend for development
+    
     return 'https://identity.ic0.app'
   }
-  // For ic/mainnet, let auth-client default to identity.ic0.app by returning undefined
   return undefined
 }
 
@@ -58,7 +56,6 @@ export async function loginInternetIdentity(): Promise<Identity> {
       currentIdentity = client.getIdentity()
     },
     onError: (err) => {
-      // Normalize cancel error; caller can decide to ignore
       const msg = (err as any)?.message || String(err)
       if (msg?.includes('User closed the modal')) return
       console.warn('II login error', err)

@@ -376,49 +376,68 @@ export default function ArtistDashboard() {
       setUploadProgress(0)
       setUploadMessage("Uploading audio file... 0%")
 
-      // 1. Upload the audio file to Motoko storage bucket in chunks
       let audioAssetId = null;
       try {
         const audioBuffer = await file.arrayBuffer();
         const audioBytes = new Uint8Array(audioBuffer);
-        const chunkSize = 1024 * 1024; // 1MB
+        const chunkSize = 1024 * 1024;
         const totalChunks = Math.ceil(audioBytes.length / chunkSize);
         const assetId = BigInt(Date.now());
+        const { createActor, getDefaultHost } = await import("@/lib/ic/agent");
+        const { idlFactory } = await import("@/src/declarations/storage_bucket");
+        const { getCanisterId } = await import("@/hooks/constants/canisters-config");
+        
+        type StorageService = {
+          put_chunk: (assetId: bigint, chunkIndex: bigint, chunk: Uint8Array) => Promise<{ ok: boolean } | { err: string }>;
+          commit_batch: (assetId: bigint, totalChunks: bigint, contentType: string, totalSize: bigint) => Promise<{ ok: boolean } | { err: string }>;
+        };
+        
+        const bucketActor = await createActor<StorageService>({
+          canisterId: getCanisterId('storage_bucket'),
+          host: getDefaultHost(),
+          idlFactoryOverride: idlFactory
+        });
+
         for (let i = 0; i < totalChunks; i++) {
           const start = i * chunkSize;
           const end = Math.min(start + chunkSize, audioBytes.length);
           const chunk = audioBytes.slice(start, end);
-          await uploadBlobToBucket(undefined, assetId, BigInt(i), chunk);
+          
+          const chunkResult = await bucketActor.put_chunk(assetId, BigInt(i), chunk);
+          if ('err' in chunkResult) {
+            throw new Error(`Chunk upload failed: ${chunkResult.err}`);
+          }
+          
           const percent = Math.round(((i + 1) / totalChunks) * 100)
           setUploadProgress(percent)
           setUploadMessage(`Uploading audio file... ${percent}%`)
         }
-        // Commit the batch
-        const commitResult = await createStorageAsset(
+        
+        const commitResult = await bucketActor.commit_batch(
           assetId,
-          totalChunks,
+          BigInt(totalChunks),
           file.type,
-          file.size
+          BigInt(file.size)
         );
-        if (commitResult) {
+        if ('ok' in commitResult && commitResult.ok) {
           audioAssetId = assetId;
           setUploadMessage("Audio uploaded (100%). Creating track record...")
+        } else if ('err' in commitResult) {
+          throw new Error(`Failed to commit audio upload: ${commitResult.err}`);
         } else {
           throw new Error("Failed to commit audio upload");
         }
       } catch (uploadError: any) {
-        console.warn('Audio upload failed, creating track without audio asset:', uploadError);
-        setUploadMessage("Creating track record...");
+        setUploadMessage(`Audio upload failed: ${uploadError?.message || uploadError}. Creating track record...`);
       }
 
-      // 2. Create the track record in the backend
       const trackResult = await createTrack({
         title: title.trim(),
-        duration: "3:30", // default duration
+        duration: "3:30",
         genre: genre.trim() || "Music",
-        coverImage: "", // no cover image for now
-        audioUrl: "", // no direct audio URL
-        price: 0, // free tracks
+        coverImage: "",
+        audioUrl: "",
+        price: 0,
         releaseDate: new Date().toISOString(),
         description: description.trim() || ""
       });
@@ -428,35 +447,31 @@ export default function ArtistDashboard() {
       const track = trackResult.ok;
       setUploadMessage("Track created. Linking audio asset...");
 
-      // 3. Link the audio asset to the track if upload was successful
       if (audioAssetId && track.id) {
         try {
           const setAssetsResult = await setTrackAssets({
             trackId: Number(track.id),
             audioAssetId: audioAssetId,
-            imageAssetId: null // no image asset yet
+            imageAssetId: null
           });
           if ('err' in setAssetsResult) {
-            console.warn('Failed to link audio asset:', setAssetsResult.err);
+            throw new Error(setAssetsResult.err);
           }
         } catch (linkError) {
-          console.warn('Failed to link audio asset:', linkError);
+          throw new Error(`Failed to link audio asset: ${linkError}`);
         }
       }
 
-  setUploadMessage("Track published successfully! 🎵");
-  setUploadProgress(0)
-  setUploading(false)
-  // Reset form
-  setFile(null);
-  setTitle("");
-  setArtistName("");
-  setGenre("");
-  setDescription("");
-  // Refresh tracks list
-  await fetchTracks();
+      setUploadMessage("Track published successfully! 🎵");
+      setUploadProgress(0)
+      setUploading(false)
+      setFile(null);
+      setTitle("");
+      setArtistName("");
+      setGenre("");
+      setDescription("");
+      await fetchTracks();
     } catch (error: any) {
-      console.error('Upload error:', error);
       const errorMsg = error?.message || String(error);
       if (errorMsg.includes('certificate') || errorMsg.includes('signature')) {
         setUploadMessage("Connection issue with IC network. Please try again later.");
