@@ -17,7 +17,7 @@ module {
     isVerified : Bool;
     followers : Nat;
     following : Nat;
-    balance : Nat; // native token units
+    balance : Nat; 
     joinedTimestamp : Nat64;
     birthDate : ?Text;
   };
@@ -25,24 +25,22 @@ module {
   public type MusicTrack = {
     id : Nat;
     title : Text;
-    artist : Principal; // owner principal
+    artist : Principal;
     duration : Text;
     genre : Text;
     coverImage : Text;
     audioUrl : Text;
-    // Optional asset references managed by storage canisters
     audioAssetId : ?Nat;
     imageAssetId : ?Nat;
     plays : Nat;
     likes : Nat;
-    price : Nat; // per-stream/pay price in token units
+    price : Nat; 
     releaseDate : Text;
     description : Text;
     createdTimestamp : Nat64;
   };
 
   public type TransactionType = { #tip; #royalty };
-
   public type ApplicationTransaction = {
     id : Nat;
     txType : TransactionType;
@@ -53,7 +51,6 @@ module {
     metadata : ?Text;
   };
 
-  // Legacy type aliases for backward compatibility
   public type UserType = ApplicationUserType;
   public type User = ApplicationUser;
   public type Track = MusicTrack;

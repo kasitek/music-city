@@ -244,7 +244,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
               </div>
             )}
 
-            {/* Step 2: Basic Info */}
             {step === 2 && (
               <div className="space-y-6">
                 <div>
@@ -378,7 +377,6 @@ export default function OnboardingModal({ walletAddress, onComplete, onClose }: 
               </div>
             )}
 
-            {/* Step 3: Preferences */}
             {step === 3 && (
               <div className="space-y-6">
                 <div>
