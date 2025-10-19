@@ -181,7 +181,7 @@ export default function DiscoverPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-4">Discover Music</h1>
-          <p className="text-gray-400 mb-6">Explore the best African music and discover new artists</p>
+          <p className="text-gray-400 mb-6">Explore the best World music and discover new artists</p>
 
           {/* Search */}
           <div className="relative max-w-md">

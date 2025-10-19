@@ -115,7 +115,7 @@ export default function StreamingPage() {
 
   const loadAndPlay = async (track: TrackModel, opts?: { setAsQueueFrom?: 'trending' | 'recent' | 'single' }) => {
     try {
-      if (!isAuthenticated) { router.push('/auth'); return }
+      if (!isAuthenticated) { router.push('/auth'); return; }
       setCurrentTrack(track)
       // Resolve artist display name for Now Playing
       try {
@@ -164,7 +164,8 @@ export default function StreamingPage() {
         toast.error("Audio bytes empty or unavailable")
         return
       }
-      const blob = new Blob([u8], { type: asset?.contentType || "audio/mpeg" })
+      // Ensure we provide an ArrayBuffer-backed ArrayBufferView to Blob (TypeScript expects ArrayBuffer)
+      const blob = new Blob([new Uint8Array(u8)], { type: asset?.contentType || "audio/mpeg" })
       const url = URL.createObjectURL(blob)
       // Revoke old URL
       if (audioUrl) URL.revokeObjectURL(audioUrl)

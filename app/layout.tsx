@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Music City - Decentralized Music Platform for Africa",
+  title: "Music City - Decentralized Music Platform for the World",
   description: "A blockchain-powered music streaming platform that ensures artists receive fair royalties directly",
   generator: "Gerald.dev",
   icons: { icon: "/favicon.png" },
