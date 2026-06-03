@@ -1,14 +1,9 @@
 # music-city
+
+Music City is a space for music-driven experiences, artist activity, and community features. As the project grows, Stella blockchain will be part of the foundation for smart contracts and onchain activity, keeping the door open for ownership, rewards, and other native web3 flows without making the app feel overly technical.
+
+## Getting started
+
 npm install
 
-# Start the local replica
-
-dfx generate
-dfx start --clean --background
-dfx deploy
-dfx canister call storage_index setBucket '(principal "uzt4z-lp777-77774-qaabq-cai")'
-
-
-
-#frontend
 npm run dev
