@@ -4,6 +4,6 @@ Music City is a space for music-driven experiences, artist activity, and communi
 
 ## Getting started
 
-npm install
+pnpm install
 
-npm run dev
+pnpm run dev
