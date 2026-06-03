@@ -4,58 +4,58 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --background: 0 0% 2%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 141 73% 42%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 141 73% 42%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 141 73% 42%;
+    --chart-1: 141 73% 42%;
+    --chart-2: 0 0% 86%;
+    --chart-3: 35 92% 58%;
+    --chart-4: 196 75% 58%;
+    --chart-5: 0 84% 64%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 0 0% 2%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 0 0% 9%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 0 0% 9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 141 73% 42%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 12%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 141 73% 42%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 141 73% 42%;
+    --chart-1: 141 73% 42%;
+    --chart-2: 0 0% 86%;
+    --chart-3: 35 92% 58%;
+    --chart-4: 196 75% 58%;
+    --chart-5: 0 84% 64%;
   }
 }
 
@@ -64,6 +64,104 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(29, 185, 84, 0.1) 0%, rgba(5, 5, 5, 0.96) 260px),
+    #050505;
+}
+
+/* Global Music City skin: remap the old purple/blue/gray utility palette to the app-wide streaming theme. */
+:where(.bg-gray-900, .bg-slate-900) {
+  background-color: #050505 !important;
+}
+
+:where(.bg-gray-800, .bg-gray-800\/50, .bg-gray-800\/60, .bg-gray-800\/95, .bg-slate-800) {
+  background-color: #181818 !important;
+}
+
+:where(.bg-gray-700, .bg-gray-700\/30, .bg-gray-700\/50, .bg-gray-700\/60, .bg-slate-700) {
+  background-color: #242424 !important;
+}
+
+:where(.hover\:bg-gray-800:hover, .hover\:bg-gray-900\/50:hover, .hover\:bg-gray-700:hover, .hover\:bg-gray-700\/50:hover) {
+  background-color: #2a2a2a !important;
+}
+
+:where(.border-gray-800, .border-gray-700, .border-gray-600, .border-slate-700) {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+:where(.text-gray-500, .text-gray-400, .text-slate-400) {
+  color: #a7a7a7 !important;
+}
+
+:where(.text-gray-300, .text-gray-200, .text-slate-300) {
+  color: #d4d4d4 !important;
+}
+
+:where(.bg-purple-600, .bg-purple-700, .bg-blue-600, .bg-indigo-600) {
+  background-color: #1db954 !important;
+  color: #000 !important;
+}
+
+:where(.hover\:bg-purple-600:hover, .hover\:bg-purple-700:hover, .hover\:bg-blue-700:hover, .hover\:bg-purple-600\/40:hover) {
+  background-color: #1ed760 !important;
+  color: #000 !important;
+}
+
+:where(.text-purple-500, .text-purple-400, .text-purple-300, .text-blue-500, .text-blue-400, .text-blue-300, .text-indigo-500) {
+  color: #1db954 !important;
+}
+
+:where(.border-purple-600, .border-purple-500, .border-blue-600, .border-blue-500, .hover\:border-purple-600:hover, .hover\:border-purple-600\/50:hover, .hover\:border-purple-500\/50:hover) {
+  border-color: #1db954 !important;
+}
+
+:where(.bg-purple-600\/10, .bg-purple-600\/20, .bg-purple-600\/30, .bg-purple-500\/10, .bg-blue-600\/20, .bg-blue-500\/10) {
+  background-color: rgba(29, 185, 84, 0.14) !important;
+}
+
+:where(.border-purple-600\/30, .border-purple-500\/20, .border-blue-500\/20) {
+  border-color: rgba(29, 185, 84, 0.36) !important;
+}
+
+:where(.data-\[state\=active\]\:bg-purple-600[data-state="active"], .data-\[state\=active\]\:bg-background[data-state="active"]) {
+  background-color: #1db954 !important;
+  color: #000 !important;
+}
+
+:where(.from-purple-900\/20, .from-purple-600\/20, .from-purple-600\/30, .from-purple-500\/10, .from-blue-500\/10, .from-blue-600\/20) {
+  --tw-gradient-from: rgba(29, 185, 84, 0.18) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(29, 185, 84, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+:where(.via-gray-900) {
+  --tw-gradient-to: rgba(18, 18, 18, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #121212 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+:where(.to-purple-950, .to-blue-950\/20, .to-blue-600\/20, .to-blue-500\/0, .to-purple-500\/0, .to-purple-500\/10) {
+  --tw-gradient-to: #050505 var(--tw-gradient-to-position) !important;
+}
+
+:where(input, textarea, select, .bg-background) {
+  background-color: #121212 !important;
+  color: #fff !important;
+}
+
+:where(input, textarea, select)::placeholder {
+  color: #8f8f8f !important;
+}
+
+:where(.shadow-sm, .shadow-xl, .shadow-2xl) {
+  box-shadow: none !important;
 }

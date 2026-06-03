@@ -73,7 +73,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
   }, [isAuthenticated])
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-md border-b border-gray-800">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -85,7 +85,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
               height={32}
               className="h-8 w-8"
             />
-            <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+            <span className="text-xl font-bold text-white">
               Music City
             </span>
           </Link>
@@ -95,8 +95,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
             {isArtist && (
               <Link 
                 href="/dashboard" 
-                className={`text-gray-300 hover:text-white transition-colors ${
-                  currentPage === 'dashboard' ? 'text-purple-400' : ''
+                className={`text-zinc-300 hover:text-white transition-colors ${
+                  currentPage === 'dashboard' ? 'text-[#1DB954]' : ''
                 }`}
               >
                 Dashboard
@@ -104,32 +104,32 @@ export default function Navigation({ currentPage }: NavigationProps) {
             )}
             <Link 
               href="/discover" 
-              className={`text-gray-300 hover:text-white transition-colors ${
-                currentPage === 'discover' ? 'text-purple-400' : ''
+              className={`text-zinc-300 hover:text-white transition-colors ${
+                currentPage === 'discover' ? 'text-[#1DB954]' : ''
               }`}
             >
               Discover
             </Link>
             <Link 
               href="/stream" 
-              className={`text-gray-300 hover:text-white transition-colors ${
-                currentPage === 'stream' ? 'text-purple-400' : ''
+              className={`text-zinc-300 hover:text-white transition-colors ${
+                currentPage === 'stream' ? 'text-[#1DB954]' : ''
               }`}
             >
               Stream
             </Link>
             <Link 
               href="/artists" 
-              className={`text-gray-300 hover:text-white transition-colors ${
-                currentPage === 'artists' ? 'text-purple-400' : ''
+              className={`text-zinc-300 hover:text-white transition-colors ${
+                currentPage === 'artists' ? 'text-[#1DB954]' : ''
               }`}
             >
               Artists
             </Link>
             <Link 
               href="/marketplace" 
-              className={`text-gray-300 hover:text-white transition-colors ${
-                currentPage === 'marketplace' ? 'text-purple-400' : ''
+              className={`text-zinc-300 hover:text-white transition-colors ${
+                currentPage === 'marketplace' ? 'text-[#1DB954]' : ''
               }`}
             >
               Marketplace
@@ -142,7 +142,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
               variant="ghost"
               size="icon"
               aria-label="Toggle theme"
-              className="text-gray-300 hover:text-white"
+              className="text-zinc-300 hover:bg-white/10 hover:text-white"
               onClick={() => setTheme((resolvedTheme === 'dark' ? 'light' : 'dark'))}
             >
               {mounted ? (
@@ -157,7 +157,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
             </Button>
             {isAuthenticated && principalId ? (
               <div className="flex items-center space-x-4">
-                <div className="text-sm text-gray-300">
+                <div className="rounded-full bg-white/10 px-3 py-1 text-sm text-zinc-200">
                   <span className="font-medium">{balance}</span> MCC
                 </div>
                 <DropdownMenu>
@@ -165,29 +165,29 @@ export default function Navigation({ currentPage }: NavigationProps) {
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={sessionData?.profileImage || "/placeholder.svg"} alt={displayLabel} />
-                        <AvatarFallback className="bg-purple-600 text-white">
+                        <AvatarFallback className="bg-[#1DB954] text-black">
                           {displayInitial}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56 bg-gray-800 border-gray-700" align="end" forceMount>
+                  <DropdownMenuContent className="w-56 border-white/10 bg-[#181818] text-white" align="end" forceMount>
                     <div className="flex flex-col space-y-1 p-2">
                       <p className="text-sm font-medium text-white">{displayLabel}</p>
-                      <p className="text-xs text-gray-400 capitalize">{sessionData?.userType}</p>
+                      <p className="text-xs text-zinc-400 capitalize">{sessionData?.userType}</p>
                     </div>
-                    <DropdownMenuSeparator className="bg-gray-700" />
+                    <DropdownMenuSeparator className="bg-white/10" />
                     {isArtist && (
                       <DropdownMenuItem asChild>
-                        <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                        <Link href="/dashboard" className="text-zinc-300 hover:text-white">
                           Dashboard
                         </Link>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => setProfileOpen(true)} className="text-gray-300 focus:text-white">
+                    <DropdownMenuItem onClick={() => setProfileOpen(true)} className="text-zinc-300 focus:text-white">
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator className="bg-gray-700" />
+                    <DropdownMenuSeparator className="bg-white/10" />
                     <DropdownMenuItem onClick={handleLogout} className="text-red-400 hover:text-red-300">
                       Logout
                     </DropdownMenuItem>
@@ -195,7 +195,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
                 </DropdownMenu>
               </div>
             ) : (
-              <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Button asChild className="rounded-full bg-[#1DB954] font-bold text-black hover:bg-[#1ed760]">
                 <Link href="/auth">Sign In</Link>
               </Button>
             )}
@@ -203,7 +203,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
 
           {/* Mobile menu button */}
           <div className="md:hidden">
-            <Button variant="ghost" size="sm" onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-gray-300">
+            <Button variant="ghost" size="sm" onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-zinc-300 hover:bg-white/10 hover:text-white">
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
           </div>
@@ -212,13 +212,13 @@ export default function Navigation({ currentPage }: NavigationProps) {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-2 bg-gray-800 rounded-lg mt-2">
+            <div className="mt-2 space-y-2 rounded-lg border border-white/10 bg-[#181818] px-2 pb-3 pt-2">
               <div className="flex items-center justify-end px-1">
                 <Button
                   variant="ghost"
                   size="icon"
                   aria-label="Toggle theme"
-                  className="text-gray-300 hover:text-white"
+                  className="text-zinc-300 hover:bg-white/10 hover:text-white"
                   onClick={() => setTheme((resolvedTheme === 'dark' ? 'light' : 'dark'))}
                 >
                   {mounted ? (
@@ -235,8 +235,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
               {isArtist && (
                 <Link
                   href="/dashboard"
-                  className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
-                    currentPage === 'dashboard' ? 'text-purple-400' : ''
+                  className={`block px-3 py-2 text-zinc-300 hover:text-white transition-colors ${
+                    currentPage === 'dashboard' ? 'text-[#1DB954]' : ''
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -245,8 +245,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
               )}
               <Link
                 href="/discover"
-                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
-                  currentPage === 'discover' ? 'text-purple-400' : ''
+                className={`block px-3 py-2 text-zinc-300 hover:text-white transition-colors ${
+                  currentPage === 'discover' ? 'text-[#1DB954]' : ''
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -254,8 +254,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
               </Link>
               <Link
                 href="/stream"
-                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
-                  currentPage === 'stream' ? 'text-purple-400' : ''
+                className={`block px-3 py-2 text-zinc-300 hover:text-white transition-colors ${
+                  currentPage === 'stream' ? 'text-[#1DB954]' : ''
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -263,8 +263,8 @@ export default function Navigation({ currentPage }: NavigationProps) {
               </Link>
               <Link
                 href="/artists"
-                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
-                  currentPage === 'artists' ? 'text-purple-400' : ''
+                className={`block px-3 py-2 text-zinc-300 hover:text-white transition-colors ${
+                  currentPage === 'artists' ? 'text-[#1DB954]' : ''
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -272,34 +272,34 @@ export default function Navigation({ currentPage }: NavigationProps) {
               </Link>
               <Link
                 href="/marketplace"
-                className={`block px-3 py-2 text-gray-300 hover:text-white transition-colors ${
-                  currentPage === 'marketplace' ? 'text-purple-400' : ''
+                className={`block px-3 py-2 text-zinc-300 hover:text-white transition-colors ${
+                  currentPage === 'marketplace' ? 'text-[#1DB954]' : ''
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Marketplace
               </Link>
-              <div className="border-t border-gray-700 pt-2">
+              <div className="border-t border-white/10 pt-2">
                 {isAuthenticated && principalId ? (
                   <div className="space-y-2">
                     <div className="px-3 py-2">
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={sessionData?.profileImage || "/placeholder.svg"} alt={displayLabel} />
-                          <AvatarFallback className="bg-purple-600 text-white text-sm">
+                          <AvatarFallback className="bg-[#1DB954] text-sm text-black">
                             {displayInitial}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="text-sm font-medium text-white">{displayLabel}</div>
-                          <div className="text-xs text-gray-400">{balance} MCC</div>
+                          <div className="text-xs text-zinc-400">{balance} MCC</div>
                         </div>
                       </div>
                     </div>
                     {isArtist && (
                       <Link
                         href="/dashboard"
-                        className="block px-3 py-2 text-gray-300 hover:text-white transition-colors"
+                        className="block px-3 py-2 text-zinc-300 hover:text-white transition-colors"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         Dashboard
@@ -313,7 +313,7 @@ export default function Navigation({ currentPage }: NavigationProps) {
                     </button>
                   </div>
                 ) : (
-                  <Button asChild className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                  <Button asChild className="w-full rounded-full bg-[#1DB954] font-bold text-black hover:bg-[#1ed760]">
                     <Link href="/auth" onClick={() => setIsMenuOpen(false)}>Sign In</Link>
                   </Button>
                 )}
