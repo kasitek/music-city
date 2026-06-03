@@ -1,53 +1,54 @@
 
 export { idlFactory as backendIDL } from "../../src/declarations/music_city_backend";
+import productionCanisterIds from "../../canister_ids.json";
+import localCanisterIds from "../../public/canister_ids.json";
 
-//FIX ME : Add NEXT_PUBLIC_ENVIRONMENT to the .env with either "local" or "ic"
-const network = process.env.NEXT_PUBLIC_ENVIRONMENT || "local";
+type Env = "ic" | "local";
+
+const requestedNetwork = process.env.NEXT_PUBLIC_ENVIRONMENT as Env | undefined;
+const network: Env = requestedNetwork || (process.env.VERCEL ? "ic" : "local");
 
 interface CanisterConfigType {
   [key: string]: {
-    [env: string]: string;
+    [env: string]: string | undefined;
   };
 }
 
-let prodConfig: CanisterConfigType = {};
-let localConfig: CanisterConfigType = {};
+const canisterIdsByNetwork: Record<Env, CanisterConfigType> = {
+  ic: productionCanisterIds,
+  local: localCanisterIds,
+};
 
-try {
-  prodConfig = require('../../canister_ids.json');
-} catch (error) {
-  console.warn('Production canister config not found, using fallback');
-}
+const fallbackCanisterIds: CanisterConfigType = {
+  internet_identity: {
+    ic: "rdmx6-jaaaa-aaaaa-aaadq-cai",
+    local: "rdmx6-jaaaa-aaaaa-aaadq-cai",
+  },
+};
 
-try {
-  if (network === "local") {
-    localConfig = require('../../.dfx/local/canister_ids.json');
-  }
-} catch (error) {
-  console.warn('Local canister config not found, using fallback');
-}
+const envCanisterOverrides: Record<string, string | undefined> = {
+  internet_identity: process.env.NEXT_PUBLIC_INTERNET_IDENTITY_CANISTER_ID,
+  music_city_backend: process.env.NEXT_PUBLIC_MUSIC_CITY_BACKEND_CANISTER_ID,
+  storage_bucket: process.env.NEXT_PUBLIC_STORAGE_BUCKET_CANISTER_ID,
+  storage_index: process.env.NEXT_PUBLIC_STORAGE_INDEX_CANISTER_ID,
+};
 
 export function getCanisterId(key: string): string {
-  if (network === "ic") {
-    const config: CanisterConfigType = prodConfig;
-    if (config[key]) {
-      return config[key]['ic'];
-    } else {
-      console.error(`Canister ID for key "${key}" not found in production config.`);
-      return "";
-    }
-  } else {
-    const config: CanisterConfigType = localConfig;
-    if (config[key]) {
-      return config[key]['local'];
-    } else {
-      console.error(`Canister ID for key "${key}" not found in local configuration.`);
-      return "";
-    }
+  const envOverride = envCanisterOverrides[key];
+  if (envOverride) {
+    return envOverride;
   }
-}
 
-type Env = "ic" | "local";
+  const canisterId =
+    canisterIdsByNetwork[network]?.[key]?.[network] ||
+    fallbackCanisterIds[key]?.[network];
+  if (canisterId) {
+    return canisterId;
+  }
+
+  console.error(`Canister ID for key "${key}" not found in ${network} configuration.`);
+  return "";
+}
 
 
 interface CanisterConfig {
