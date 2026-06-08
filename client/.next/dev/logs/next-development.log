@@ -1,0 +1,8 @@
+{"timestamp":"00:00:01.614","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:15.750","source":"Server","level":"LOG","message":"○ Compiling / ..."}
+{"timestamp":"00:00:18.048","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:06:31.887","source":"Browser","level":"ERROR","message":"Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."}
+{"timestamp":"00:06:31.951","source":"Server","level":"ERROR","message":"[browser] \"Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template).\" \"\""}
+{"timestamp":"00:06:31.951","source":"Browser","level":"ERROR","message":"Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template). \"\""}
+{"timestamp":"00:08:20.984","source":"Server","level":"WARN","message":"⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload"}
+{"timestamp":"00:08:22.114","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}

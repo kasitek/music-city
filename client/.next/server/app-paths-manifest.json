@@ -1,0 +1,13 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/_global-error/page": "app/_global-error/page.js",
+  "/artists/page": "app/artists/page.js",
+  "/auth/page": "app/auth/page.js",
+  "/become-artist/page": "app/become-artist/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/discover/page": "app/discover/page.js",
+  "/marketplace/page": "app/marketplace/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
+  "/page": "app/page.js",
+  "/stream/page": "app/stream/page.js"
+}

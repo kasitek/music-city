@@ -1,0 +1,13 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/_global-error/page": "/_global-error",
+  "/artists/page": "/artists",
+  "/auth/page": "/auth",
+  "/become-artist/page": "/become-artist",
+  "/dashboard/page": "/dashboard",
+  "/discover/page": "/discover",
+  "/marketplace/page": "/marketplace",
+  "/onboarding/page": "/onboarding",
+  "/page": "/",
+  "/stream/page": "/stream"
+}

@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/become-artist/layout,_N_T_/become-artist/page,_N_T_/become-artist"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/become-artist/__PAGE__",
+    "/become-artist",
+    "/_index",
+    "/_head"
+  ]
+}

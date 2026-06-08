@@ -1,0 +1,6 @@
+1:"$Sreact.fragment"
+2:I[5566,["932","static/chunks/932-c66d03bb789f89f9.js","40","static/chunks/40-58a3e711165ea8a6.js","365","static/chunks/app/auth/page-ee0cc89f3aa4da45.js"],"AuthPanel"]
+3:I[761,[],"OutletBoundary"]
+4:"$Sreact.suspense"
+0:{"rsc":["$","$1","c",{"children":[["$","section",null,{"className":"py-16 sm:py-24","children":["$","div",null,{"className":"mx-auto w-full max-w-6xl px-4 sm:px-6","children":["$","div",null,{"className":"grid gap-10 lg:grid-cols-[1fr_420px]","children":[["$","div",null,{"className":"space-y-3","children":[["$","p",null,{"className":"text-sm font-medium uppercase tracking-[0.3em] text-emerald-400","children":"Authentication"}],["$","h1",null,{"className":"text-4xl font-semibold tracking-tight text-white sm:text-5xl","children":"Wallet sign-in now belongs to the server boundary."}],["$","p",null,{"className":"max-w-2xl text-base leading-7 text-slate-300 sm:text-lg","children":"The client only coordinates the flow. SEP-10 challenge creation, verification, and session issuance now live in the standalone backend."}]]}],["$","$L2",null,{}]]}]}]}],null,["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"1m3Igo2Le-OAAREXWfXoy"}
+5:null
