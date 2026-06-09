@@ -4,6 +4,7 @@ import type {
   TrackSummary,
   UploadSession,
 } from "@music-city/shared";
+import * as UpChunk from "@mux/upchunk";
 
 import { httpClient } from "@/lib/api/http-client";
 
@@ -19,6 +20,27 @@ export const uploadsApi = {
   },
 
   async uploadFile(uploadSession: UploadSession, file: File) {
+    if (uploadSession.provider === "mux") {
+      await new Promise<void>((resolve, reject) => {
+        const upload = UpChunk.createUpload({
+          endpoint: uploadSession.uploadUrl,
+          file,
+          chunkSize: 5120,
+          dynamicChunkSize: true,
+        });
+
+        upload.on("error", (error) => {
+          reject(error.detail ?? new Error("Mux upload failed"));
+        });
+
+        upload.on("success", () => {
+          resolve();
+        });
+      });
+
+      return undefined;
+    }
+
     const response = await fetch(uploadSession.uploadUrl, {
       method: uploadSession.method,
       headers: uploadSession.headers,

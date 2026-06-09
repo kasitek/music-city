@@ -42,9 +42,14 @@ export interface TrackSummary {
   streamMediaUrl?: string;
   masterStorageKey?: string;
   streamManifestKey?: string;
+  mediaProvider?: "local" | "mux";
   sourceFileName?: string;
   sourceContentType?: string;
   sourceSizeBytes?: number;
+  muxUploadId?: string;
+  muxAssetId?: string;
+  muxPlaybackId?: string;
+  muxAssetStatus?: "waiting" | "asset_created" | "ready" | "errored";
   playbackReady?: boolean;
   archiveStatus?: "not_requested" | "pending" | "ready" | "failed";
   createdAt?: string;

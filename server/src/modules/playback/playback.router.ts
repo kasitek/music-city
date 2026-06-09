@@ -31,7 +31,7 @@ playbackRouter.post(
     }
 
     response.status(201).json({
-      playbackSession: playbackService.createSession(input.trackId),
+      playbackSession: await playbackService.createSession(input.trackId),
     });
   }),
 );

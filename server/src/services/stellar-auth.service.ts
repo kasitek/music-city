@@ -1,4 +1,5 @@
 import { verifyChallengeSchema } from "@music-city/shared";
+import { randomBytes } from "node:crypto";
 import {
   Keypair,
   StrKey,
@@ -14,8 +15,8 @@ import { usersService } from "../modules/users/users.service.js";
 import { HttpError } from "../utils/http-error.js";
 
 const nonceForAccount = (account: string) => {
-  const payload = `${account}:${Date.now()}`;
-  return Buffer.from(payload).toString("base64");
+  const nonce = randomBytes(24).toString("base64url");
+  return `${account.slice(0, 8)}:${nonce}`;
 };
 
 export const stellarAuthService = {
@@ -48,7 +49,6 @@ export const stellarAuthService = {
           source: account,
         }),
       )
-      .setTimeout(300)
       .build();
 
     challenge.sign(signer);

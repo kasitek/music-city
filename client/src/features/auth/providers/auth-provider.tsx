@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const signedChallenge = await freighterWallet.signChallenge(
         challenge.transaction,
         walletAddress,
+        challenge.networkPassphrase,
       );
       const verifiedSession = await authApi.verifyChallenge({
         transaction: signedChallenge,

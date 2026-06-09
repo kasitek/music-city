@@ -1,6 +1,19 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { z } from "zod";
+
+const workspaceEnvPath = resolve(process.cwd(), "..", ".env");
+const localEnvPath = resolve(process.cwd(), ".env");
+
+if (existsSync(localEnvPath)) {
+  loadEnv({ path: localEnvPath });
+} else if (existsSync(workspaceEnvPath)) {
+  loadEnv({ path: workspaceEnvPath });
+} else {
+  loadEnv();
+}
 
 const envSchema = z.object({
   NODE_ENV: z
@@ -36,10 +49,12 @@ const envSchema = z.object({
   ARCHIVE_MASTER_KEY: z.string().optional(),
   ARCHIVE_REMOTE_UPLOAD_URL: z.string().optional(),
   ARCHIVE_REMOTE_UPLOAD_TOKEN: z.string().optional(),
-  MEDIA_PIPELINE_PROVIDER: z.enum(["local", "external"]).default("local"),
-  MEDIA_PIPELINE_INGEST_URL: z.string().optional(),
-  MEDIA_PIPELINE_API_TOKEN: z.string().optional(),
-  MEDIA_PIPELINE_WEBHOOK_SECRET: z.string().optional(),
+  MEDIA_PROVIDER: z.enum(["local", "mux"]).default("local"),
+  MUX_TOKEN_ID: z.string().optional(),
+  MUX_TOKEN_SECRET: z.string().optional(),
+  MUX_WEBHOOK_SECRET: z.string().optional(),
+  MUX_SIGNING_KEY: z.string().optional(),
+  MUX_PRIVATE_KEY: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

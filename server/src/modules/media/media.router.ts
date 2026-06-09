@@ -7,25 +7,29 @@ import { mediaService } from "./media.service.js";
 const mediaRouter = Router();
 
 mediaRouter.post(
-  "/webhooks/complete",
+  "/webhooks/mux",
   asyncHandler(async (request, response) => {
-    const secret = request.headers["x-media-webhook-secret"];
-
-    if (
-      !mediaService.verifyWebhook(
-        typeof secret === "string" ? secret : secret?.[0],
-      )
-    ) {
-      throw new HttpError(401, "Invalid media webhook secret");
+    if (!request.rawBody) {
+      throw new HttpError(400, "Webhook body is missing");
     }
 
+    const headers = new Headers();
+
+    for (const [key, value] of Object.entries(request.headers)) {
+      if (typeof value === "string") {
+        headers.set(key, value);
+      } else if (Array.isArray(value)) {
+        headers.set(key, value.join(","));
+      }
+    }
+
+    const event = await mediaService.unwrapMuxWebhook(request.rawBody, headers);
+    const track = await mediaService.handleMuxWebhook(event);
+
     response.json({
-      track: mediaService.completeTrack({
-        trackId: String(request.body.trackId),
-        runtime: request.body.runtime,
-        manifestUrl: request.body.manifestUrl,
-        mediaUrl: request.body.mediaUrl,
-      }),
+      received: true,
+      eventType: event.type,
+      track,
     });
   }),
 );

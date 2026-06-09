@@ -23,11 +23,11 @@ pnpm dev:client
 - persistent user profiles and artist listing
 - track creation
 - upload session creation
-- local file uploads or S3-compatible presigned upload mode
+- local uploads for development or direct uploads to Mux
 - upload completion that attaches media to the track
 - playback session creation
-- generated HLS-style manifest endpoint for uploaded audio
-- optional external media processing submission + completion webhook
+- Mux webhook-driven asset processing
+- Mux-signed HLS playback for audio or local fallback playback
 - local entitlement records and optional Stellar asset-based subscriber gate
 - encrypted archive generation with optional remote archive upload hook
 
@@ -46,14 +46,17 @@ Use `STORAGE_PROVIDER=s3` when you want R2, B2, S3, or another S3-compatible pro
 - `STORAGE_SECRET_ACCESS_KEY`
 - `STORAGE_PUBLIC_BASE_URL` if you want a fixed public/CDN base
 
-Use `MEDIA_PIPELINE_PROVIDER=external` when you want a managed transcoder. Then set:
+Use `MEDIA_PROVIDER=mux` when you want the production media path. Then set:
 
-- `MEDIA_PIPELINE_INGEST_URL`
-- `MEDIA_PIPELINE_API_TOKEN`
-- `MEDIA_PIPELINE_WEBHOOK_SECRET`
+- `MUX_TOKEN_ID`
+- `MUX_TOKEN_SECRET`
+- `MUX_WEBHOOK_SECRET`
+- `MUX_SIGNING_KEY`
+- `MUX_PRIVATE_KEY`
 
-The external service should accept a POST job payload and call back to:
+Mux should send webhooks to:
 
-- `POST /api/v1/media/webhooks/complete`
+- `POST /api/v1/media/webhooks/mux`
 
-with `trackId`, and optionally `runtime`, `manifestUrl`, and `mediaUrl`.
+The app uses Mux direct uploads, waits for Mux asset webhooks, stores the resulting
+Mux asset/playback IDs on the track, and issues short-lived playback URLs through the backend.

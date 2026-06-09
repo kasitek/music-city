@@ -10,8 +10,9 @@ export type CreatePlaybackSessionInput = z.infer<
 export interface PlaybackSession {
   id: string;
   trackId: string;
-  playbackUrl: string;
-  mediaUrl: string;
+  provider: "local" | "mux";
+  streamUrl: string;
+  playbackId?: string;
   token: string;
   expiresAt: string;
 }

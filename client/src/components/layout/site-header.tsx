@@ -1,14 +1,75 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Music2, Wallet } from "lucide-react";
+import { Download, LayoutDashboard, Music2, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { navigationItems } from "@/lib/constants/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { freighterWallet } from "@/features/auth/lib/freighter-wallet";
 
 export const SiteHeader = () => {
-  const { session, connectWallet, isLoading, logout } = useAuth();
+  const { session, connectWallet, isLoading, logout, error } = useAuth();
+  const [walletAvailable, setWalletAvailable] = useState<boolean>(false);
+  const [walletCheckComplete, setWalletCheckComplete] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkWallet = async () => {
+      console.log("[header] checking Freighter availability");
+      try {
+        const available = await freighterWallet.isAvailable();
+        console.log("[header] Freighter availability resolved", { available });
+
+        if (!cancelled) {
+          setWalletAvailable(available);
+          setWalletCheckComplete(true);
+        }
+      } catch (caughtError) {
+        console.error("[header] Freighter availability failed", caughtError);
+
+        if (!cancelled) {
+          setWalletAvailable(false);
+          setWalletCheckComplete(true);
+        }
+      }
+    };
+
+    void checkWallet();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const showInstallAction = useMemo(
+    () =>
+      !session &&
+      walletCheckComplete &&
+      (!walletAvailable ||
+        error?.includes("Freighter extension was not detected") ||
+        error?.includes("Freighter API is unavailable") ||
+        error?.includes("Freighter access request timed out")),
+    [error, session, walletAvailable, walletCheckComplete],
+  );
+
+  const handleWalletAction = () => {
+    console.log("[header] wallet action", {
+      showInstallAction,
+      walletAvailable,
+      walletCheckComplete,
+      isLoading,
+    });
+
+    if (showInstallAction) {
+      freighterWallet.openInstallPage();
+      return;
+    }
+
+    void connectWallet();
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/85 backdrop-blur">
@@ -60,11 +121,21 @@ export const SiteHeader = () => {
           ) : (
             <Button
               className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-              onClick={() => void connectWallet()}
-              disabled={isLoading}
+              onClick={handleWalletAction}
+              disabled={isLoading || !walletCheckComplete}
             >
-              <Wallet className="mr-2 h-4 w-4" />
-              {isLoading ? "Connecting" : "Connect Wallet"}
+              {showInstallAction ? (
+                <Download className="mr-2 h-4 w-4" />
+              ) : (
+                <Wallet className="mr-2 h-4 w-4" />
+              )}
+              {isLoading
+                ? "Connecting"
+                : !walletCheckComplete
+                  ? "Checking Wallet"
+                : showInstallAction
+                  ? "Install Wallet"
+                  : "Connect Wallet"}
             </Button>
           )}
         </div>

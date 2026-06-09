@@ -11,11 +11,15 @@ export type CreateUploadSessionInput = z.infer<typeof createUploadSessionSchema>
 export interface UploadSession {
   id: string;
   trackId: string;
-  storageKey: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  storageKey?: string;
+  remoteUploadId?: string;
   uploadUrl: string;
   method: "PUT";
   headers: Record<string, string>;
-  provider: "local" | "s3";
+  provider: "local" | "s3" | "mux";
   expiresAt: string;
 }
 

@@ -1,68 +1,95 @@
-import { env } from "../../config/env.js";
-import { HttpError } from "../../utils/http-error.js";
+import type Mux from "@mux/mux-node";
+
+import { muxService } from "../../services/mux.service.js";
 import { tracksService } from "../tracks/tracks.service.js";
 
+const formatRuntime = (seconds?: number) => {
+  if (!seconds || Number.isNaN(seconds)) {
+    return "Ready";
+  }
+
+  const totalSeconds = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(
+      remainingSeconds,
+    ).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+};
+
+const getTrackIdFromAsset = (data: { passthrough?: string }) => {
+  return data.passthrough ?? null;
+};
+
 export const mediaService = {
-  async submitTrack(trackId: string) {
-    const track = tracksService.getTrack(trackId);
-
-    if (!track?.masterStorageKey) {
-      throw new HttpError(404, "Track media is not available");
-    }
-
-    if (env.MEDIA_PIPELINE_PROVIDER !== "external") {
-      return track;
-    }
-
-    if (!env.MEDIA_PIPELINE_INGEST_URL) {
-      throw new HttpError(
-        500,
-        "MEDIA_PIPELINE_INGEST_URL is required for external media processing",
-      );
-    }
-
-    const response = await fetch(env.MEDIA_PIPELINE_INGEST_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(env.MEDIA_PIPELINE_API_TOKEN
-          ? { Authorization: `Bearer ${env.MEDIA_PIPELINE_API_TOKEN}` }
-          : {}),
-      },
-      body: JSON.stringify({
-        trackId: track.id,
-        title: track.title,
-        sourceUrl: track.playbackUrl,
-        storageKey: track.masterStorageKey,
-        artistId: track.artistId,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new HttpError(502, "External media pipeline submission failed");
-    }
-
-    return tracksService.markProcessing(track.id);
+  async unwrapMuxWebhook(body: string, headers: Headers) {
+    return muxService.unwrapWebhook(body, headers);
   },
 
-  verifyWebhook(secret?: string) {
-    if (!env.MEDIA_PIPELINE_WEBHOOK_SECRET) {
-      return true;
+  async handleMuxWebhook(event: Mux.Webhooks.UnwrapWebhookEvent) {
+    switch (event.type) {
+      case "video.upload.asset_created": {
+        const trackId = event.data.new_asset_settings?.passthrough ?? null;
+        const assetId = event.data.asset_id;
+
+        if (!trackId || !assetId) {
+          return null;
+        }
+
+        return tracksService.markMuxAssetCreated(trackId, {
+          muxUploadId: event.data.id,
+          muxAssetId: assetId,
+        });
+      }
+
+      case "video.asset.ready": {
+        const trackId = getTrackIdFromAsset(event.data);
+
+        if (!trackId) {
+          return null;
+        }
+
+        const playbackId = event.data.playback_ids?.[0]?.id;
+
+        return tracksService.markPlaybackReady(trackId, {
+          runtime: formatRuntime(event.data.duration),
+          muxAssetId: event.data.id,
+          muxPlaybackId: playbackId,
+        });
+      }
+
+      case "video.asset.errored": {
+        const trackId = getTrackIdFromAsset(event.data);
+
+        if (!trackId) {
+          return null;
+        }
+
+        const message =
+          event.data.errors?.messages?.[0] ??
+          event.data.errors?.type ??
+          "Mux processing failed";
+
+        return tracksService.markFailed(trackId, message);
+      }
+
+      case "video.upload.cancelled": {
+        const trackId = event.data.new_asset_settings?.passthrough ?? null;
+
+        if (!trackId) {
+          return null;
+        }
+
+        return tracksService.markFailed(trackId, "Upload cancelled");
+      }
+
+      default:
+        return null;
     }
-
-    return secret === env.MEDIA_PIPELINE_WEBHOOK_SECRET;
-  },
-
-  completeTrack(input: {
-    trackId: string;
-    runtime?: string;
-    manifestUrl?: string;
-    mediaUrl?: string;
-  }) {
-    return tracksService.markPlaybackReady(input.trackId, {
-      runtime: input.runtime ?? "Ready",
-      streamManifestUrl: input.manifestUrl,
-      streamMediaUrl: input.mediaUrl,
-    });
   },
 };

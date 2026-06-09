@@ -52,6 +52,7 @@ export const tracksService = {
       plays: 0,
       likes: 0,
       description: parsed.description,
+      mediaProvider: "local",
       playbackReady: false,
       archiveStatus: "not_requested",
       createdAt: timestamp,
@@ -77,8 +78,36 @@ export const tracksService = {
       ...existing,
       status: "uploaded",
       runtime: "Uploaded",
+      mediaProvider: "local",
       masterStorageKey: payload.masterStorageKey,
       streamManifestKey: `virtual/${trackId}/master.m3u8`,
+      sourceFileName: payload.sourceFileName,
+      sourceContentType: payload.sourceContentType,
+      sourceSizeBytes: payload.sourceSizeBytes,
+      playbackReady: false,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  attachMuxUpload(trackId: string, payload: {
+    muxUploadId: string;
+    sourceFileName: string;
+    sourceContentType: string;
+    sourceSizeBytes: number;
+  }) {
+    const existing = tracksRepository.findById(trackId);
+
+    if (!existing) {
+      throw new Error("Track not found");
+    }
+
+    return tracksRepository.upsert({
+      ...existing,
+      status: "processing",
+      runtime: "Uploading to Mux",
+      mediaProvider: "mux",
+      muxUploadId: payload.muxUploadId,
+      muxAssetStatus: "waiting",
       sourceFileName: payload.sourceFileName,
       sourceContentType: payload.sourceContentType,
       sourceSizeBytes: payload.sourceSizeBytes,
@@ -97,6 +126,7 @@ export const tracksService = {
     return tracksRepository.upsert({
       ...existing,
       status: "processing",
+      muxAssetStatus: existing.muxAssetStatus ?? "asset_created",
       updatedAt: new Date().toISOString(),
     });
   },
@@ -105,6 +135,8 @@ export const tracksService = {
     runtime: string;
     streamManifestUrl?: string;
     streamMediaUrl?: string;
+    muxAssetId?: string;
+    muxPlaybackId?: string;
   }) {
     const existing = tracksRepository.findById(trackId);
 
@@ -121,6 +153,48 @@ export const tracksService = {
         payload.streamMediaUrl ?? existing.playbackUrl ?? existing.streamMediaUrl,
       streamManifestUrl: payload.streamManifestUrl ?? existing.streamManifestUrl,
       streamMediaUrl: payload.streamMediaUrl ?? existing.streamMediaUrl,
+      muxAssetId: payload.muxAssetId ?? existing.muxAssetId,
+      muxPlaybackId: payload.muxPlaybackId ?? existing.muxPlaybackId,
+      muxAssetStatus: payload.muxAssetId ? "ready" : existing.muxAssetStatus,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  markMuxAssetCreated(trackId: string, payload: {
+    muxUploadId?: string;
+    muxAssetId: string;
+  }) {
+    const existing = tracksRepository.findById(trackId);
+
+    if (!existing) {
+      throw new Error("Track not found");
+    }
+
+    return tracksRepository.upsert({
+      ...existing,
+      status: "processing",
+      mediaProvider: "mux",
+      runtime: "Processing in Mux",
+      muxUploadId: payload.muxUploadId ?? existing.muxUploadId,
+      muxAssetId: payload.muxAssetId,
+      muxAssetStatus: "asset_created",
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  markFailed(trackId: string, runtime = "Processing failed") {
+    const existing = tracksRepository.findById(trackId);
+
+    if (!existing) {
+      throw new Error("Track not found");
+    }
+
+    return tracksRepository.upsert({
+      ...existing,
+      status: "failed",
+      runtime,
+      muxAssetStatus: existing.mediaProvider === "mux" ? "errored" : existing.muxAssetStatus,
+      playbackReady: false,
       updatedAt: new Date().toISOString(),
     });
   },

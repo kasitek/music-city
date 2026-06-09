@@ -10,10 +10,12 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@music-city/shared": "workspace:*",
+    "@mux/mux-audio-react": "^0.16.0",
+    "@mux/upchunk": "^3.5.0",
     "@radix-ui/react-avatar": "latest",
     "@radix-ui/react-dropdown-menu": "latest",
     "@radix-ui/react-label": "latest",

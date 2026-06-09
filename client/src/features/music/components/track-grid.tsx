@@ -1,7 +1,8 @@
- "use client";
+"use client";
 
 import { useState } from "react";
 import type { TrackSummary } from "@music-city/shared";
+import MuxAudio from "@mux/mux-audio-react";
 import { Play } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,8 @@ import { useAuth } from "@/hooks/use-auth";
 export const TrackGrid = ({ tracks }: { tracks: TrackSummary[] }) => {
   const { session } = useAuth();
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [streamProvider, setStreamProvider] = useState<"local" | "mux" | null>(null);
 
   if (tracks.length === 0) {
     return (
@@ -64,13 +66,30 @@ export const TrackGrid = ({ tracks }: { tracks: TrackSummary[] }) => {
                   track.id,
                 );
                 setActiveTrackId(track.id);
-                setAudioUrl(playbackSession.mediaUrl);
+                setStreamUrl(playbackSession.streamUrl);
+                setStreamProvider(playbackSession.provider);
               }}
             >
               Play
             </Button>
-            {activeTrackId === track.id && audioUrl ? (
-              <audio controls className="w-full" src={audioUrl} />
+            {activeTrackId === track.id && streamUrl ? (
+              streamProvider === "mux" ? (
+                <MuxAudio
+                  className="w-full"
+                  src={streamUrl}
+                  type="hls"
+                  streamType="on-demand"
+                  preferPlayback="mse"
+                  controls
+                  metadata={{
+                    video_id: track.id,
+                    video_title: track.title,
+                    viewer_user_id: session?.walletAddress ?? "anonymous",
+                  }}
+                />
+              ) : (
+                <audio controls className="w-full" src={streamUrl} />
+              )
             ) : null}
           </CardContent>
         </Card>

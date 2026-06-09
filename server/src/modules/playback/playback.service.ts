@@ -1,6 +1,7 @@
 import type { PlaybackSession } from "@music-city/shared";
 
 import { createId } from "../../services/id.service.js";
+import { muxService } from "../../services/mux.service.js";
 import { tokenService } from "../../services/token.service.js";
 import { storageService } from "../../services/storage.service.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -11,17 +12,39 @@ const expiresInMinutes = (minutes: number) =>
   new Date(Date.now() + minutes * 60 * 1000).toISOString();
 
 export const playbackService = {
-  createSession(trackId: string) {
+  async createSession(trackId: string) {
+    const track = tracksService.getTrack(trackId);
+
+    if (!track?.playbackReady) {
+      throw new HttpError(404, "Track media is not available");
+    }
+
     const id = createId("ply");
     const token = tokenService.issuePlaybackToken({ playbackSessionId: id, trackId });
-    const session = {
-      id,
-      trackId,
-      token,
-      playbackUrl: `/api/v1/playback/sessions/${id}/manifest.m3u8?token=${encodeURIComponent(token)}`,
-      mediaUrl: `/api/v1/playback/sessions/${id}/media?token=${encodeURIComponent(token)}`,
-      expiresAt: expiresInMinutes(5),
-    } satisfies PlaybackSession;
+    let session: PlaybackSession;
+
+    if (track.mediaProvider === "mux" && track.muxPlaybackId) {
+      const streamUrl = await muxService.createPlaybackUrl(track.muxPlaybackId);
+
+      session = {
+        id,
+        trackId,
+        provider: "mux",
+        streamUrl,
+        playbackId: track.muxPlaybackId,
+        token,
+        expiresAt: expiresInMinutes(15),
+      };
+    } else {
+      session = {
+        id,
+        trackId,
+        provider: "local",
+        streamUrl: `/api/v1/playback/sessions/${id}/media?token=${encodeURIComponent(token)}`,
+        token,
+        expiresAt: expiresInMinutes(5),
+      };
+    }
 
     return playbackRepository.upsert(session);
   },
@@ -80,6 +103,11 @@ export const playbackService = {
 
   getMediaRedirect(sessionId: string, token: string) {
     const session = this.getSession(sessionId, token);
+
+    if (session.provider === "mux") {
+      return session.streamUrl;
+    }
+
     const track = tracksService.getTrack(session.trackId);
 
     if (!track?.playbackReady) {

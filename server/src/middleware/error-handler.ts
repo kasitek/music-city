@@ -8,6 +8,8 @@ export const errorHandler = (
   response: Response,
   _next: NextFunction,
 ) => {
+  console.error("[server][error]", error);
+
   if (error instanceof HttpError) {
     response.status(error.statusCode).json({ error: error.message });
     return;

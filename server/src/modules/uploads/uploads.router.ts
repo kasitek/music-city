@@ -25,7 +25,7 @@ uploadsRouter.post(
     }
 
     response.status(201).json({
-      uploadSession: uploadsService.createSession(request.body),
+      uploadSession: await uploadsService.createSession(request.body),
     });
   }),
 );
