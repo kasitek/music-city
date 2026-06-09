@@ -1,13 +1,15 @@
 
 # dependencies
-/node_modules
+**/node_modules/
 
-# next.js
-/.next/
-/out/
-
-# production
-/build
+# frontend / build output
+**/.next/
+**/out/
+**/build/
+**/dist/
+**/coverage/
+**/.turbo/
+**/.cache/
 
 # debug
 npm-debug.log*
@@ -24,6 +26,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# runtime data
+server/data/
+server/server/data/
 
 # dfx local Internet Computer state
 /.dfx/

@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST="{\"features/auth/lib/freighter-wallet.ts -> @stellar/freighter-api\":{\"id\":\"features/auth/lib/freighter-wallet.ts -> @stellar/freighter-api\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_pnpm_stellar_freighter-api_6_0_1_node_modules_stellar_freight-c51de8.js\"]}}"

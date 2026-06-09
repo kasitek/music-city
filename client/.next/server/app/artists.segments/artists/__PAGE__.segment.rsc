@@ -1,6 +1,0 @@
-1:"$Sreact.fragment"
-2:I[199,["932","static/chunks/932-c66d03bb789f89f9.js","205","static/chunks/app/artists/page-e8d1d10a001047d6.js"],"ArtistsOverview"]
-3:I[761,[],"OutletBoundary"]
-4:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[["$","section",null,{"className":"py-16 sm:py-24","children":["$","div",null,{"className":"mx-auto w-full max-w-6xl px-4 sm:px-6","children":["$","div",null,{"className":"space-y-12","children":[["$","div",null,{"className":"space-y-3","children":[["$","p",null,{"className":"text-sm font-medium uppercase tracking-[0.3em] text-emerald-400","children":"Artists"}],["$","h1",null,{"className":"text-4xl font-semibold tracking-tight text-white sm:text-5xl","children":"Artist pages should become simple consumers of backend profile data."}],["$","p",null,{"className":"max-w-2xl text-base leading-7 text-slate-300 sm:text-lg","children":"Follow relationships, release lists, and fan access policy move out of the frontend tangle and into modular services."}]]}],["$","$L2",null,{}]]}]}]}],null,["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"1m3Igo2Le-OAAREXWfXoy"}
-5:null
