@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
+import { getAuthToken, useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useRouter } from "next/navigation";
-import { Download, Shield, Wallet } from "lucide-react";
+import { Shield, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { freighterWallet } from "../lib/freighter-wallet";
+import { clientEnv } from "@/lib/config/env";
 
 export const AuthPanel = () => {
   const router = useRouter();
   const { connectWallet, error, isLoading, session } = useAuth();
-  const [walletAvailable, setWalletAvailable] = useState<boolean>(false);
-  const [walletCheckComplete, setWalletCheckComplete] = useState(false);
+  const dynamicConfigured = clientEnv.isDynamicConfigured;
+  const { sdkHasLoaded, user, primaryWallet, showAuthFlow } = useDynamicContext();
+  const dynamicToken = dynamicConfigured ? getAuthToken() : null;
+  const lastCredential = user?.verifiedCredentials?.find(
+    (credential) => credential.id === user.lastVerifiedCredentialId,
+  );
 
   useEffect(() => {
     if (!session) {
@@ -23,84 +28,19 @@ export const AuthPanel = () => {
     router.push(session.profileComplete ? "/dashboard" : "/onboarding");
   }, [router, session]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkWallet = async () => {
-      console.log("[auth][panel] checking Freighter availability");
-      try {
-        const available = await freighterWallet.isAvailable();
-        console.log("[auth][panel] Freighter availability resolved", { available });
-
-        if (!cancelled) {
-          setWalletAvailable(available);
-          setWalletCheckComplete(true);
-        }
-      } catch (caughtError) {
-        console.error("[auth][panel] Freighter availability failed", caughtError);
-
-        if (!cancelled) {
-          setWalletAvailable(false);
-          setWalletCheckComplete(true);
-        }
-      }
-    };
-
-    void checkWallet();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const showInstallAction = useMemo(
-    () =>
-      walletCheckComplete &&
-      (!walletAvailable ||
-        error?.includes("Freighter extension was not detected") ||
-        error?.includes("Freighter API is unavailable") ||
-        error?.includes("Freighter access request timed out")),
-    [error, walletAvailable, walletCheckComplete],
-  );
-
-  console.log("[auth][panel] render state", {
-    walletAvailable,
-    walletCheckComplete,
-    hasError: Boolean(error),
-    error,
-    showInstallAction,
-    isLoading,
-    hasSession: Boolean(session),
-  });
-
-  const handlePrimaryAction = () => {
-    console.log("[auth][panel] primary action", {
-      showInstallAction,
-      isLoading,
-    });
-
-    if (showInstallAction) {
-      console.log("[auth][panel] redirecting to Freighter download");
-      freighterWallet.openInstallPage();
-      return;
-    }
-
-    void connectWallet();
-  };
-
   return (
     <Card className="border-white/10 bg-white/5 text-white shadow-none">
       <CardHeader className="space-y-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
-          <Wallet className="h-5 w-5" />
+          <Sparkles className="h-5 w-5" />
         </span>
-        <CardTitle className="text-2xl">Stellar wallet authentication</CardTitle>
+        <CardTitle className="text-2xl">Social login with an embedded Stellar wallet</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <p className="text-sm leading-7 text-slate-300">
-          The new auth path is server-backed. The wallet provides identity
-          proof, then the Node server issues the session used by the rest of the
-          product.
+          Users log in with social or email first. Dynamic provisions the
+          embedded Stellar wallet, and the backend still owns the application
+          session.
         </p>
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
@@ -113,15 +53,13 @@ export const AuthPanel = () => {
               Connected as {session.walletAddress}. Redirecting to your
               workspace.
             </p>
-          ) : showInstallAction ? (
-            <p>
-              Freighter is not installed in this browser. Install it first,
-              then refresh this page and connect your Stellar wallet.
-            </p>
-          ) : !walletCheckComplete ? (
-            <p>Checking for Freighter wallet...</p>
+          ) : dynamicConfigured ? (
+            <p>Ready. Continue with Google, email, or another enabled social provider.</p>
           ) : (
-            <p>No session yet. Connect a wallet to start the SEP-10 flow.</p>
+            <p>
+              Dynamic is not configured yet. Set `NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID`
+              before using social login.
+            </p>
           )}
         </div>
 
@@ -133,28 +71,30 @@ export const AuthPanel = () => {
 
         <Button
           className="w-full bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-          onClick={handlePrimaryAction}
-          disabled={isLoading || !walletCheckComplete}
+          onClick={() => void connectWallet()}
+          disabled={isLoading || !dynamicConfigured}
         >
-          {isLoading
-            ? "Connecting..."
-            : !walletCheckComplete
-              ? "Checking wallet..."
-            : showInstallAction
-              ? "Install Wallet"
-              : "Connect Freighter"}
+          {isLoading ? "Opening login..." : "Continue with Social Login"}
         </Button>
 
-        {showInstallAction ? (
-          <Button
-            variant="outline"
-            className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
-            onClick={() => freighterWallet.openInstallPage()}
-          >
-            <Download className="h-4 w-4" />
-            Download Wallet
-          </Button>
-        ) : null}
+        <div className="fixed bottom-4 right-4 z-[70] max-w-sm rounded-2xl border border-white/10 bg-slate-950/95 p-4 text-xs text-slate-300 shadow-2xl">
+          <div className="mb-2 font-medium text-emerald-300">Dynamic debug</div>
+          <div>sdkHasLoaded: {String(sdkHasLoaded)}</div>
+          <div>showAuthFlow: {String(showAuthFlow)}</div>
+          <div>dynamicUser: {user ? "present" : "missing"}</div>
+          <div>primaryWallet: {primaryWallet?.address ?? "missing"}</div>
+          <div>dynamicToken: {dynamicToken ? "present" : "missing"}</div>
+          <div>lastCredentialFormat: {lastCredential?.format ?? "unknown"}</div>
+          <div>
+            lastCredentialProvider:{" "}
+            {lastCredential?.format === "oauth"
+              ? (lastCredential.oauthProvider ?? "unknown")
+              : lastCredential?.format === "blockchain"
+                ? (lastCredential.walletProvider ?? "unknown")
+                : "n/a"}
+          </div>
+          <div>appSession: {session ? "present" : "missing"}</div>
+        </div>
       </CardContent>
     </Card>
   );

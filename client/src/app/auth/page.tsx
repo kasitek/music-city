@@ -9,8 +9,8 @@ export default function AuthPage() {
         <div className="grid gap-10 lg:grid-cols-[1fr_420px]">
           <PageHero
             eyebrow="Authentication"
-            title="Wallet sign-in now belongs to the server boundary."
-            description="The client only coordinates the flow. SEP-10 challenge creation, verification, and session issuance now live in the standalone backend."
+            title="Social login now provisions the Stellar wallet for the user."
+            description="Dynamic handles the social sign-in and embedded wallet. The backend still verifies identity and issues the application session used by the rest of the product."
           />
           <AuthPanel />
         </div>

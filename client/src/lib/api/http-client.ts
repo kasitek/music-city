@@ -26,7 +26,14 @@ export const httpClient = {
     });
 
     if (!response.ok) {
-      throw new ApiClientError("Request failed", response.status);
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+
+      throw new ApiClientError(
+        payload?.message ?? "Request failed",
+        response.status,
+      );
     }
 
     return (await response.json()) as T;
@@ -44,7 +51,14 @@ export const httpClient = {
     });
 
     if (!response.ok) {
-      throw new ApiClientError("Request failed", response.status);
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+
+      throw new ApiClientError(
+        payload?.message ?? "Request failed",
+        response.status,
+      );
     }
 
     return (await response.json()) as T;
@@ -62,7 +76,14 @@ export const httpClient = {
     });
 
     if (!response.ok) {
-      throw new ApiClientError("Request failed", response.status);
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+
+      throw new ApiClientError(
+        payload?.message ?? "Request failed",
+        response.status,
+      );
     }
 
     return (await response.json()) as T;

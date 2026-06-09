@@ -12,9 +12,9 @@ const pillars = [
   },
   {
     icon: Coins,
-    title: "Stellar-native auth",
+    title: "Embedded Stellar auth",
     description:
-      "Wallet authentication is aligned with SEP-10 instead of frontend-only session hacks.",
+      "Social login provisions the Stellar wallet, while the backend still owns the application session.",
   },
   {
     icon: Waves,

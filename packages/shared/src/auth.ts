@@ -27,3 +27,8 @@ export const verifyChallengeSchema = z.object({
   transaction: z.string().min(1),
 });
 export type VerifyChallengeRequest = z.infer<typeof verifyChallengeSchema>;
+
+export const dynamicSessionRequestSchema = z.object({
+  walletAddress: z.string().optional(),
+});
+export type DynamicSessionRequest = z.infer<typeof dynamicSessionRequestSchema>;

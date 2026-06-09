@@ -42,6 +42,8 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   LOCAL_MEDIA_ROOT: z.string().default("server/data/media"),
   PLAYBACK_TOKEN_SECRET: z.string().default("music-city-playback-secret"),
+  DYNAMIC_ENVIRONMENT_ID: z.string().optional(),
+  DYNAMIC_JWKS_URL: z.string().optional(),
   STELLAR_HORIZON_URL: z.string().default("https://horizon-testnet.stellar.org"),
   STELLAR_ACCESS_ASSET_CODE: z.string().optional(),
   STELLAR_ACCESS_ASSET_ISSUER: z.string().optional(),
