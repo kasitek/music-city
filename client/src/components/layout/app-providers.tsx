@@ -19,7 +19,6 @@ const dispatchDynamicEvent = (name: string) => {
     return;
   }
 
-  console.log("[auth][dynamic] provider event", { name });
   window.dispatchEvent(new CustomEvent(name));
 };
 

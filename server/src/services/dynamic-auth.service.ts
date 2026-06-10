@@ -61,14 +61,6 @@ const normalizeCredentialAddress = (credential: DynamicVerifiedCredential) =>
   credential.publicIdentifier ??
   "";
 
-const summarizeCredential = (credential: DynamicVerifiedCredential) => ({
-  chain: credential.chain ?? null,
-  address: normalizeCredentialAddress(credential) || null,
-  signInEnabled:
-    credential.sign_in_enabled ?? credential.signInEnabled ?? null,
-  walletName: credential.wallet_name ?? credential.walletName ?? null,
-});
-
 const isStellarCredential = (credential: DynamicVerifiedCredential) =>
   credential.chain?.toLowerCase().includes("stellar") &&
   normalizeCredentialAddress(credential).length > 0;
@@ -79,10 +71,6 @@ const findStellarWalletAddress = (
 ) => {
   const credentials =
     payload.verified_credentials ?? payload.verifiedCredentials ?? [];
-  console.log(
-    "[server][dynamic] verified credentials",
-    credentials.map(summarizeCredential),
-  );
   const stellarCredentials = credentials.filter(isStellarCredential);
   const stellarAddresses = stellarCredentials.map(normalizeCredentialAddress);
 

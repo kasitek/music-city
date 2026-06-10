@@ -97,60 +97,8 @@ const delay = (ms: number) =>
     window.setTimeout(resolve, ms);
   });
 
-const decodeJwtPayload = (token: string) => {
-  const [, payload] = token.split(".");
-
-  if (!payload) {
-    return null;
-  }
-
-  try {
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(
-      normalized.length + ((4 - (normalized.length % 4)) % 4),
-      "=",
-    );
-
-    return JSON.parse(window.atob(padded)) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-};
-
 const isStellarAddress = (value?: string | null) =>
   typeof value === "string" && value.startsWith("G");
-
-const summarizeCredential = (credential: unknown) => {
-  if (!credential || typeof credential !== "object") {
-    return credential;
-  }
-
-  const record = credential as Record<string, unknown>;
-
-  return {
-    chain:
-      typeof record.chain === "string"
-        ? record.chain
-        : typeof record.network === "string"
-          ? record.network
-          : null,
-    address:
-      typeof record.address === "string"
-        ? record.address
-        : typeof record.public_identifier === "string"
-          ? record.public_identifier
-          : typeof record.publicIdentifier === "string"
-            ? record.publicIdentifier
-            : null,
-    format: typeof record.format === "string" ? record.format : null,
-    signInEnabled:
-      typeof record.sign_in_enabled === "boolean"
-        ? record.sign_in_enabled
-        : typeof record.signInEnabled === "boolean"
-          ? record.signInEnabled
-          : null,
-  };
-};
 
 const findStellarCredentialAddress = (
   user:
@@ -298,23 +246,6 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     primaryWalletRef.current = primaryWallet;
   }, [primaryWallet]);
 
-  useEffect(() => {
-    console.log("[auth][dynamic] context state", {
-      sdkHasLoaded,
-      showAuthFlow,
-      hasUser: Boolean(user),
-      hasUserWithMissingInfo: Boolean(userWithMissingInfo),
-      primaryWalletAddress: primaryWallet?.address ?? null,
-      userEmail: user?.email ?? userWithMissingInfo?.email ?? null,
-    });
-  }, [
-    primaryWallet?.address,
-    sdkHasLoaded,
-    showAuthFlow,
-    user,
-    userWithMissingInfo,
-  ]);
-
   const refreshSessionProfile = useCallback(async () => {
     if (!session?.token) {
       return;
@@ -342,15 +273,12 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
       const address = primaryWalletRef.current?.address;
 
       if (address) {
-        console.log("[auth][dynamic] wallet ready", { attempt, address });
         return address;
       }
 
-      console.log("[auth][dynamic] waiting for wallet", { attempt });
       await delay(DYNAMIC_SYNC_RETRY_DELAY_MS);
     }
 
-    console.warn("[auth][dynamic] wallet not available after retries");
     return null;
   }, []);
 
@@ -370,26 +298,21 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
       const token = getAuthToken();
 
       if (token) {
-        console.log("[auth][dynamic] token ready", { attempt });
         return token;
       }
 
-      console.log("[auth][dynamic] waiting for token", { attempt });
       await delay(DYNAMIC_SYNC_RETRY_DELAY_MS);
     }
 
-    console.warn("[auth][dynamic] token not available after retries");
     return null;
   }, []);
 
   const syncDynamicSession = useCallback(async () => {
     if (!sdkHasLoaded) {
-      console.log("[auth][dynamic] sync skipped: sdk not loaded");
       return;
     }
 
     if (syncInFlightRef.current) {
-      console.log("[auth][dynamic] sync skipped: already in flight");
       return;
     }
 
@@ -397,24 +320,14 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     const stellarCredentialAddress = findStellarCredentialAddress(currentUser);
 
     if (!currentUser) {
-      console.log("[auth][dynamic] sync skipped: no Dynamic user");
       setIsLoading(false);
       return;
     }
-
-    console.log("[auth][dynamic] sync start", {
-      userId: currentUser.userId,
-      email: currentUser.email,
-      hasPrimaryWallet: Boolean(primaryWalletRef.current?.address),
-      stellarCredentialAddress: stellarCredentialAddress ?? null,
-      hasSession: Boolean(session),
-    });
 
     if (userWithMissingInfo && !stellarCredentialAddress) {
       const message =
         "Dynamic login is incomplete. No Stellar wallet credential is present in the verified token yet.";
 
-      console.warn("[auth][dynamic] sync blocked", { message });
       setError(message);
       setIsLoading(false);
       return;
@@ -441,44 +354,8 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const decodedPayload = decodeJwtPayload(dynamicToken);
-    const summarizedVerifiedCredentials = Array.isArray(
-      decodedPayload?.verified_credentials,
-    )
-      ? decodedPayload.verified_credentials.map(summarizeCredential)
-      : Array.isArray(decodedPayload?.verifiedCredentials)
-        ? decodedPayload.verifiedCredentials.map(summarizeCredential)
-        : null;
-
-    console.log("[auth][dynamic] token claims", {
-      scope:
-        typeof decodedPayload?.scope === "string" ? decodedPayload.scope : null,
-      environmentId:
-        typeof decodedPayload?.environment_id === "string"
-          ? decodedPayload.environment_id
-          : typeof decodedPayload?.environmentId === "string"
-            ? decodedPayload.environmentId
-            : null,
-      verifiedAccount:
-        decodedPayload?.verified_account &&
-        typeof decodedPayload.verified_account === "object"
-          ? decodedPayload.verified_account
-          : null,
-      verifiedCredentials: summarizedVerifiedCredentials,
-    });
-    console.log(
-      "[auth][dynamic] token credentials json",
-      JSON.stringify(summarizedVerifiedCredentials, null, 2),
-    );
-
     const syncKey = `${currentUser.userId ?? currentUser.email ?? "user"}:${walletAddress}`;
     const requestedWalletAddress = resolveRequestedWalletAddress(walletAddress);
-    console.log("[auth][dynamic] sync prepared", {
-      syncKey,
-      requestedWalletAddress: requestedWalletAddress ?? null,
-      currentSessionWallet: session?.walletAddress ?? null,
-      lastSyncedKey: lastSyncedKeyRef.current,
-    });
 
     if (
       lastSyncedKeyRef.current === syncKey &&
@@ -489,9 +366,6 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (failedSyncKeyRef.current === syncKey) {
-      console.warn("[auth][dynamic] sync skipped after prior terminal failure", {
-        syncKey,
-      });
       setIsLoading(false);
       return;
     }
@@ -500,19 +374,11 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
 
     try {
-      console.log("[auth][dynamic] creating backend session", {
-        walletAddress,
-        requestedWalletAddress: requestedWalletAddress ?? null,
-      });
       const verifiedSession = await authApi.createDynamicSession(
         requestedWalletAddress ? { walletAddress: requestedWalletAddress } : {},
         dynamicToken,
       );
 
-      console.log("[auth][dynamic] backend session created", {
-        walletAddress: verifiedSession.walletAddress,
-        profileComplete: verifiedSession.profileComplete,
-      });
       setSession(verifiedSession);
       persistSession(verifiedSession);
       lastSyncedKeyRef.current = syncKey;
@@ -524,10 +390,6 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
           ? caughtError.message
           : "Social login session failed";
 
-      console.error("[auth][dynamic] backend session failed", {
-        message,
-        error: caughtError,
-      });
       if (
         message.includes("Requested Stellar wallet is not linked to this Dynamic user") ||
         message.includes("No Stellar wallet is linked to this account")
@@ -561,14 +423,12 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const handleAuthSuccess = () => {
-      console.log("[auth][dynamic] auth success event received");
       setError(null);
       setIsLoading(true);
       void syncDynamicSession();
     };
 
     const handleAuthStop = () => {
-      console.log("[auth][dynamic] auth flow stopped");
       setIsLoading(false);
     };
 
@@ -589,7 +449,6 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (user && primaryWallet?.address && !session) {
-      console.log("[auth][dynamic] detected existing Dynamic auth state");
       setIsLoading(true);
       void syncDynamicSession();
       return;
@@ -618,7 +477,6 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
   }, [clearSession, sdkHasLoaded, setIsLoading, showAuthFlow, user]);
 
   const connectWallet = useCallback(async () => {
-    console.log("[auth][dynamic] opening auth flow");
     setError(null);
     setIsLoading(true);
     setShowAuthFlow(true);
