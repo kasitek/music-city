@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { getAuthToken, useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useRouter } from "next/navigation";
 import { Shield, Sparkles } from "lucide-react";
 
@@ -14,11 +13,6 @@ export const AuthPanel = () => {
   const router = useRouter();
   const { connectWallet, error, isLoading, session } = useAuth();
   const dynamicConfigured = clientEnv.isDynamicConfigured;
-  const { sdkHasLoaded, user, primaryWallet, showAuthFlow } = useDynamicContext();
-  const dynamicToken = dynamicConfigured ? getAuthToken() : null;
-  const lastCredential = user?.verifiedCredentials?.find(
-    (credential) => credential.id === user.lastVerifiedCredentialId,
-  );
 
   useEffect(() => {
     if (!session) {
@@ -76,25 +70,6 @@ export const AuthPanel = () => {
         >
           {isLoading ? "Opening login..." : "Continue with Social Login"}
         </Button>
-
-        <div className="fixed bottom-4 right-4 z-[70] max-w-sm rounded-2xl border border-white/10 bg-slate-950/95 p-4 text-xs text-slate-300 shadow-2xl">
-          <div className="mb-2 font-medium text-emerald-300">Dynamic debug</div>
-          <div>sdkHasLoaded: {String(sdkHasLoaded)}</div>
-          <div>showAuthFlow: {String(showAuthFlow)}</div>
-          <div>dynamicUser: {user ? "present" : "missing"}</div>
-          <div>primaryWallet: {primaryWallet?.address ?? "missing"}</div>
-          <div>dynamicToken: {dynamicToken ? "present" : "missing"}</div>
-          <div>lastCredentialFormat: {lastCredential?.format ?? "unknown"}</div>
-          <div>
-            lastCredentialProvider:{" "}
-            {lastCredential?.format === "oauth"
-              ? (lastCredential.oauthProvider ?? "unknown")
-              : lastCredential?.format === "blockchain"
-                ? (lastCredential.walletProvider ?? "unknown")
-                : "n/a"}
-          </div>
-          <div>appSession: {session ? "present" : "missing"}</div>
-        </div>
       </CardContent>
     </Card>
   );

@@ -10,18 +10,25 @@ type DynamicVerifiedCredential = {
   address?: string;
   chain?: string;
   publicIdentifier?: string;
+  public_identifier?: string;
   email?: string;
   walletName?: string;
+  wallet_name?: string;
   signInEnabled?: boolean;
+  sign_in_enabled?: boolean;
 };
 
 type DynamicJwtPayload = JWTPayload & {
   alias?: string;
   email?: string;
   environmentId?: string;
+  environment_id?: string;
   scope?: string;
   verifiedCredentials?: DynamicVerifiedCredential[];
+  verified_credentials?: DynamicVerifiedCredential[];
 };
+
+const DYNAMIC_TOKEN_SCOPE = "user:basic";
 
 const getJwksUrl = () => {
   if (env.DYNAMIC_JWKS_URL) {
@@ -40,37 +47,65 @@ const getExpectedIssuer = () => {
     throw new HttpError(501, "Dynamic environment is not configured");
   }
 
-  return `app.dynamic.xyz/${env.DYNAMIC_ENVIRONMENT_ID}`;
+  return [
+    `app.dynamic.xyz/${env.DYNAMIC_ENVIRONMENT_ID}`,
+    `https://app.dynamic.xyz/${env.DYNAMIC_ENVIRONMENT_ID}`,
+    `app.dynamicauth.com/${env.DYNAMIC_ENVIRONMENT_ID}`,
+    `https://app.dynamicauth.com/${env.DYNAMIC_ENVIRONMENT_ID}`,
+  ];
 };
+
+const normalizeCredentialAddress = (credential: DynamicVerifiedCredential) =>
+  credential.address ??
+  credential.public_identifier ??
+  credential.publicIdentifier ??
+  "";
+
+const summarizeCredential = (credential: DynamicVerifiedCredential) => ({
+  chain: credential.chain ?? null,
+  address: normalizeCredentialAddress(credential) || null,
+  signInEnabled:
+    credential.sign_in_enabled ?? credential.signInEnabled ?? null,
+  walletName: credential.wallet_name ?? credential.walletName ?? null,
+});
+
+const isStellarCredential = (credential: DynamicVerifiedCredential) =>
+  credential.chain?.toLowerCase().includes("stellar") &&
+  normalizeCredentialAddress(credential).length > 0;
 
 const findStellarWalletAddress = (
   payload: DynamicJwtPayload,
   requestedWalletAddress?: string,
 ) => {
-  const credentials = payload.verifiedCredentials ?? [];
-  const stellarCredentials = credentials.filter(
-    (credential) =>
-      credential.chain?.toLowerCase() === "stellar" &&
-      credential.address &&
-      credential.signInEnabled !== false,
+  const credentials =
+    payload.verified_credentials ?? payload.verifiedCredentials ?? [];
+  console.log(
+    "[server][dynamic] verified credentials",
+    credentials.map(summarizeCredential),
   );
+  const stellarCredentials = credentials.filter(isStellarCredential);
+  const stellarAddresses = stellarCredentials.map(normalizeCredentialAddress);
 
   if (requestedWalletAddress) {
     const exactMatch = stellarCredentials.find(
-      (credential) => credential.address === requestedWalletAddress,
+      (credential) =>
+        normalizeCredentialAddress(credential).toLowerCase() ===
+        requestedWalletAddress.toLowerCase(),
     );
 
-    if (!exactMatch?.address) {
+    if (!exactMatch) {
       throw new HttpError(
         403,
-        "Requested Stellar wallet is not linked to this Dynamic user",
+        `Requested Stellar wallet is not linked to this Dynamic user. Token Stellar addresses: ${
+          stellarAddresses.length > 0 ? stellarAddresses.join(", ") : "none"
+        }`,
       );
     }
 
-    return exactMatch.address;
+    return normalizeCredentialAddress(exactMatch);
   }
 
-  const primary = stellarCredentials[0]?.address;
+  const primary = stellarAddresses[0];
 
   if (!primary) {
     throw new HttpError(403, "No Stellar wallet is linked to this account");
@@ -107,16 +142,26 @@ export const dynamicAuthService = {
       });
 
       payload = verified.payload as DynamicJwtPayload;
-    } catch {
-      throw new HttpError(401, "Invalid or expired Dynamic auth token");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "unknown verification failure";
+      throw new HttpError(
+        401,
+        `Invalid or expired Dynamic auth token: ${detail}`,
+      );
     }
 
-    if (payload.environmentId !== env.DYNAMIC_ENVIRONMENT_ID) {
+    const payloadEnvironmentId =
+      payload.environment_id ?? payload.environmentId;
+
+    if (payloadEnvironmentId !== env.DYNAMIC_ENVIRONMENT_ID) {
       throw new HttpError(401, "Dynamic auth token is for a different environment");
     }
 
-    if (!payload.scope?.split(" ").includes("user")) {
-      throw new HttpError(403, "Dynamic auth token is missing user scope");
+    if (!payload.scope?.split(" ").includes(DYNAMIC_TOKEN_SCOPE)) {
+      throw new HttpError(
+        403,
+        "Dynamic auth token is missing the user:basic scope required for a completed login",
+      );
     }
 
     const walletAddress = findStellarWalletAddress(payload, requestedWalletAddress);

@@ -1,7 +1,11 @@
 import { clientEnv } from "@/lib/config/env";
 
 export class ApiClientError extends Error {
-  constructor(message: string, public readonly status?: number) {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly detail?: string,
+  ) {
     super(message);
     this.name = "ApiClientError";
   }
@@ -17,6 +21,17 @@ const authHeaders = (token?: string): Record<string, string> => {
   };
 };
 
+type ErrorPayload = {
+  message?: string;
+  error?: string;
+  detail?: string;
+} | null;
+
+const buildApiClientError = (payload: ErrorPayload, status: number) => {
+  const message = payload?.message ?? payload?.error ?? "Request failed";
+  return new ApiClientError(message, status, payload?.detail);
+};
+
 export const httpClient = {
   async get<T>(path: string, token?: string): Promise<T> {
     const response = await fetch(`${clientEnv.apiBaseUrl}${path}`, {
@@ -26,14 +41,8 @@ export const httpClient = {
     });
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string }
-        | null;
-
-      throw new ApiClientError(
-        payload?.message ?? "Request failed",
-        response.status,
-      );
+      const payload = (await response.json().catch(() => null)) as ErrorPayload;
+      throw buildApiClientError(payload, response.status);
     }
 
     return (await response.json()) as T;
@@ -51,14 +60,8 @@ export const httpClient = {
     });
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string }
-        | null;
-
-      throw new ApiClientError(
-        payload?.message ?? "Request failed",
-        response.status,
-      );
+      const payload = (await response.json().catch(() => null)) as ErrorPayload;
+      throw buildApiClientError(payload, response.status);
     }
 
     return (await response.json()) as T;
@@ -76,14 +79,8 @@ export const httpClient = {
     });
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string }
-        | null;
-
-      throw new ApiClientError(
-        payload?.message ?? "Request failed",
-        response.status,
-      );
+      const payload = (await response.json().catch(() => null)) as ErrorPayload;
+      throw buildApiClientError(payload, response.status);
     }
 
     return (await response.json()) as T;
