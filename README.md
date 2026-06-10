@@ -1,9 +1,86 @@
 # music-city
 
-Music City is a space for music-driven experiences, artist activity, and community features. As the project grows, Stella blockchain will be part of the foundation for smart contracts and onchain activity, keeping the door open for ownership, rewards, and other native web3 flows without making the app feel overly technical.
+Music City is now organized as a small workspace:
+
+- `client`: Next.js frontend
+- `server`: Node.js + TypeScript + Express backend
+- `packages/shared`: shared types and schemas
+
+The active stack is Stellar-oriented. Old ICP/canister runtime code has been removed from the app path.
 
 ## Getting started
 
+```bash
 pnpm install
+cp .env.example .env
+pnpm dev:server
+pnpm dev:client
+```
 
-pnpm run dev
+## What works now
+
+- Stellar wallet auth flow scaffold with server-issued sessions
+- persistent user profiles and artist listing
+- track creation
+- upload session creation
+- local uploads for development or direct uploads to Mux
+- upload completion that attaches media to the track
+- playback session creation
+- Mux webhook-driven asset processing
+- Mux-signed HLS playback for audio or local fallback playback
+- local entitlement records and optional Stellar asset-based subscriber gate
+- encrypted archive generation with optional remote archive upload hook
+
+Server state persists to `server/data/*.json` by default.
+
+You can now switch the server to Postgres with:
+
+```bash
+docker compose -f docker-compose.postgres.yml up -d
+DATABASE_PROVIDER=postgres pnpm --filter server db:bootstrap
+DATABASE_PROVIDER=postgres pnpm dev:server
+```
+
+The bootstrap command initializes the Postgres schema and imports any existing
+JSON-backed development data into Postgres the first time you run it.
+
+## Service configuration
+
+Use `STORAGE_PROVIDER=local` for local development.
+
+Use `DATABASE_PROVIDER=postgres` when you want Postgres-backed app metadata, and set:
+
+- `DATABASE_URL`
+
+The current Postgres schema stores:
+
+- users
+- tracks
+- upload sessions
+- playback sessions
+- entitlements
+- archives
+
+Use `STORAGE_PROVIDER=s3` when you want R2, B2, S3, or another S3-compatible provider, and set:
+
+- `STORAGE_ENDPOINT`
+- `STORAGE_BUCKET`
+- `STORAGE_REGION`
+- `STORAGE_ACCESS_KEY_ID`
+- `STORAGE_SECRET_ACCESS_KEY`
+- `STORAGE_PUBLIC_BASE_URL` if you want a fixed public/CDN base
+
+Use `MEDIA_PROVIDER=mux` when you want the production media path. Then set:
+
+- `MUX_TOKEN_ID`
+- `MUX_TOKEN_SECRET`
+- `MUX_WEBHOOK_SECRET`
+- `MUX_SIGNING_KEY`
+- `MUX_PRIVATE_KEY`
+
+Mux should send webhooks to:
+
+- `POST /api/v1/media/webhooks/mux`
+
+The app uses Mux direct uploads, waits for Mux asset webhooks, stores the resulting
+Mux asset/playback IDs on the track, and issues short-lived playback URLs through the backend.

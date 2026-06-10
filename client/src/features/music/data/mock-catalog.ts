@@ -1,0 +1,73 @@
+import type { ArtistSummary, TrackSummary } from "@music-city/shared";
+
+export const mockTracks: TrackSummary[] = [
+  {
+    id: "trk_01",
+    title: "Midnight Run",
+    artistId: "art_01",
+    artistName: "Asha Vela",
+    genre: "Afro-fusion",
+    runtime: "3:24",
+    priceLabel: "0.75 XLM",
+    status: "published",
+    access: "public",
+    plays: 18400,
+    likes: 820,
+  },
+  {
+    id: "trk_02",
+    title: "Harbor Echoes",
+    artistId: "art_02",
+    artistName: "North Avenue",
+    genre: "Alternative",
+    runtime: "4:02",
+    priceLabel: "Premium unlock",
+    status: "published",
+    access: "subscribers",
+    plays: 8100,
+    likes: 410,
+  },
+  {
+    id: "trk_03",
+    title: "City After Rain",
+    artistId: "art_03",
+    artistName: "Moro Signal",
+    genre: "Amapiano",
+    runtime: "5:08",
+    priceLabel: "Subscriber",
+    status: "published",
+    access: "public",
+    plays: 24900,
+    likes: 1200,
+  },
+];
+
+export const mockArtists: ArtistSummary[] = [
+  {
+    id: "art_01",
+    walletAddress: "GASHAVELA000000000000000000000000000000000000000000000001",
+    name: "Asha Vela",
+    genre: "Afro-fusion",
+    city: "Johannesburg",
+    monthlyListeners: "18.4K",
+    verified: true,
+  },
+  {
+    id: "art_02",
+    walletAddress: "GNORTHAVENUE00000000000000000000000000000000000000000002",
+    name: "North Avenue",
+    genre: "Alternative",
+    city: "Cape Town",
+    monthlyListeners: "8.1K",
+    verified: false,
+  },
+  {
+    id: "art_03",
+    walletAddress: "GMOROSIGNAL00000000000000000000000000000000000000000003",
+    name: "Moro Signal",
+    genre: "Amapiano",
+    city: "Lagos",
+    monthlyListeners: "24.9K",
+    verified: true,
+  },
+];
