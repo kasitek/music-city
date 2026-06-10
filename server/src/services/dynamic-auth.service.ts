@@ -153,7 +153,7 @@ export const dynamicAuthService = {
     }
 
     const walletAddress = findStellarWalletAddress(payload, requestedWalletAddress);
-    const profile = usersService.getProfile(walletAddress);
+    const profile = await usersService.getProfile(walletAddress);
 
     const session: Omit<AuthSession, "token"> = {
       walletAddress,

@@ -23,7 +23,7 @@ export const uploadsService = {
   async createSession(input: CreateUploadSessionInput) {
     const parsed = createUploadSessionSchema.parse(input);
     const id = createId("upl");
-    const track = tracksService.getTrack(parsed.trackId);
+    const track = await tracksService.getTrack(parsed.trackId);
 
     if (!track) {
       throw new Error("Track not found");
@@ -83,9 +83,9 @@ export const uploadsService = {
     return uploadsRepository.findById(id);
   },
 
-  completeSession(input: CompleteUploadSessionInput) {
+  async completeSession(input: CompleteUploadSessionInput) {
     const parsed = completeUploadSessionSchema.parse(input);
-    const session = uploadsRepository.findById(parsed.uploadSessionId);
+    const session = await uploadsRepository.findById(parsed.uploadSessionId);
 
     if (!session) {
       throw new Error("Upload session not found");
@@ -100,7 +100,7 @@ export const uploadsService = {
     }
 
     if (session.provider === "mux") {
-      const track = tracksService.attachMuxUpload(session.trackId, {
+      const track = await tracksService.attachMuxUpload(session.trackId, {
         muxUploadId: session.remoteUploadId ?? session.id,
         sourceFileName: session.fileName,
         sourceContentType: session.contentType,
@@ -117,25 +117,22 @@ export const uploadsService = {
     const storageKey = session.storageKey;
     const fileName = storageKey.split("/").pop() ?? storageKey;
 
-    return storageService
-      .getObjectMetadata(storageKey, fileName)
-      .then(async (metadata) => {
-        const track = tracksService.attachMaster(session.trackId, {
-          masterStorageKey: storageKey,
-          sourceFileName: fileName,
-          sourceContentType: metadata.contentType,
-          sourceSizeBytes: metadata.sizeBytes,
-        });
+    const metadata = await storageService.getObjectMetadata(storageKey, fileName);
+    const track = await tracksService.attachMaster(session.trackId, {
+      masterStorageKey: storageKey,
+      sourceFileName: fileName,
+      sourceContentType: metadata.contentType,
+      sourceSizeBytes: metadata.sizeBytes,
+    });
 
-        if (env.MEDIA_PROVIDER === "mux") {
-          return tracksService.markProcessing(track.id);
-        }
+    if (env.MEDIA_PROVIDER === "mux") {
+      return tracksService.markProcessing(track.id);
+    }
 
-        return tracksService.markPlaybackReady(track.id, {
-          runtime: "Ready",
-          streamMediaUrl: storageService.getDownloadUrl(track.masterStorageKey!),
-          streamManifestUrl: `/api/v1/playback/tracks/${track.id}/manifest.m3u8`,
-        });
-      });
+    return tracksService.markPlaybackReady(track.id, {
+      runtime: "Ready",
+      streamMediaUrl: storageService.getDownloadUrl(track.masterStorageKey!),
+      streamManifestUrl: `/api/v1/playback/tracks/${track.id}/manifest.m3u8`,
+    });
   },
 };

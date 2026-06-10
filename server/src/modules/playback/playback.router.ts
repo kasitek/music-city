@@ -15,7 +15,7 @@ playbackRouter.post(
   requireSession,
   asyncHandler(async (request, response) => {
     const input = createPlaybackSessionSchema.parse(request.body);
-    const track = tracksService.getTrack(input.trackId);
+    const track = await tracksService.getTrack(input.trackId);
 
     if (!track) {
       throw new HttpError(404, "Track not found");
@@ -40,7 +40,7 @@ playbackRouter.get(
   "/sessions/:sessionId/manifest.m3u8",
   asyncHandler(async (request, response) => {
     const token = String(request.query.token ?? "");
-    const manifest = playbackService.getManifest(
+    const manifest = await playbackService.getManifest(
       String(request.params.sessionId),
       token,
     );
@@ -54,7 +54,7 @@ playbackRouter.get(
   "/sessions/:sessionId/media",
   asyncHandler(async (request, response) => {
     const token = String(request.query.token ?? "");
-    const url = playbackService.getMediaRedirect(
+    const url = await playbackService.getMediaRedirect(
       String(request.params.sessionId),
       token,
     );

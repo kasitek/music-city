@@ -10,14 +10,16 @@ const tracksRouter = Router();
 tracksRouter.get(
   "/",
   asyncHandler(async (_request, response) => {
-    response.json({ items: tracksService.listTracks() });
+    response.json({ items: await tracksService.listTracks() });
   }),
 );
 
 tracksRouter.get(
   "/:trackId",
   asyncHandler(async (request, response) => {
-    response.json({ track: tracksService.getTrack(String(request.params.trackId)) });
+    response.json({
+      track: await tracksService.getTrack(String(request.params.trackId)),
+    });
   }),
 );
 
@@ -26,7 +28,7 @@ tracksRouter.get(
   requireSession,
   asyncHandler(async (request, response) => {
     response.json({
-      items: tracksService.listMyTracks(request.session!.walletAddress),
+      items: await tracksService.listMyTracks(request.session!.walletAddress),
     });
   }),
 );
@@ -36,7 +38,7 @@ tracksRouter.post(
   requireSession,
   asyncHandler(async (request, response) => {
     try {
-      const track = tracksService.createTrack(
+      const track = await tracksService.createTrack(
         request.session!.walletAddress,
         request.body,
       );

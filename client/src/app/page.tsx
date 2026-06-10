@@ -5,7 +5,6 @@ import {
   Music,
   Play,
   Shield,
-  Sparkles,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -62,11 +61,11 @@ export default function LandingPage() {
             </span>
           </p>
 
-          <div className="grid grid-cols-2 items-center justify-center gap-4 sm:flex sm:flex-row sm:gap-6">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 sm:flex-row sm:gap-6">
             <Button
               asChild
               size="lg"
-              className="w-full rounded-full bg-[#1DB954] px-6 py-4 text-lg font-bold text-black shadow-[0_18px_45px_rgba(29,185,84,0.22)] transition-all duration-300 hover:scale-105 hover:bg-[#1ed760]"
+              className="w-full rounded-full bg-[#1DB954] px-6 py-4 text-lg font-bold text-black shadow-[0_18px_45px_rgba(29,185,84,0.22)] transition-all duration-300 hover:scale-105 hover:bg-[#1ed760] sm:flex-1"
             >
               <Link href="/auth">
                 <Play className="mr-2 h-5 w-5 fill-black text-black" />
@@ -77,7 +76,7 @@ export default function LandingPage() {
               asChild
               size="lg"
               variant="outline"
-              className="w-full rounded-full border border-white/20 bg-white/5 px-6 py-4 text-lg text-white backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/10"
+              className="w-full rounded-full border border-white/20 bg-white/5 px-6 py-4 text-lg text-white backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/10 sm:flex-1"
             >
               <Link href="/discover">
                 <TrendingUp className="mr-2 h-5 w-5" />
@@ -91,12 +90,10 @@ export default function LandingPage() {
       <section className="relative px-4 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="mb-16 text-center">
-            <div className="mb-4 flex items-center justify-center space-x-2">
-              <Sparkles className="h-6 w-6 text-[#1DB954]" />
+            <div className="mb-4 flex items-center justify-center">
               <h2 className="text-4xl font-black text-white md:text-5xl">
                 Revolutionizing Global Music
               </h2>
-              <Sparkles className="h-6 w-6 text-[#1DB954]" />
             </div>
             <p className="mx-auto max-w-2xl text-xl text-zinc-400">
               Discover how artists worldwide control their catalog, payouts, and

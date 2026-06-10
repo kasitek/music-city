@@ -48,10 +48,8 @@ export const entitlementsService = {
     );
   },
 
-  listMine(walletAddress: string) {
-    return entitlementsRepository
-      .listByWallet(walletAddress)
-      .filter(withinWindow);
+  async listMine(walletAddress: string) {
+    return (await entitlementsRepository.listByWallet(walletAddress)).filter(withinWindow);
   },
 
   grant(walletAddress: string, input: GrantEntitlementInput) {
@@ -69,13 +67,13 @@ export const entitlementsService = {
   },
 
   async canPlayTrack(walletAddress: string, trackId: string) {
-    const track = tracksService.getTrack(trackId);
+    const track = await tracksService.getTrack(trackId);
 
     if (!track || !track.playbackReady) {
       return false;
     }
 
-    const profile = usersService.getProfile(walletAddress);
+    const profile = await usersService.getProfile(walletAddress);
 
     if (profile && profile.id === track.artistId) {
       return true;
@@ -85,9 +83,9 @@ export const entitlementsService = {
       return true;
     }
 
-    const localEntitlement = entitlementsRepository
-      .listByWallet(walletAddress)
-      .some((record) => record.trackId === trackId && withinWindow(record));
+    const localEntitlement = (await entitlementsRepository.listByWallet(walletAddress)).some(
+      (record) => record.trackId === trackId && withinWindow(record),
+    );
 
     if (localEntitlement) {
       return true;

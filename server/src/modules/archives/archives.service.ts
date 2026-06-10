@@ -32,7 +32,7 @@ const wrapDataKey = (dataKey: Buffer) => {
 
 export const archivesService = {
   async createArchive(trackId: string) {
-    const track = tracksService.getTrack(trackId);
+    const track = await tracksService.getTrack(trackId);
 
     if (!track?.masterStorageKey) {
       throw new HttpError(404, "Track media is not available");
@@ -105,7 +105,7 @@ export const archivesService = {
       createdAt: new Date().toISOString(),
     };
 
-    tracksService.markArchiveReady(trackId);
+    await tracksService.markArchiveReady(trackId);
     return archivesRepository.upsert(record);
   },
 };

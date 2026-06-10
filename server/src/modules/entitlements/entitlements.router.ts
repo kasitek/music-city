@@ -11,7 +11,7 @@ entitlementsRouter.get(
   requireSession,
   asyncHandler(async (request, response) => {
     response.json({
-      items: entitlementsService.listMine(request.session!.walletAddress),
+      items: await entitlementsService.listMine(request.session!.walletAddress),
     });
   }),
 );
@@ -21,7 +21,7 @@ entitlementsRouter.post(
   requireSession,
   asyncHandler(async (request, response) => {
     response.status(201).json({
-      entitlement: entitlementsService.grant(
+      entitlement: await entitlementsService.grant(
         request.session!.walletAddress,
         request.body,
       ),

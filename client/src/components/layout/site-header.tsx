@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Music2, Sparkles } from "lucide-react";
+import { LayoutDashboard, Music2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { navigationItems } from "@/lib/constants/navigation";
@@ -63,8 +63,7 @@ export const SiteHeader = () => {
               onClick={() => void connectWallet()}
               disabled={isLoading}
             >
-              <Sparkles className="mr-2 h-4 w-4" />
-              {isLoading ? "Opening Login" : "Continue with Social Login"}
+              {isLoading ? "Opening login..." : "Login"}
             </Button>
           )}
         </div>

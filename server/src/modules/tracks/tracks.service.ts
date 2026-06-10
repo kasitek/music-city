@@ -9,8 +9,8 @@ export const tracksService = {
     return tracksRepository.list();
   },
 
-  listMyTracks(walletAddress: string) {
-    const profile = usersService.getProfile(walletAddress);
+  async listMyTracks(walletAddress: string) {
+    const profile = await usersService.getProfile(walletAddress);
 
     if (!profile) {
       return [];
@@ -23,15 +23,15 @@ export const tracksService = {
     return tracksRepository.findById(trackId);
   },
 
-  userOwnsTrack(walletAddress: string, trackId: string) {
-    const profile = usersService.getProfile(walletAddress);
-    const track = tracksRepository.findById(trackId);
+  async userOwnsTrack(walletAddress: string, trackId: string) {
+    const profile = await usersService.getProfile(walletAddress);
+    const track = await tracksRepository.findById(trackId);
 
     return Boolean(profile && track && track.artistId === profile.id);
   },
 
-  createTrack(walletAddress: string, input: TrackCreateInput) {
-    const profile = usersService.getProfile(walletAddress);
+  async createTrack(walletAddress: string, input: TrackCreateInput) {
+    const profile = await usersService.getProfile(walletAddress);
 
     if (!profile) {
       throw new Error("Create a profile before creating tracks");
@@ -62,13 +62,13 @@ export const tracksService = {
     return track;
   },
 
-  attachMaster(trackId: string, payload: {
+  async attachMaster(trackId: string, payload: {
     masterStorageKey: string;
     sourceFileName: string;
     sourceContentType: string;
     sourceSizeBytes: number;
   }) {
-    const existing = tracksRepository.findById(trackId);
+    const existing = await tracksRepository.findById(trackId);
 
     if (!existing) {
       throw new Error("Track not found");
@@ -89,13 +89,13 @@ export const tracksService = {
     });
   },
 
-  attachMuxUpload(trackId: string, payload: {
+  async attachMuxUpload(trackId: string, payload: {
     muxUploadId: string;
     sourceFileName: string;
     sourceContentType: string;
     sourceSizeBytes: number;
   }) {
-    const existing = tracksRepository.findById(trackId);
+    const existing = await tracksRepository.findById(trackId);
 
     if (!existing) {
       throw new Error("Track not found");
@@ -116,8 +116,8 @@ export const tracksService = {
     });
   },
 
-  markProcessing(trackId: string) {
-    const existing = tracksRepository.findById(trackId);
+  async markProcessing(trackId: string) {
+    const existing = await tracksRepository.findById(trackId);
 
     if (!existing) {
       throw new Error("Track not found");
@@ -131,14 +131,14 @@ export const tracksService = {
     });
   },
 
-  markPlaybackReady(trackId: string, payload: {
+  async markPlaybackReady(trackId: string, payload: {
     runtime: string;
     streamManifestUrl?: string;
     streamMediaUrl?: string;
     muxAssetId?: string;
     muxPlaybackId?: string;
   }) {
-    const existing = tracksRepository.findById(trackId);
+    const existing = await tracksRepository.findById(trackId);
 
     if (!existing) {
       throw new Error("Track not found");
@@ -160,11 +160,11 @@ export const tracksService = {
     });
   },
 
-  markMuxAssetCreated(trackId: string, payload: {
+  async markMuxAssetCreated(trackId: string, payload: {
     muxUploadId?: string;
     muxAssetId: string;
   }) {
-    const existing = tracksRepository.findById(trackId);
+    const existing = await tracksRepository.findById(trackId);
 
     if (!existing) {
       throw new Error("Track not found");
@@ -182,8 +182,8 @@ export const tracksService = {
     });
   },
 
-  markFailed(trackId: string, runtime = "Processing failed") {
-    const existing = tracksRepository.findById(trackId);
+  async markFailed(trackId: string, runtime = "Processing failed") {
+    const existing = await tracksRepository.findById(trackId);
 
     if (!existing) {
       throw new Error("Track not found");
@@ -199,8 +199,8 @@ export const tracksService = {
     });
   },
 
-  markArchiveReady(trackId: string) {
-    const existing = tracksRepository.findById(trackId);
+  async markArchiveReady(trackId: string) {
+    const existing = await tracksRepository.findById(trackId);
 
     if (!existing) {
       throw new Error("Track not found");

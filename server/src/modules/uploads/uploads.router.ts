@@ -15,7 +15,7 @@ uploadsRouter.post(
   "/sessions",
   requireSession,
   asyncHandler(async (request, response) => {
-    const ownsTrack = tracksService.userOwnsTrack(
+    const ownsTrack = await tracksService.userOwnsTrack(
       request.session!.walletAddress,
       request.body.trackId,
     );
@@ -89,17 +89,17 @@ uploadsRouter.post(
   requireSession,
   asyncHandler(async (request, response) => {
     const uploadSessionId = String(request.params.uploadSessionId);
-    const session = uploadsService.getSession(uploadSessionId);
+    const session = await uploadsService.getSession(uploadSessionId);
 
     if (!session) {
       throw new HttpError(404, "Upload session not found");
     }
 
     if (
-      !tracksService.userOwnsTrack(
+      !(await tracksService.userOwnsTrack(
         request.session!.walletAddress,
         session.trackId,
-      )
+      ))
     ) {
       throw new HttpError(404, "Track not found");
     }

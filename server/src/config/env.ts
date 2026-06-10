@@ -21,6 +21,8 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().default(4000),
   CLIENT_ORIGIN: z.string().default("http://localhost:3000"),
+  DATABASE_PROVIDER: z.enum(["json", "postgres"]).default("json"),
+  DATABASE_URL: z.string().optional(),
   JWT_SECRET: z.string().default("music-city-dev-secret"),
   STELLAR_NETWORK_PASSPHRASE: z
     .string()

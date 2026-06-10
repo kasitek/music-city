@@ -13,7 +13,7 @@ const expiresInMinutes = (minutes: number) =>
 
 export const playbackService = {
   async createSession(trackId: string) {
-    const track = tracksService.getTrack(trackId);
+    const track = await tracksService.getTrack(trackId);
 
     if (!track?.playbackReady) {
       throw new HttpError(404, "Track media is not available");
@@ -49,8 +49,8 @@ export const playbackService = {
     return playbackRepository.upsert(session);
   },
 
-  getSession(id: string, token: string) {
-    const session = playbackRepository.findById(id);
+  async getSession(id: string, token: string) {
+    const session = await playbackRepository.findById(id);
 
     if (!session) {
       throw new HttpError(404, "Playback session not found");
@@ -69,9 +69,9 @@ export const playbackService = {
     return session;
   },
 
-  getManifest(sessionId: string, token: string) {
-    const session = this.getSession(sessionId, token);
-    const track = tracksService.getTrack(session.trackId);
+  async getManifest(sessionId: string, token: string) {
+    const session = await this.getSession(sessionId, token);
+    const track = await tracksService.getTrack(session.trackId);
 
     if (!track?.playbackReady) {
       throw new HttpError(404, "Track media is not available");
@@ -101,14 +101,14 @@ export const playbackService = {
     ].join("\n");
   },
 
-  getMediaRedirect(sessionId: string, token: string) {
-    const session = this.getSession(sessionId, token);
+  async getMediaRedirect(sessionId: string, token: string) {
+    const session = await this.getSession(sessionId, token);
 
     if (session.provider === "mux") {
       return session.streamUrl;
     }
 
-    const track = tracksService.getTrack(session.trackId);
+    const track = await tracksService.getTrack(session.trackId);
 
     if (!track?.playbackReady) {
       throw new HttpError(404, "Track media is not available");

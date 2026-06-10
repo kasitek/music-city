@@ -48,7 +48,9 @@ authRouter.post(
 authRouter.post(
   "/verify",
   asyncHandler(async (request, response) => {
-    const session = stellarAuthService.verifyChallenge(request.body.transaction);
+    const session = await stellarAuthService.verifyChallenge(
+      request.body.transaction,
+    );
     const token = tokenService.issueSession(session);
 
     response.json({

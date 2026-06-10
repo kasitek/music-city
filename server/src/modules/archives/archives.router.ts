@@ -14,7 +14,7 @@ archivesRouter.post(
   asyncHandler(async (request, response) => {
     const trackId = String(request.params.trackId);
 
-    if (!tracksService.userOwnsTrack(request.session!.walletAddress, trackId)) {
+    if (!(await tracksService.userOwnsTrack(request.session!.walletAddress, trackId))) {
       throw new HttpError(404, "Track not found");
     }
 

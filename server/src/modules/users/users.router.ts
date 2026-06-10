@@ -10,7 +10,7 @@ usersRouter.get(
   "/me",
   requireSession,
   asyncHandler(async (request, response) => {
-    const profile = usersService.getProfile(request.session!.walletAddress);
+    const profile = await usersService.getProfile(request.session!.walletAddress);
 
     response.json({ profile });
   }),
@@ -20,7 +20,7 @@ usersRouter.put(
   "/me",
   requireSession,
   asyncHandler(async (request, response) => {
-    const profile = usersService.upsertProfile(
+    const profile = await usersService.upsertProfile(
       request.session!.walletAddress,
       request.body,
     );
@@ -32,7 +32,7 @@ usersRouter.put(
 usersRouter.get(
   "/artists",
   asyncHandler(async (_request, response) => {
-    response.json({ items: usersService.listArtists() });
+    response.json({ items: await usersService.listArtists() });
   }),
 );
 

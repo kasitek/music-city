@@ -57,11 +57,7 @@ const inferMimeType = (fileName: string) => {
   }
 };
 
-const storageBaseUrl = () => {
-  if (env.STORAGE_PUBLIC_BASE_URL) {
-    return env.STORAGE_PUBLIC_BASE_URL.replace(/\/$/, "");
-  }
-
+const s3EndpointUrl = () => {
   if (!env.STORAGE_ENDPOINT) {
     throw new HttpError(500, "STORAGE_ENDPOINT is required for S3 storage");
   }
@@ -89,8 +85,10 @@ const buildS3PresignedUrl = ({
     );
   }
 
-  const endpoint = new URL(storageBaseUrl());
-  const host = endpoint.host;
+  const endpoint = new URL(s3EndpointUrl());
+  const requestHost = env.STORAGE_PATH_STYLE
+    ? endpoint.host
+    : `${env.STORAGE_BUCKET}.${endpoint.host}`;
   const date = new Date();
   const amzDate = date.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const shortDate = amzDate.slice(0, 8);
@@ -110,7 +108,7 @@ const buildS3PresignedUrl = ({
     method,
     objectPath,
     query.toString(),
-    `host:${host}\n`,
+    `host:${requestHost}\n`,
     "host",
     "UNSIGNED-PAYLOAD",
   ].join("\n");
@@ -133,7 +131,7 @@ const buildS3PresignedUrl = ({
 
   const origin = env.STORAGE_PATH_STYLE
     ? endpoint.origin
-    : `${endpoint.protocol}//${env.STORAGE_BUCKET}.${host}`;
+    : `${endpoint.protocol}//${requestHost}`;
   const finalPath = env.STORAGE_PATH_STYLE ? objectPath : `/${storageKey}`;
 
   return `${origin}${finalPath}?${query.toString()}`;

@@ -14,9 +14,9 @@ export const usersService = {
     return usersRepository.findByWallet(walletAddress);
   },
 
-  upsertProfile(walletAddress: string, input: UpsertUserProfileInput) {
+  async upsertProfile(walletAddress: string, input: UpsertUserProfileInput) {
     const parsed = upsertUserProfileSchema.parse(input);
-    const existing = usersRepository.findByWallet(walletAddress);
+    const existing = await usersRepository.findByWallet(walletAddress);
     const timestamp = nowIso();
 
     const profile: UserProfile = {
@@ -36,8 +36,10 @@ export const usersService = {
     return usersRepository.upsert(profile);
   },
 
-  listArtists() {
-    return usersRepository.listArtists().map((artist) => ({
+  async listArtists() {
+    const artists = await usersRepository.listArtists();
+
+    return artists.map((artist) => ({
       id: artist.id,
       walletAddress: artist.walletAddress,
       name: artist.displayName,

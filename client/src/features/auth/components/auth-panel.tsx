@@ -68,7 +68,7 @@ export const AuthPanel = () => {
           onClick={() => void connectWallet()}
           disabled={isLoading || !dynamicConfigured}
         >
-          {isLoading ? "Opening login..." : "Continue with Social Login"}
+          {isLoading ? "Opening login..." : "Login"}
         </Button>
       </CardContent>
     </Card>

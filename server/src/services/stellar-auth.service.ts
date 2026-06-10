@@ -59,7 +59,7 @@ export const stellarAuthService = {
     };
   },
 
-  verifyChallenge(transaction: string) {
+  async verifyChallenge(transaction: string) {
     const parsed = verifyChallengeSchema.parse({ transaction });
 
     if (!env.STELLAR_SEP10_SECRET) {
@@ -107,7 +107,7 @@ export const stellarAuthService = {
       throw new HttpError(401, "Challenge was not signed by the wallet owner");
     }
 
-    const profile = usersService.getProfile(source);
+    const profile = await usersService.getProfile(source);
 
     return {
       walletAddress: source,
