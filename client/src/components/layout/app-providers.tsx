@@ -2,7 +2,10 @@
 
 import type { ReactNode } from "react";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
-import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
+import {
+  DynamicContextProvider,
+  DynamicMultiWalletPromptsWidget,
+} from "@dynamic-labs/sdk-react-core";
 import { DynamicWaasStellarConnectors } from "@dynamic-labs/stellar";
 
 import { ThemeProvider } from "@/components/common/theme-provider";
@@ -50,6 +53,7 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
           }}
         >
           <AuthProvider>{children}</AuthProvider>
+          <DynamicMultiWalletPromptsWidget />
         </DynamicContextProvider>
       ) : (
         <AuthProvider>{children}</AuthProvider>

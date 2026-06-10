@@ -10,7 +10,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getAuthToken, useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import {
+  getAuthToken,
+  useDynamicContext,
+  useDynamicModals,
+} from "@dynamic-labs/sdk-react-core";
 import { toast } from "sonner";
 
 import type { AuthSession } from "@music-city/shared";
@@ -223,6 +227,7 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     setShowAuthFlow,
     handleLogOut,
   } = useDynamicContext();
+  const { setShowLinkNewWalletModal } = useDynamicModals();
   const {
     session,
     setSession,
@@ -479,8 +484,13 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
   const connectWallet = useCallback(async () => {
     setError(null);
     setIsLoading(true);
+    if (user) {
+      setShowLinkNewWalletModal(true);
+      return;
+    }
+
     setShowAuthFlow(true);
-  }, [setError, setIsLoading, setShowAuthFlow]);
+  }, [setError, setIsLoading, setShowAuthFlow, setShowLinkNewWalletModal, user]);
 
   const logout = useCallback(async () => {
     clearSession();
