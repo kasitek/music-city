@@ -24,6 +24,9 @@
     ],
     "baseUrl": ".",
     "paths": {
+      "@music-city/shared": [
+        "../packages/shared/dist/index.d.ts"
+      ],
       "@/*": [
         "./src/*"
       ]
