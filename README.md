@@ -31,14 +31,12 @@ pnpm dev:client
 - local entitlement records and optional Stellar asset-based subscriber gate
 - encrypted archive generation with optional remote archive upload hook
 
-Server state persists to `server/data/*.json` by default.
-
-You can now switch the server to Postgres with:
+You can run the server against local Postgres with:
 
 ```bash
 docker compose -f docker-compose.postgres.yml up -d
-DATABASE_PROVIDER=postgres pnpm --filter server db:bootstrap
-DATABASE_PROVIDER=postgres pnpm dev:server
+pnpm --filter server db:bootstrap
+pnpm dev:server
 ```
 
 The bootstrap command initializes the Postgres schema and imports any existing
@@ -48,7 +46,7 @@ JSON-backed development data into Postgres the first time you run it.
 
 Use `STORAGE_PROVIDER=local` for local development.
 
-Use `DATABASE_PROVIDER=postgres` when you want Postgres-backed app metadata, and set:
+The server requires Postgres-backed app metadata. Set:
 
 - `DATABASE_URL`
 

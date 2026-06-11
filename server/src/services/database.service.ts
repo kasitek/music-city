@@ -1,30 +1,15 @@
 import { Pool } from "pg";
 
 import { env } from "../config/env.js";
-import { HttpError } from "../utils/http-error.js";
 
 type PersistedRow = {
   id: string;
   payload: unknown;
 };
 
-const requiredDatabaseUrl = () => {
-  if (!env.DATABASE_URL) {
-    throw new HttpError(
-      500,
-      "DATABASE_URL is required when DATABASE_PROVIDER=postgres",
-    );
-  }
-
-  return env.DATABASE_URL;
-};
-
-const pool =
-  env.DATABASE_PROVIDER === "postgres"
-    ? new Pool({
-        connectionString: requiredDatabaseUrl(),
-      })
-    : null;
+const pool = new Pool({
+  connectionString: env.DATABASE_URL,
+});
 
 const createTableStatements = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -103,28 +88,17 @@ const createTableStatements = [
   "CREATE INDEX IF NOT EXISTS archives_track_id_idx ON archives (track_id)",
 ];
 
-const mapPayloadRows = <T>(rows: PersistedRow[]) => rows.map((row) => row.payload as T);
+const mapPayloadRows = <T>(rows: PersistedRow[]) =>
+  rows.map((row) => row.payload as T);
 
 export const databaseService = {
-  isEnabled() {
-    return env.DATABASE_PROVIDER === "postgres";
-  },
-
   async initialize() {
-    if (!pool) {
-      return;
-    }
-
     for (const statement of createTableStatements) {
       await pool.query(statement);
     }
   },
 
   async countRows(table: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM ${table}`,
     );
@@ -133,10 +107,6 @@ export const databaseService = {
   },
 
   async listPayloads<T>(table: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM ${table} ORDER BY id`,
     );
@@ -145,10 +115,6 @@ export const databaseService = {
   },
 
   async findPayloadById<T>(table: string, id: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM ${table} WHERE id = $1 LIMIT 1`,
       [id],
@@ -163,10 +129,6 @@ export const databaseService = {
     role: string,
     payload: unknown,
   ) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     await pool.query(
       `INSERT INTO users (id, wallet_address, role, payload)
        VALUES ($1, $2, $3, $4::jsonb)
@@ -179,10 +141,6 @@ export const databaseService = {
   },
 
   async findUserByWallet<T>(walletAddress: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM users WHERE wallet_address = $1 LIMIT 1`,
       [walletAddress],
@@ -192,10 +150,6 @@ export const databaseService = {
   },
 
   async listUsersByRole<T>(role: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM users WHERE role = $1 ORDER BY id`,
       [role],
@@ -212,10 +166,6 @@ export const databaseService = {
     mediaProvider: string | null,
     payload: unknown,
   ) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     await pool.query(
       `INSERT INTO tracks (id, artist_id, status, access, media_provider, payload)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb)
@@ -230,10 +180,6 @@ export const databaseService = {
   },
 
   async listTracksByArtist<T>(artistId: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM tracks WHERE artist_id = $1 ORDER BY id`,
       [artistId],
@@ -249,10 +195,6 @@ export const databaseService = {
     expiresAt: string,
     payload: unknown,
   ) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     await pool.query(
       `INSERT INTO upload_sessions (id, track_id, provider, expires_at, payload)
        VALUES ($1, $2, $3, $4, $5::jsonb)
@@ -272,10 +214,6 @@ export const databaseService = {
     expiresAt: string,
     payload: unknown,
   ) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     await pool.query(
       `INSERT INTO playback_sessions (id, track_id, provider, expires_at, payload)
        VALUES ($1, $2, $3, $4, $5::jsonb)
@@ -297,10 +235,6 @@ export const databaseService = {
     endsAt: string | null,
     payload: unknown,
   ) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     await pool.query(
       `INSERT INTO entitlements (id, wallet_address, track_id, source, starts_at, ends_at, payload)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
@@ -316,10 +250,6 @@ export const databaseService = {
   },
 
   async listEntitlementsByWallet<T>(walletAddress: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM entitlements WHERE wallet_address = $1 ORDER BY id`,
       [walletAddress],
@@ -329,10 +259,6 @@ export const databaseService = {
   },
 
   async listEntitlementsByTrack<T>(trackId: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM entitlements WHERE track_id = $1 ORDER BY id`,
       [trackId],
@@ -347,10 +273,6 @@ export const databaseService = {
     createdAt: string,
     payload: unknown,
   ) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     await pool.query(
       `INSERT INTO archives (id, track_id, created_at, payload)
        VALUES ($1, $2, $3, $4::jsonb)
@@ -363,10 +285,6 @@ export const databaseService = {
   },
 
   async listArchivesByTrack<T>(trackId: string) {
-    if (!pool) {
-      throw new HttpError(500, "Database provider is not enabled");
-    }
-
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM archives WHERE track_id = $1 ORDER BY created_at DESC, id`,
       [trackId],

@@ -37,12 +37,6 @@ const importRows = async <T>(
 };
 
 const main = async () => {
-  if (env.DATABASE_PROVIDER !== "postgres") {
-    throw new Error(
-      "Set DATABASE_PROVIDER=postgres before running the Postgres bootstrap",
-    );
-  }
-
   await databaseService.initialize();
 
   const existingUsers = await databaseService.countRows("users");
