@@ -107,6 +107,10 @@ importers:
       zod:
         specifier: ^3.24.1
         version: 3.24.1
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.2
 
   server:
     dependencies:
