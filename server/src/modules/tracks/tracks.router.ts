@@ -15,20 +15,20 @@ tracksRouter.get(
 );
 
 tracksRouter.get(
-  "/:trackId",
-  asyncHandler(async (request, response) => {
-    response.json({
-      track: await tracksService.getTrack(String(request.params.trackId)),
-    });
-  }),
-);
-
-tracksRouter.get(
   "/mine",
   requireSession,
   asyncHandler(async (request, response) => {
     response.json({
       items: await tracksService.listMyTracks(request.session!.walletAddress),
+    });
+  }),
+);
+
+tracksRouter.get(
+  "/:trackId",
+  asyncHandler(async (request, response) => {
+    response.json({
+      track: await tracksService.getTrack(String(request.params.trackId)),
     });
   }),
 );
@@ -48,6 +48,32 @@ tracksRouter.post(
       throw new HttpError(
         400,
         error instanceof Error ? error.message : "Track creation failed",
+      );
+    }
+  }),
+);
+
+tracksRouter.post(
+  "/:trackId/sync-media",
+  requireSession,
+  asyncHandler(async (request, response) => {
+    const trackId = String(request.params.trackId);
+    const ownsTrack = await tracksService.userOwnsTrack(
+      request.session!.walletAddress,
+      trackId,
+    );
+
+    if (!ownsTrack) {
+      throw new HttpError(404, "Track not found");
+    }
+
+    try {
+      const track = await tracksService.syncMuxTrack(trackId);
+      response.json({ track });
+    } catch (error) {
+      throw new HttpError(
+        400,
+        error instanceof Error ? error.message : "Track sync failed",
       );
     }
   }),

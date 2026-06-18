@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const createUploadSessionSchema = z.object({
   trackId: z.string().min(1),
+  purpose: z.enum(["audio", "cover"]).default("audio"),
   fileName: z.string().min(1).max(180),
   contentType: z.string().min(1).max(120),
   sizeBytes: z.number().int().positive(),
@@ -11,6 +12,7 @@ export type CreateUploadSessionInput = z.infer<typeof createUploadSessionSchema>
 export interface UploadSession {
   id: string;
   trackId: string;
+  purpose: "audio" | "cover";
   fileName: string;
   contentType: string;
   sizeBytes: number;

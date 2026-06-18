@@ -28,6 +28,14 @@ export interface TrackSummary {
   title: string;
   artistId: string;
   artistName: string;
+  releaseArtistName?: string;
+  featuredArtists?: string[];
+  composer?: string;
+  producer?: string;
+  isrc?: string;
+  recordLabel?: string;
+  publisher?: string;
+  country?: string;
   genre: string;
   runtime: string;
   priceLabel: string;
@@ -37,6 +45,7 @@ export interface TrackSummary {
   likes: number;
   description?: string;
   coverImageUrl?: string;
+  coverStorageKey?: string;
   playbackUrl?: string;
   streamManifestUrl?: string;
   streamMediaUrl?: string;
@@ -58,6 +67,14 @@ export interface TrackSummary {
 
 export const trackCreateSchema = z.object({
   title: z.string().min(1).max(160),
+  artistName: z.string().min(1).max(120).optional(),
+  featuredArtists: z.array(z.string().min(1).max(120)).max(8).optional(),
+  composer: z.string().max(120).optional(),
+  producer: z.string().max(120).optional(),
+  isrc: z.string().max(32).optional(),
+  recordLabel: z.string().max(120).optional(),
+  publisher: z.string().max(120).optional(),
+  country: z.string().max(80).optional(),
   genre: z.string().min(1).max(80),
   description: z.string().max(1000).optional(),
   priceLabel: z.string().max(80).optional(),

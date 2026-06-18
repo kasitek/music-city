@@ -56,6 +56,10 @@ export const muxService = {
     return requireClient().video.uploads.retrieve(uploadId);
   },
 
+  async getAsset(assetId: string) {
+    return requireClient().video.assets.retrieve(assetId);
+  },
+
   async unwrapWebhook(body: string, headers: Headers) {
     return requireClient().webhooks.unwrap(body, headers);
   },

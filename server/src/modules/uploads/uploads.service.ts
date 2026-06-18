@@ -31,7 +31,7 @@ export const uploadsService = {
 
     let session: UploadSession;
 
-    if (muxService.isEnabled()) {
+    if (parsed.purpose === "audio" && muxService.isEnabled()) {
       const upload = await muxService.createDirectUpload({
         trackId: parsed.trackId,
         title: track.title,
@@ -46,6 +46,7 @@ export const uploadsService = {
       session = {
         id,
         trackId: parsed.trackId,
+        purpose: parsed.purpose,
         fileName: parsed.fileName,
         contentType: parsed.contentType,
         sizeBytes: parsed.sizeBytes,
@@ -57,13 +58,16 @@ export const uploadsService = {
         expiresAt: expiresInMinutes(30),
       };
     } else {
-      const storageKey = `masters/${parsed.trackId}/${id}-${sanitizeFileName(
+      const storagePrefix =
+        parsed.purpose === "cover" ? "covers" : "masters";
+      const storageKey = `${storagePrefix}/${parsed.trackId}/${id}-${sanitizeFileName(
         parsed.fileName,
       )}`;
       const target = storageService.createUploadTarget(storageKey);
       session = {
         id,
         trackId: parsed.trackId,
+        purpose: parsed.purpose,
         fileName: parsed.fileName,
         contentType: parsed.contentType,
         sizeBytes: parsed.sizeBytes,
@@ -97,6 +101,16 @@ export const uploadsService = {
       !storageService.localObjectExists(session.storageKey)
     ) {
       throw new Error("Uploaded file is missing");
+    }
+
+    if (session.purpose === "cover") {
+      if (!session.storageKey) {
+        throw new Error("Upload storage key is missing");
+      }
+
+      return tracksService.attachCoverArt(session.trackId, {
+        coverStorageKey: session.storageKey,
+      });
     }
 
     if (session.provider === "mux") {

@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import type { TrackSummary } from "@music-city/shared";
 
 import { Button } from "@/components/ui/button";
-import { TrackGrid } from "@/features/music/components/track-grid";
 import { tracksApi } from "@/features/music/lib/tracks-api";
 import { useAuth } from "@/hooks/use-auth";
+import { DashboardTrackShelves } from "./dashboard-track-shelves";
 import { TrackCreateForm } from "./track-create-form";
 
 export const DashboardOverview = () => {
@@ -33,6 +33,14 @@ export const DashboardOverview = () => {
   useEffect(() => {
     void loadTracks();
   }, [session?.token]);
+
+  const handleTrackSynced = (updatedTrack: TrackSummary) => {
+    setTracks((currentTracks) =>
+      currentTracks.map((track) =>
+        track.id === updatedTrack.id ? updatedTrack : track,
+      ),
+    );
+  };
 
   if (!session) {
     return (
@@ -94,7 +102,7 @@ export const DashboardOverview = () => {
         {isLoading ? (
           <div className="text-sm text-slate-400">Loading your tracks...</div>
         ) : (
-          <TrackGrid tracks={tracks} />
+          <DashboardTrackShelves tracks={tracks} onTrackSynced={handleTrackSynced} />
         )}
       </div>
     </div>

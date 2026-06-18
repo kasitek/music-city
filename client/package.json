@@ -27,6 +27,7 @@
     "@radix-ui/react-tabs": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "hls.js": "^1.6.16",
     "lucide-react": "^0.454.0",
     "next": "16.2.7",
     "next-themes": "latest",
