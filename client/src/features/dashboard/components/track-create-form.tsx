@@ -150,16 +150,32 @@ export const TrackCreateForm = ({
     setFeaturedArtists((current) => current.filter((entry) => entry !== value));
   };
 
-  const goNext = () => {
+  const canLeaveBasicsStep = () => {
     if (stepIndex === 0) {
       if (!title.trim() || !artistName.trim() || !genre.trim()) {
         toast.error("Add the track title, artist name, and genre first.");
-        return;
+        return false;
       }
     }
 
+    return true;
+  };
+
+  const goToStep = (nextStepIndex: number) => {
+    if (nextStepIndex < 0 || nextStepIndex > steps.length - 1) {
+      return;
+    }
+
+    if (nextStepIndex > stepIndex && !canLeaveBasicsStep()) {
+      return;
+    }
+
+    setStepIndex(nextStepIndex);
+  };
+
+  const goNext = () => {
     if (stepIndex < steps.length - 1) {
-      setStepIndex((current) => current + 1);
+      goToStep(stepIndex + 1);
     }
   };
 
@@ -185,6 +201,35 @@ export const TrackCreateForm = ({
     setFeaturedArtists([]);
     setAudioFile(null);
     setCoverFile(null);
+  };
+
+  const submitFeaturedSearch = () => {
+    const nextValue = featuredSearch.trim();
+
+    if (!nextValue) {
+      return;
+    }
+
+    const exactArtistMatch = artistOptions.find(
+      (artist) => artist.name.toLowerCase() === nextValue.toLowerCase(),
+    );
+
+    if (exactArtistMatch) {
+      addFeaturedArtist(exactArtistMatch.name);
+      return;
+    }
+
+    if (isEmailLike(nextValue)) {
+      addFeaturedArtist(nextValue);
+      return;
+    }
+
+    if (artistSuggestions.length > 0) {
+      addFeaturedArtist(artistSuggestions[0].name);
+      return;
+    }
+
+    toast.error("Enter a valid collaborator email or choose an artist.");
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -280,6 +325,26 @@ export const TrackCreateForm = ({
     <form
       className="space-y-8 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 sm:p-7"
       onSubmit={handleSubmit}
+      onKeyDown={(event) => {
+        if (
+          event.key !== "Enter" ||
+          stepIndex >= steps.length - 1 ||
+          event.shiftKey ||
+          event.currentTarget !== event.target &&
+            (event.target as HTMLElement).tagName === "TEXTAREA"
+        ) {
+          return;
+        }
+
+        const target = event.target as HTMLElement;
+
+        if (target.id === "featuredArtists") {
+          return;
+        }
+
+        event.preventDefault();
+        goNext();
+      }}
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -302,8 +367,9 @@ export const TrackCreateForm = ({
         />
         <div className="grid gap-3 sm:grid-cols-3">
           {steps.map((step, index) => (
-            <div
+            <button
               key={step.id}
+              type="button"
               className={`rounded-2xl border px-4 py-3 text-sm ${
                 index === stepIndex
                   ? "border-emerald-400/40 bg-emerald-400/10 text-white"
@@ -311,6 +377,7 @@ export const TrackCreateForm = ({
                     ? "border-white/10 bg-white/[0.03] text-slate-300"
                     : "border-white/10 bg-transparent text-slate-500"
               }`}
+              onClick={() => goToStep(index)}
             >
               <div className="flex items-center gap-2">
                 <span
@@ -324,7 +391,7 @@ export const TrackCreateForm = ({
                 </span>
                 <span>{step.label}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -461,6 +528,14 @@ export const TrackCreateForm = ({
                     id="featuredArtists"
                     value={featuredSearch}
                     onChange={(event) => setFeaturedSearch(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") {
+                        return;
+                      }
+
+                      event.preventDefault();
+                      submitFeaturedSearch();
+                    }}
                     placeholder="Search artists or enter collaborator email"
                     className="border-white/10 bg-[#0b1020] pl-10 text-white"
                   />
@@ -469,13 +544,7 @@ export const TrackCreateForm = ({
                   type="button"
                   variant="outline"
                   className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-                  onClick={() => {
-                    if (isEmailLike(featuredSearch)) {
-                      addFeaturedArtist(featuredSearch);
-                    } else {
-                      toast.error("Enter a valid collaborator email or choose an artist.");
-                    }
-                  }}
+                  onClick={submitFeaturedSearch}
                 >
                   Add email
                 </Button>
