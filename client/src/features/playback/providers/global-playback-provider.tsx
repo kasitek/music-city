@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
@@ -33,11 +34,16 @@ type GlobalPlaybackContextValue = {
   currentTime: number;
   duration: number;
   volume: number;
+  canPlayPrevious: boolean;
+  canPlayNext: boolean;
   playTrack: (track: TrackSummary) => Promise<void>;
   togglePlayback: () => Promise<void>;
+  playPreviousTrack: () => Promise<void>;
+  playNextTrack: () => Promise<void>;
   seekTo: (value: number) => void;
   skipBy: (delta: number) => void;
   setVolumeLevel: (value: number) => void;
+  setPlaybackQueue: (tracks: TrackSummary[]) => void;
 };
 
 const GlobalPlaybackContext = createContext<GlobalPlaybackContextValue | null>(null);
@@ -93,11 +99,17 @@ const GlobalPlaybackBar = ({
   currentTime,
   duration,
   volume,
+  canPlayPrevious,
+  canPlayNext,
   togglePlayback,
+  playPreviousTrack,
+  playNextTrack,
   seekTo,
-  skipBy,
   setVolumeLevel,
-}: Omit<GlobalPlaybackContextValue, "activeTrackId" | "playTrack">) => {
+}: Omit<
+  GlobalPlaybackContextValue,
+  "activeTrackId" | "playTrack" | "skipBy" | "setPlaybackQueue"
+>) => {
   if (!activeTrack) {
     return null;
   }
@@ -123,8 +135,9 @@ const GlobalPlaybackBar = ({
           <div className="flex items-center justify-center gap-3">
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
-              onClick={() => skipBy(-10)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!canPlayPrevious}
+              onClick={() => void playPreviousTrack()}
             >
               <SkipBack className="h-4 w-4" />
             </button>
@@ -141,8 +154,9 @@ const GlobalPlaybackBar = ({
             </button>
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
-              onClick={() => skipBy(10)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!canPlayNext}
+              onClick={() => void playNextTrack()}
             >
               <SkipForward className="h-4 w-4" />
             </button>
@@ -213,6 +227,22 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.85);
+  const [playbackQueue, setPlaybackQueueState] = useState<TrackSummary[]>([]);
+
+  const setPlaybackQueue = useCallback((tracks: TrackSummary[]) => {
+    const nextQueue = tracks.filter((track) => track.playbackReady);
+
+    setPlaybackQueueState((currentQueue) => {
+      if (
+        currentQueue.length === nextQueue.length &&
+        currentQueue.every((track, index) => track.id === nextQueue[index]?.id)
+      ) {
+        return currentQueue;
+      }
+
+      return nextQueue;
+    });
+  }, []);
 
   const syncProgress = () => {
     const audio = audioRef.current;
@@ -405,7 +435,7 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
     };
   }, [streamUrl]);
 
-  const playTrack = async (track: TrackSummary) => {
+  const playTrack = useCallback(async (track: TrackSummary) => {
     console.log("[playback] playTrack called", {
       trackId: track.id,
       title: track.title,
@@ -428,8 +458,13 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
 
       if (audioRef.current.paused) {
         await audioRef.current.play();
+        setIsPlaying(true);
+        syncProgress();
+        startAnimationLoop();
       } else {
         audioRef.current.pause();
+        setIsPlaying(false);
+        stopAnimationLoop();
       }
       return;
     }
@@ -457,17 +492,57 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
 
       toast.error(error instanceof Error ? error.message : "Unable to start playback");
     }
-  };
+  }, [activeTrack?.id, logout, session?.token]);
 
-  const togglePlayback = async () => {
+  const activeTrackIndex = playbackQueue.findIndex(
+    (track) => track.id === activeTrack?.id,
+  );
+  const canPlayPrevious = activeTrackIndex > 0;
+  const canPlayNext =
+    activeTrackIndex >= 0 && activeTrackIndex < playbackQueue.length - 1;
+
+  const playPreviousTrack = useCallback(async () => {
+    if (!canPlayPrevious) {
+      return;
+    }
+
+    const previousTrack = playbackQueue[activeTrackIndex - 1];
+
+    if (!previousTrack) {
+      return;
+    }
+
+    await playTrack(previousTrack);
+  }, [activeTrackIndex, canPlayPrevious, playbackQueue, playTrack]);
+
+  const playNextTrack = useCallback(async () => {
+    if (!canPlayNext) {
+      return;
+    }
+
+    const nextTrack = playbackQueue[activeTrackIndex + 1];
+
+    if (!nextTrack) {
+      return;
+    }
+
+    await playTrack(nextTrack);
+  }, [activeTrackIndex, canPlayNext, playbackQueue, playTrack]);
+
+  const togglePlayback = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
     if (audio.paused) {
       await audio.play();
+      setIsPlaying(true);
+      syncProgress();
+      startAnimationLoop();
     } else {
       audio.pause();
+      setIsPlaying(false);
+      stopAnimationLoop();
     }
-  };
+  }, []);
 
   const seekTo = (value: number) => {
     const audio = audioRef.current;
@@ -499,13 +574,31 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
       currentTime,
       duration,
       volume,
+      canPlayPrevious,
+      canPlayNext,
       playTrack,
       togglePlayback,
+      playPreviousTrack,
+      playNextTrack,
       seekTo,
       skipBy,
       setVolumeLevel,
+      setPlaybackQueue,
     }),
-    [activeTrack, isPlaying, currentTime, duration, volume],
+    [
+      activeTrack,
+      isPlaying,
+      currentTime,
+      duration,
+      volume,
+      canPlayPrevious,
+      canPlayNext,
+      playTrack,
+      togglePlayback,
+      playPreviousTrack,
+      playNextTrack,
+      setPlaybackQueue,
+    ],
   );
 
   return (
@@ -518,9 +611,12 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
         currentTime={currentTime}
         duration={duration}
         volume={volume}
+        canPlayPrevious={canPlayPrevious}
+        canPlayNext={canPlayNext}
         togglePlayback={togglePlayback}
+        playPreviousTrack={playPreviousTrack}
+        playNextTrack={playNextTrack}
         seekTo={seekTo}
-        skipBy={skipBy}
         setVolumeLevel={setVolumeLevel}
       />
     </GlobalPlaybackContext.Provider>

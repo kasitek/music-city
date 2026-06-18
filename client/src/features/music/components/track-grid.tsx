@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TrackSummary } from "@music-city/shared";
 import { LoaderCircle, Play, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -20,9 +20,13 @@ export const TrackGrid = ({
   onTrackSynced?: (track: TrackSummary) => void;
 }) => {
   const { session } = useAuth();
-  const { activeTrackId, playTrack } = useGlobalPlayback();
+  const { activeTrackId, playTrack, setPlaybackQueue } = useGlobalPlayback();
   const [syncingTrackId, setSyncingTrackId] = useState<string | null>(null);
   const safeTracks = Array.isArray(tracks) ? tracks : [];
+
+  useEffect(() => {
+    setPlaybackQueue(safeTracks);
+  }, [safeTracks, setPlaybackQueue]);
 
   if (safeTracks.length === 0) {
     return (

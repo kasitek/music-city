@@ -24,7 +24,7 @@ const formatAccessLabel = (track: TrackSummary) => {
 
 export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
   const { session } = useAuth();
-  const { playTrack, activeTrackId } = useGlobalPlayback();
+  const { playTrack, activeTrackId, setPlaybackQueue } = useGlobalPlayback();
   const [track, setTrack] = useState<TrackSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,6 +57,10 @@ export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
       cancelled = true;
     };
   }, [trackId]);
+
+  useEffect(() => {
+    setPlaybackQueue(track ? [track] : []);
+  }, [track, setPlaybackQueue]);
 
   if (isLoading) {
     return (

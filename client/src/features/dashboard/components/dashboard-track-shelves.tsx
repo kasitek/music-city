@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TrackAccess, TrackSummary } from "@music-city/shared";
 import {
   Check,
@@ -244,7 +244,7 @@ export const DashboardTrackShelves = ({
   onTrackDeleted,
 }: DashboardTrackShelvesProps) => {
   const { session } = useAuth();
-  const { activeTrackId, playTrack } = useGlobalPlayback();
+  const { activeTrackId, playTrack, setPlaybackQueue } = useGlobalPlayback();
   const [syncingTrackId, setSyncingTrackId] = useState<string | null>(null);
   const [deletingTrackId, setDeletingTrackId] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -254,6 +254,10 @@ export const DashboardTrackShelves = ({
 
   const readyTracks = tracks.filter((track) => track.playbackReady);
   const pipelineTracks = tracks.filter((track) => !track.playbackReady);
+
+  useEffect(() => {
+    setPlaybackQueue(readyTracks);
+  }, [readyTracks, setPlaybackQueue]);
 
   const syncTrack = async (track: TrackSummary) => {
     const token = session?.token;
