@@ -36,6 +36,7 @@ export const AccountOverview = () => {
   const { session } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tracks, setTracks] = useState<TrackSummary[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export const AccountOverview = () => {
 
     const load = async () => {
       setIsLoading(true);
+      setLoadError(null);
 
       try {
         const [nextProfile, nextTracks] = await Promise.all([
@@ -60,8 +62,14 @@ export const AccountOverview = () => {
         ]);
 
         if (!cancelled) {
-          setProfile(nextProfile);
-          setTracks(nextTracks);
+          setProfile(nextProfile ?? null);
+          setTracks(Array.isArray(nextTracks) ? nextTracks : []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setProfile(null);
+          setTracks([]);
+          setLoadError(error instanceof Error ? error.message : "Failed to load account.");
         }
       } finally {
         if (!cancelled) {
@@ -87,6 +95,14 @@ export const AccountOverview = () => {
 
   if (isLoading) {
     return <div className="text-sm text-slate-400">Loading your account...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-sm text-red-100">
+        {loadError}
+      </div>
+    );
   }
 
   return (

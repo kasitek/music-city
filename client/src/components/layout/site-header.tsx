@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { CircleUserRound, LayoutDashboard, Music2 } from "lucide-react";
+import { CircleUserRound, LayoutDashboard, LogOut, Music2, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { navigationItems } from "@/lib/constants/navigation";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -42,16 +50,6 @@ export const SiteHeader = () => {
               <Button
                 asChild
                 variant="outline"
-                size="icon"
-                className="border-white/15 bg-white/5 text-white hover:bg-white/10"
-              >
-                <Link href="/account" aria-label="Open account">
-                  <CircleUserRound className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
                 className="border-white/15 bg-white/5 text-white hover:bg-white/10"
               >
                 <Link href="/dashboard">
@@ -59,13 +57,40 @@ export const SiteHeader = () => {
                   Workspace
                 </Link>
               </Button>
-              <Button
-                variant="outline"
-                className="border-white/15 bg-white/5 text-white hover:bg-white/10"
-                onClick={() => void logout()}
-              >
-                Logout
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="border-white/15 bg-white/5 text-white hover:bg-white/10"
+                    aria-label="Open account menu"
+                  >
+                    <CircleUserRound className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-52 border-white/10 bg-slate-900 text-white"
+                >
+                  <DropdownMenuLabel className="text-slate-300">
+                    {session.walletAddress.slice(0, 6)}...{session.walletAddress.slice(-4)}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem asChild className="cursor-pointer focus:bg-white/10 focus:text-white">
+                    <Link href="/account">
+                      <Settings className="h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer text-red-300 focus:bg-red-500/10 focus:text-red-200"
+                    onClick={() => void logout()}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
             <Button
