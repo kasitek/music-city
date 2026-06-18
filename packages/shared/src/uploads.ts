@@ -18,6 +18,7 @@ export interface UploadSession {
   sizeBytes: number;
   storageKey?: string;
   remoteUploadId?: string;
+  directUploadUrl?: string;
   uploadUrl: string;
   method: "PUT";
   headers: Record<string, string>;

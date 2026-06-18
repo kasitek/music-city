@@ -165,6 +165,30 @@ export const storageService = {
     };
   },
 
+  async uploadRemoteObject(
+    uploadUrl: string,
+    method: "PUT",
+    body: Buffer,
+    headers?: Record<string, string>,
+  ) {
+    const response = await fetch(uploadUrl, {
+      method,
+      headers,
+      body,
+    });
+
+    if (!response.ok) {
+      throw new HttpError(
+        400,
+        `Remote storage upload failed with status ${response.status}`,
+      );
+    }
+
+    return {
+      eTag: response.headers.get("etag") ?? undefined,
+    };
+  },
+
   async saveLocalObject(storageKey: string, body: NodeJS.ReadableStream) {
     const filePath = localMediaPath(storageKey);
     ensureParent(filePath);

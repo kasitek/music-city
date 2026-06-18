@@ -232,12 +232,20 @@ export const TrackCreateForm = ({
     toast.error("Enter a valid collaborator email or choose an artist.");
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
+  const handleCreateTrack = async () => {
     if (!session?.token) {
       toast.error("Connect your wallet first");
       router.push("/auth");
+      return;
+    }
+
+    if (stepIndex < steps.length - 1) {
+      goNext();
+      return;
+    }
+
+    if (!audioFile) {
+      toast.error("Choose an audio file before creating the track.");
       return;
     }
 
@@ -322,9 +330,8 @@ export const TrackCreateForm = ({
   };
 
   return (
-    <form
+    <div
       className="space-y-8 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 sm:p-7"
-      onSubmit={handleSubmit}
       onKeyDown={(event) => {
         if (
           event.key !== "Enter" ||
@@ -657,7 +664,11 @@ export const TrackCreateForm = ({
           <Button
             type="button"
             className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-            onClick={goNext}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              goNext();
+            }}
             disabled={isSaving}
           >
             Next
@@ -665,13 +676,15 @@ export const TrackCreateForm = ({
           </Button>
         ) : (
           <Button
+            type="button"
             className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
             disabled={isSaving}
+            onClick={() => void handleCreateTrack()}
           >
             {isSaving ? "Uploading..." : "Create track"}
           </Button>
         )}
       </div>
-    </form>
+    </div>
   );
 };

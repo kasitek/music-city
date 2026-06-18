@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { Readable } from "node:stream";
 import { stat } from "node:fs/promises";
 
@@ -42,6 +42,44 @@ uploadsRouter.put(
       storageKey,
       Readable.from(request.body as Buffer) as unknown as NodeJS.ReadableStream,
     );
+
+    response.status(204).send();
+  }),
+);
+
+uploadsRouter.put(
+  "/sessions/:uploadSessionId/content",
+  express.raw({ type: "*/*", limit: "500mb" }),
+  asyncHandler(async (request, response) => {
+    const uploadSessionId = String(request.params.uploadSessionId);
+    const session = await uploadsService.getSession(uploadSessionId);
+
+    if (!session) {
+      throw new HttpError(404, "Upload session not found");
+    }
+
+    if (session.provider !== "s3" || !session.directUploadUrl) {
+      throw new HttpError(400, "Upload relay is only available for S3 storage");
+    }
+
+    if (!Buffer.isBuffer(request.body)) {
+      throw new HttpError(400, "Upload body is required");
+    }
+
+    const result = await storageService.uploadRemoteObject(
+      session.directUploadUrl,
+      session.method,
+      request.body,
+      session.contentType
+        ? {
+            "Content-Type": session.contentType,
+          }
+        : undefined,
+    );
+
+    if (result.eTag) {
+      response.setHeader("ETag", result.eTag);
+    }
 
     response.status(204).send();
   }),
