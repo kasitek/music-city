@@ -54,6 +54,14 @@ const formatClock = (seconds: number) => {
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 };
 
+const isHlsStream = (url: string) => {
+  try {
+    return new URL(url, window.location.origin).pathname.endsWith(".m3u8");
+  } catch {
+    return url.includes(".m3u8");
+  }
+};
+
 const TrackArt = ({ track }: { track: TrackSummary }) => {
   if (track.coverImageUrl) {
     return (
@@ -244,7 +252,7 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
 
     const startPlayback = async () => {
       try {
-        if (streamUrl.endsWith(".m3u8")) {
+        if (isHlsStream(streamUrl)) {
           if (Hls.isSupported()) {
             const hls = new Hls();
             hls.loadSource(streamUrl);
@@ -269,8 +277,13 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
         }
 
         await audio.play();
-      } catch {
+      } catch (error) {
         setIsPlaying(false);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Unable to start audio playback",
+        );
       }
     };
 

@@ -60,6 +60,14 @@ export const muxService = {
     return requireClient().video.assets.retrieve(assetId);
   },
 
+  async deleteAsset(assetId: string) {
+    return requireClient().video.assets.delete(assetId);
+  },
+
+  async cancelUpload(uploadId: string) {
+    return requireClient().video.uploads.cancel(uploadId);
+  },
+
   async unwrapWebhook(body: string, headers: Headers) {
     return requireClient().webhooks.unwrap(body, headers);
   },

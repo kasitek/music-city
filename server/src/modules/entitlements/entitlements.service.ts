@@ -67,7 +67,7 @@ export const entitlementsService = {
   },
 
   async canPlayTrack(walletAddress: string, trackId: string) {
-    const track = await tracksService.getTrack(trackId);
+    const track = await tracksService.getTrackForPlayback(trackId);
 
     if (!track || !track.playbackReady) {
       return false;

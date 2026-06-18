@@ -1,4 +1,10 @@
-import { trackCreateSchema, type TrackCreateInput } from "@music-city/shared";
+import {
+  trackAccessUpdateSchema,
+  trackCreateSchema,
+  type TrackAccessUpdateInput,
+  type TrackSummary,
+  type TrackCreateInput,
+} from "@music-city/shared";
 
 import { createId } from "../../services/id.service.js";
 import { muxService } from "../../services/mux.service.js";
@@ -30,7 +36,9 @@ const hydrateTrackUrls = <T extends { coverStorageKey?: string; coverImageUrl?: 
 export const tracksService = {
   async listTracks() {
     const tracks = await tracksRepository.list();
-    return tracks.map(hydrateTrackUrls);
+    return tracks
+      .map(hydrateTrackUrls)
+      .filter((track) => track.playbackReady && track.access !== "private");
   },
 
   async listMyTracks(walletAddress: string) {
@@ -46,7 +54,43 @@ export const tracksService = {
 
   async getTrack(trackId: string) {
     const track = await tracksRepository.findById(trackId);
-    return track ? hydrateTrackUrls(track) : null;
+    if (!track) {
+      return null;
+    }
+
+    const hydrated = hydrateTrackUrls(track);
+
+    if (!hydrated.playbackReady || hydrated.access === "private") {
+      return null;
+    }
+
+    return hydrated;
+  },
+
+  async getTrackForPlayback(trackId: string) {
+    const track = await tracksRepository.findById(trackId);
+    if (!track) {
+      return null;
+    }
+
+    const hydrated = hydrateTrackUrls(track);
+
+    if (!hydrated.playbackReady) {
+      return null;
+    }
+
+    return hydrated;
+  },
+
+  async getManageTrack(walletAddress: string, trackId: string) {
+    const profile = await usersService.getProfile(walletAddress);
+    const track = await tracksRepository.findById(trackId);
+
+    if (!profile || !track || track.artistId !== profile.id) {
+      return null;
+    }
+
+    return hydrateTrackUrls(track);
   },
 
   async userOwnsTrack(walletAddress: string, trackId: string) {
@@ -54,6 +98,53 @@ export const tracksService = {
     const track = await tracksRepository.findById(trackId);
 
     return Boolean(profile && track && track.artistId === profile.id);
+  },
+
+  async deleteTrack(walletAddress: string, trackId: string) {
+    const profile = await usersService.getProfile(walletAddress);
+    const track = await tracksRepository.findById(trackId);
+
+    if (!profile || !track || track.artistId !== profile.id) {
+      throw new Error("Track not found");
+    }
+
+    if (track.muxAssetId) {
+      await muxService.deleteAsset(track.muxAssetId).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+
+        if (!message.toLowerCase().includes("404")) {
+          throw error;
+        }
+      });
+    } else if (track.muxUploadId) {
+      await muxService.cancelUpload(track.muxUploadId).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+
+        if (
+          !message.toLowerCase().includes("404") &&
+          !message.toLowerCase().includes("not found")
+        ) {
+          throw error;
+        }
+      });
+    }
+
+    if (track.coverStorageKey) {
+      await storageService.deleteObject(track.coverStorageKey);
+    }
+
+    if (track.masterStorageKey) {
+      await storageService.deleteObject(track.masterStorageKey);
+    }
+
+    if (
+      track.streamManifestKey &&
+      !track.streamManifestKey.startsWith("virtual/")
+    ) {
+      await storageService.deleteObject(track.streamManifestKey);
+    }
+
+    await tracksRepository.delete(trackId);
   },
 
   async createTrack(walletAddress: string, input: TrackCreateInput) {
@@ -94,6 +185,33 @@ export const tracksService = {
     });
 
     return track;
+  },
+
+  async updateTrackAccess(
+    walletAddress: string,
+    trackId: string,
+    input: TrackAccessUpdateInput,
+  ) {
+    const profile = await usersService.getProfile(walletAddress);
+    const existing = await tracksRepository.findById(trackId);
+
+    if (!profile || !existing || existing.artistId !== profile.id) {
+      throw new Error("Track not found");
+    }
+
+    const parsed = trackAccessUpdateSchema.parse(input);
+
+    return tracksRepository.upsert({
+      ...existing,
+      access: parsed.access,
+      priceLabel:
+        parsed.access === "public"
+          ? "Public"
+          : parsed.access === "subscribers"
+            ? "Subscribers"
+            : "Private",
+      updatedAt: new Date().toISOString(),
+    });
   },
 
   async syncMuxTrack(trackId: string) {

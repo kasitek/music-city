@@ -81,3 +81,8 @@ export const trackCreateSchema = z.object({
   access: trackAccessSchema.default("private"),
 });
 export type TrackCreateInput = z.infer<typeof trackCreateSchema>;
+
+export const trackAccessUpdateSchema = z.object({
+  access: trackAccessSchema,
+});
+export type TrackAccessUpdateInput = z.infer<typeof trackAccessUpdateSchema>;

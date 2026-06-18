@@ -188,6 +188,10 @@ export const databaseService = {
     return mapPayloadRows<T>(result.rows);
   },
 
+  async deleteTrack(id: string) {
+    await pool.query(`DELETE FROM tracks WHERE id = $1`, [id]);
+  },
+
   async upsertUploadSession(
     id: string,
     trackId: string,

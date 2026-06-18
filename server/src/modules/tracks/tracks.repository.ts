@@ -26,4 +26,8 @@ export const tracksRepository = {
     );
     return track;
   },
+
+  async delete(trackId: string) {
+    await databaseService.deleteTrack(trackId);
+  },
 };

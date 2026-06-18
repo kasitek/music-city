@@ -25,11 +25,49 @@ tracksRouter.get(
 );
 
 tracksRouter.get(
+  "/:trackId/manage",
+  requireSession,
+  asyncHandler(async (request, response) => {
+    const track = await tracksService.getManageTrack(
+      request.session!.walletAddress,
+      String(request.params.trackId),
+    );
+
+    if (!track) {
+      throw new HttpError(404, "Track not found");
+    }
+
+    response.json({ track });
+  }),
+);
+
+tracksRouter.get(
   "/:trackId",
   asyncHandler(async (request, response) => {
     response.json({
       track: await tracksService.getTrack(String(request.params.trackId)),
     });
+  }),
+);
+
+tracksRouter.put(
+  "/:trackId/access",
+  requireSession,
+  asyncHandler(async (request, response) => {
+    try {
+      const track = await tracksService.updateTrackAccess(
+        request.session!.walletAddress,
+        String(request.params.trackId),
+        request.body,
+      );
+
+      response.json({ track });
+    } catch (error) {
+      throw new HttpError(
+        400,
+        error instanceof Error ? error.message : "Track access update failed",
+      );
+    }
   }),
 );
 
@@ -74,6 +112,24 @@ tracksRouter.post(
       throw new HttpError(
         400,
         error instanceof Error ? error.message : "Track sync failed",
+      );
+    }
+  }),
+);
+
+tracksRouter.delete(
+  "/:trackId",
+  requireSession,
+  asyncHandler(async (request, response) => {
+    const trackId = String(request.params.trackId);
+
+    try {
+      await tracksService.deleteTrack(request.session!.walletAddress, trackId);
+      response.status(204).send();
+    } catch (error) {
+      throw new HttpError(
+        400,
+        error instanceof Error ? error.message : "Track delete failed",
       );
     }
   }),

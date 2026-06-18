@@ -15,7 +15,7 @@ playbackRouter.post(
   requireSession,
   asyncHandler(async (request, response) => {
     const input = createPlaybackSessionSchema.parse(request.body);
-    const track = await tracksService.getTrack(input.trackId);
+    const track = await tracksService.getTrackForPlayback(input.trackId);
 
     if (!track) {
       throw new HttpError(404, "Track not found");

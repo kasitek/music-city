@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
 } from "node:fs";
 import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -70,7 +71,7 @@ const buildS3PresignedUrl = ({
   storageKey,
   expiresInSeconds,
 }: {
-  method: "PUT" | "GET";
+  method: "PUT" | "GET" | "DELETE";
   storageKey: string;
   expiresInSeconds: number;
 }) => {
@@ -187,6 +188,35 @@ export const storageService = {
     return {
       eTag: response.headers.get("etag") ?? undefined,
     };
+  },
+
+  async deleteObject(storageKey: string) {
+    if (env.STORAGE_PROVIDER === "local") {
+      const filePath = localMediaPath(storageKey);
+
+      if (existsSync(filePath)) {
+        rmSync(filePath, { force: true });
+      }
+
+      return;
+    }
+
+    const uploadUrl = buildS3PresignedUrl({
+      method: "DELETE",
+      storageKey,
+      expiresInSeconds: 300,
+    });
+
+    const response = await fetch(uploadUrl, {
+      method: "DELETE",
+    });
+
+    if (!response.ok && response.status !== 404) {
+      throw new HttpError(
+        400,
+        `Remote storage delete failed with status ${response.status}`,
+      );
+    }
   },
 
   async saveLocalObject(storageKey: string, body: NodeJS.ReadableStream) {

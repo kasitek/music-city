@@ -13,7 +13,7 @@ const expiresInMinutes = (minutes: number) =>
 
 export const playbackService = {
   async createSession(trackId: string) {
-    const track = await tracksService.getTrack(trackId);
+    const track = await tracksService.getTrackForPlayback(trackId);
 
     if (!track?.playbackReady) {
       throw new HttpError(404, "Track media is not available");
@@ -71,7 +71,7 @@ export const playbackService = {
 
   async getManifest(sessionId: string, token: string) {
     const session = await this.getSession(sessionId, token);
-    const track = await tracksService.getTrack(session.trackId);
+    const track = await tracksService.getTrackForPlayback(session.trackId);
 
     if (!track?.playbackReady) {
       throw new HttpError(404, "Track media is not available");
@@ -108,7 +108,7 @@ export const playbackService = {
       return session.streamUrl;
     }
 
-    const track = await tracksService.getTrack(session.trackId);
+    const track = await tracksService.getTrackForPlayback(session.trackId);
 
     if (!track?.playbackReady) {
       throw new HttpError(404, "Track media is not available");

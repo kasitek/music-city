@@ -1,69 +1,40 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { TrackSummary } from "@music-city/shared";
-import { LoaderCircle, Play, RefreshCw } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  LoaderCircle,
+  MoreHorizontal,
+  Play,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { tracksApi } from "@/features/music/lib/tracks-api";
+import {
+  TrackTable,
+  formatTrackAccessLabel,
+} from "@/features/music/components/track-table";
 import { useGlobalPlayback } from "@/features/playback/providers/global-playback-provider";
 import { useAuth } from "@/hooks/use-auth";
 
 interface DashboardTrackShelvesProps {
   tracks: TrackSummary[];
   onTrackSynced: (track: TrackSummary) => void;
+  onTrackDeleted: (trackId: string) => void;
 }
-
-const formatStatus = (track: TrackSummary) => {
-  if (track.playbackReady) {
-    return "Ready";
-  }
-
-  if (track.muxAssetStatus === "asset_created") {
-    return "Mux processing";
-  }
-
-  if (track.muxAssetStatus === "waiting") {
-    return "Upload received";
-  }
-
-  if (track.muxAssetStatus === "errored") {
-    return "Needs attention";
-  }
-
-  if (track.status === "awaiting_upload") {
-    return "Awaiting upload";
-  }
-
-  return track.status;
-};
-
-const formatAccessLabel = (track: TrackSummary) => {
-  switch (track.access) {
-    case "public":
-      return "Public release";
-    case "subscribers":
-      return "Subscriber release";
-    default:
-      return "Private release";
-  }
-};
-
-const TrackThumbnail = ({ track }: { track: TrackSummary }) => {
-  if (track.coverImageUrl) {
-    return (
-      <div
-        className="h-14 w-14 shrink-0 rounded-2xl bg-cover bg-center"
-        style={{ backgroundImage: `url(${track.coverImageUrl})` }}
-      />
-    );
-  }
-
-  return (
-    <div className="h-14 w-14 shrink-0 rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(52,211,153,0.28),_transparent_52%),linear-gradient(180deg,_rgba(15,23,42,0.15),_rgba(15,23,42,0.94))]" />
-  );
-};
 
 const TrackTableSection = ({
   title,
@@ -71,16 +42,30 @@ const TrackTableSection = ({
   tracks,
   activeTrackId,
   syncingTrackId,
+  deletingTrackId,
+  selectionMode,
+  selectedTrackIds,
+  canPlayTrack,
   onPlay,
   onSync,
+  onDelete,
+  onToggleSelectionMode,
+  onToggleTrackSelected,
 }: {
   title: string;
   description: string;
   tracks: TrackSummary[];
   activeTrackId: string | null;
   syncingTrackId: string | null;
+  deletingTrackId: string | null;
+  selectionMode: boolean;
+  selectedTrackIds: string[];
+  canPlayTrack: (track: TrackSummary) => boolean;
   onPlay: (track: TrackSummary) => Promise<void>;
   onSync: (track: TrackSummary) => Promise<void>;
+  onDelete: (track: TrackSummary) => Promise<void>;
+  onToggleSelectionMode: (track: TrackSummary) => void;
+  onToggleTrackSelected: (trackId: string) => void;
 }) => {
   if (tracks.length === 0) {
     return null;
@@ -92,108 +77,126 @@ const TrackTableSection = ({
         <h3 className="text-2xl font-semibold text-white">{title}</h3>
         <p className="text-sm text-slate-400">{description}</p>
       </div>
+      <TrackTable
+        tracks={tracks}
+        titleHref={(track) => `/dashboard/tracks/${track.id}`}
+        onRowClick={(track) => void onPlay(track)}
+        isRowClickable={canPlayTrack}
+        renderSelectionCell={(track) =>
+          selectionMode ? (
+            <button
+              type="button"
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+                selectedTrackIds.includes(track.id)
+                  ? "border-emerald-400 bg-emerald-400 text-slate-950"
+                  : "border-white/15 bg-white/5 text-transparent hover:border-white/30"
+              }`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleTrackSelected(track.id);
+              }}
+              aria-label={
+                selectedTrackIds.includes(track.id)
+                  ? "Deselect track"
+                  : "Select track"
+              }
+            >
+              <Check className="h-4 w-4" />
+            </button>
+          ) : null
+        }
+        renderAction={(track) => {
+          const isSyncing = syncingTrackId === track.id;
+          const isDeleting = deletingTrackId === track.id;
+          const isActive = activeTrackId === track.id;
 
-      <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03]">
-        <div className="hidden grid-cols-[minmax(260px,2.2fr)_1fr_1fr_1.1fr_180px] gap-4 border-b border-white/10 px-6 py-4 text-xs uppercase tracking-[0.24em] text-slate-500 lg:grid">
-          <span>Track</span>
-          <span>Status</span>
-          <span>Runtime</span>
-          <span>Access</span>
-          <span className="text-right">Action</span>
-        </div>
+          return (
+            <div className="flex flex-wrap justify-start gap-3 lg:justify-end">
+              {track.playbackReady ? (
+                <Button
+                  variant={isActive ? "default" : "outline"}
+                  className={
+                    isActive
+                      ? "bg-emerald-400 px-3 text-slate-950 hover:bg-emerald-300"
+                      : "border-white/10 bg-white/5 px-3 text-white hover:bg-white/10"
+                  }
+                  disabled={!canPlayTrack(track)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void onPlay(track);
+                  }}
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+                  disabled={isSyncing}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void onSync(track);
+                  }}
+                >
+                  {isSyncing ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
 
-        <div className="divide-y divide-white/10">
-          {tracks.map((track) => {
-            const isSyncing = syncingTrackId === track.id;
-            const isActive = activeTrackId === track.id;
-
-            return (
-              <article
-                key={track.id}
-                className="px-4 py-4 sm:px-6"
-              >
-                <div className="grid gap-4 lg:grid-cols-[minmax(260px,2.2fr)_1fr_1fr_1.1fr_180px] lg:items-center">
-                  <div className="flex items-center gap-4">
-                    <TrackThumbnail track={track} />
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="truncate text-lg font-semibold text-white">
-                          {track.title}
-                        </h4>
-                        <span className="rounded-full border border-white/10 bg-slate-950/80 px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-emerald-300">
-                          {track.genre}
-                        </span>
-                      </div>
-                      <p className="truncate text-sm text-slate-400">
-                        {track.artistName}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 lg:hidden">
-                      Status
-                    </p>
-                    <p className="text-sm text-slate-200">{formatStatus(track)}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 lg:hidden">
-                      Runtime
-                    </p>
-                    <p className="text-sm text-slate-200">{track.runtime}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 lg:hidden">
-                      Access
-                    </p>
-                    <p className="text-sm text-emerald-300">
-                      {formatAccessLabel(track)}
-                    </p>
-                  </div>
-
-                  <div className="flex justify-start lg:justify-end">
-                    {track.playbackReady ? (
-                      <Button
-                        variant={isActive ? "default" : "outline"}
-                        className={
-                          isActive
-                            ? "bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-                            : "border-white/10 bg-white/5 text-white hover:bg-white/10"
-                        }
-                        onClick={() => void onPlay(track)}
-                      >
-                        <Play className="mr-2 h-4 w-4 fill-current" />
-                        {isActive ? "Playing" : "Play"}
-                      </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-white/10 bg-white/5 px-3 text-white hover:bg-white/10"
+                    disabled={isDeleting}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-44 border-white/10 bg-[#101625] text-white"
+                >
+                  <DropdownMenuItem asChild className="cursor-pointer focus:bg-white/10 focus:text-white">
+                    <Link href={`/dashboard/tracks/${track.id}`}>
+                      Manage
+                      <ExternalLink className="ml-auto h-4 w-4" />
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10 focus:text-white"
+                    onClick={() => onToggleSelectionMode(track)}
+                  >
+                    {selectionMode ? "Stop selecting" : "Select"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-red-200 focus:bg-red-500/10 focus:text-red-100"
+                    disabled={isDeleting || isSyncing}
+                    onClick={() => void onDelete(track)}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting
+                      </>
                     ) : (
-                      <Button
-                        variant="outline"
-                        className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-                        disabled={isSyncing}
-                        onClick={() => void onSync(track)}
-                      >
-                        {isSyncing ? (
-                          <>
-                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                            Checking
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Check
-                          </>
-                        )}
-                      </Button>
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </>
                     )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        }}
+      />
     </section>
   );
 };
@@ -201,10 +204,16 @@ const TrackTableSection = ({
 export const DashboardTrackShelves = ({
   tracks,
   onTrackSynced,
+  onTrackDeleted,
 }: DashboardTrackShelvesProps) => {
   const { session } = useAuth();
   const { activeTrackId, playTrack } = useGlobalPlayback();
   const [syncingTrackId, setSyncingTrackId] = useState<string | null>(null);
+  const [deletingTrackId, setDeletingTrackId] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
+  const canPlayTrack = (track: TrackSummary) =>
+    Boolean(track.playbackReady && session?.token);
 
   const readyTracks = tracks.filter((track) => track.playbackReady);
   const pipelineTracks = tracks.filter((track) => !track.playbackReady);
@@ -235,16 +244,94 @@ export const DashboardTrackShelves = ({
     }
   };
 
+  const deleteTrack = async (track: TrackSummary) => {
+    const token = session?.token;
+
+    if (!token) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${track.title}" everywhere? This will remove it from Mux, storage, and the database.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingTrackId(track.id);
+      await tracksApi.deleteTrack(token, track.id);
+      onTrackDeleted(track.id);
+      toast.success("Track deleted.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to delete track",
+      );
+    } finally {
+      setDeletingTrackId(null);
+    }
+  };
+
+  const toggleSelectionMode = (track: TrackSummary) => {
+    setSelectionMode((current) => {
+      const next = !current;
+
+      if (next) {
+        setSelectedTrackIds((currentIds) =>
+          currentIds.includes(track.id) ? currentIds : [track.id],
+        );
+      } else {
+        setSelectedTrackIds([]);
+      }
+
+      return next;
+    });
+  };
+
+  const toggleTrackSelected = (trackId: string) => {
+    setSelectedTrackIds((current) =>
+      current.includes(trackId)
+        ? current.filter((id) => id !== trackId)
+        : [...current, trackId],
+    );
+  };
+
   return (
     <div className="space-y-10 pb-40">
+      {selectionMode ? (
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+          <span>
+            {selectedTrackIds.length} track{selectedTrackIds.length === 1 ? "" : "s"} selected
+          </span>
+          <Button
+            variant="outline"
+            className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+            onClick={() => {
+              setSelectionMode(false);
+              setSelectedTrackIds([]);
+            }}
+          >
+            Done
+          </Button>
+        </div>
+      ) : null}
+
       <TrackTableSection
         title="Ready to play"
         description="Finished releases you can preview right now."
         tracks={readyTracks}
         activeTrackId={activeTrackId}
         syncingTrackId={syncingTrackId}
+        deletingTrackId={deletingTrackId}
+        selectionMode={selectionMode}
+        selectedTrackIds={selectedTrackIds}
+        canPlayTrack={canPlayTrack}
         onPlay={playTrack}
         onSync={syncTrack}
+        onDelete={deleteTrack}
+        onToggleSelectionMode={toggleSelectionMode}
+        onToggleTrackSelected={toggleTrackSelected}
       />
       <TrackTableSection
         title="Processing"
@@ -252,8 +339,15 @@ export const DashboardTrackShelves = ({
         tracks={pipelineTracks}
         activeTrackId={activeTrackId}
         syncingTrackId={syncingTrackId}
+        deletingTrackId={deletingTrackId}
+        selectionMode={selectionMode}
+        selectedTrackIds={selectedTrackIds}
+        canPlayTrack={canPlayTrack}
         onPlay={playTrack}
         onSync={syncTrack}
+        onDelete={deleteTrack}
+        onToggleSelectionMode={toggleSelectionMode}
+        onToggleTrackSelected={toggleTrackSelected}
       />
     </div>
   );

@@ -42,6 +42,12 @@ export const DashboardOverview = () => {
     );
   };
 
+  const handleTrackDeleted = (trackId: string) => {
+    setTracks((currentTracks) =>
+      currentTracks.filter((track) => track.id !== trackId),
+    );
+  };
+
   if (!session) {
     return (
       <div className="rounded-lg border border-white/10 bg-white/5 p-8 text-sm text-slate-300">
@@ -102,7 +108,11 @@ export const DashboardOverview = () => {
         {isLoading ? (
           <div className="text-sm text-slate-400">Loading your tracks...</div>
         ) : (
-          <DashboardTrackShelves tracks={tracks} onTrackSynced={handleTrackSynced} />
+          <DashboardTrackShelves
+            tracks={tracks}
+            onTrackSynced={handleTrackSynced}
+            onTrackDeleted={handleTrackDeleted}
+          />
         )}
       </div>
     </div>
