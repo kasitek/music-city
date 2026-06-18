@@ -6,17 +6,17 @@ const steps = [
   {
     icon: MicVocal,
     title: "Claim your artist account",
-    description: "One wallet identity, one server profile, one place to manage releases and rights.",
+    description: "Create your profile and set up the account you will use for releases.",
   },
   {
     icon: Upload,
-    title: "Push masters to storage",
-    description: "Original files stay private while the backend prepares encrypted streaming outputs.",
+    title: "Upload your music",
+    description: "Add your original files and prepare them for streaming.",
   },
   {
     icon: ShieldCheck,
-    title: "Control access policy",
-    description: "Use Stellar-backed entitlement checks for fan access, sales, subscriptions, and drops.",
+    title: "Choose who can listen",
+    description: "Decide how fans access your music, from private drops to wider releases.",
   },
 ] as const;
 

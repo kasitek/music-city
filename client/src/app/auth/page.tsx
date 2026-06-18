@@ -9,8 +9,8 @@ export default function AuthPage() {
         <div className="grid gap-10 lg:grid-cols-[1fr_420px]">
           <PageHero
             eyebrow="Authentication"
-            title="Social login now provisions the Stellar wallet for the user."
-            description="Dynamic handles the social sign-in and embedded wallet. The backend still verifies identity and issues the application session used by the rest of the product."
+            title="Log in to Music City"
+            description="Use email or social login to access your account."
           />
           <AuthPanel />
         </div>

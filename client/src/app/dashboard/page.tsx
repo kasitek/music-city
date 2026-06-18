@@ -9,8 +9,8 @@ export default function DashboardPage() {
         <div className="space-y-12">
           <PageHero
             eyebrow="Dashboard"
-            title="Artist operations now hang off the backend instead of browser-only state."
-            description="This shell is intentionally thin. Uploads, transcoding jobs, entitlements, and release management move behind API modules instead of bloated page files."
+            title="Your music"
+            description="Create a track and upload your first release."
           />
           <DashboardOverview />
         </div>

@@ -6,27 +6,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const pillars = [
   {
     icon: Server,
-    title: "Standalone server",
+    title: "Artist control",
     description:
-      "Express + TypeScript backend that owns auth, entitlements, uploads, playback, and storage policy.",
+      "Manage your catalog, releases, and access from one place.",
   },
   {
     icon: Coins,
-    title: "Embedded Stellar auth",
+    title: "Simple login",
     description:
-      "Social login provisions the Stellar wallet, while the backend still owns the application session.",
+      "Use email or social login to get started quickly.",
   },
   {
     icon: Waves,
-    title: "Streaming-first media",
+    title: "Streaming-ready uploads",
     description:
-      "Encrypted HLS in object storage with signed access beats shoving private media into permanent networks.",
+      "Upload original files and prepare them for smooth playback.",
   },
   {
     icon: Database,
-    title: "Shared contract types",
+    title: "Fan access",
     description:
-      "Client and server speak through one shared package so the API shape does not drift.",
+      "Release music your way, from private drops to broader listening access.",
   },
 ] as const;
 
@@ -39,7 +39,7 @@ export const PlatformPillars = () => {
             Foundation
           </p>
           <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            The app is being reorganized around the right boundaries.
+            Built for modern music releases
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -9,8 +9,8 @@ export default function MarketplacePage() {
         <div className="space-y-12">
           <PageHero
             eyebrow="Marketplace"
-            title="Commercial flows belong beside backend entitlement rules."
-            description="The marketplace surface should stay readable while the server owns product rules, payment state, and access enforcement."
+            title="Explore the marketplace"
+            description="Browse releases, discover drops, and unlock access to music."
           />
           <MarketplaceOverview />
         </div>

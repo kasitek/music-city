@@ -11,10 +11,36 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { usersApi } from "@/features/users/lib/users-api";
 
-export const OnboardingForm = () => {
+const normalizeDefaultDisplayName = (value?: string | null) => {
+  if (!value) {
+    return "";
+  }
+
+  if (!value.includes("@")) {
+    return value;
+  }
+
+  return value
+    .split("@")[0]
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+type OnboardingFormProps = {
+  mode?: "page" | "modal";
+  onCompleted?: (role: "artist" | "fan") => void;
+};
+
+export const OnboardingForm = ({
+  mode = "page",
+  onCompleted,
+}: OnboardingFormProps) => {
   const router = useRouter();
   const { session, refreshSessionProfile } = useAuth();
-  const [displayName, setDisplayName] = useState(session?.displayName ?? "");
+  const [displayName, setDisplayName] = useState(
+    normalizeDefaultDisplayName(session?.displayName),
+  );
   const [role, setRole] = useState<"artist" | "fan">("artist");
   const [location, setLocation] = useState("");
   const [genres, setGenres] = useState("");
@@ -45,6 +71,11 @@ export const OnboardingForm = () => {
       });
       await refreshSessionProfile();
       toast.success("Profile saved");
+      if (onCompleted) {
+        onCompleted(role);
+        return;
+      }
+
       router.push(role === "artist" ? "/dashboard" : "/stream");
     } finally {
       setIsSaving(false);
@@ -53,7 +84,11 @@ export const OnboardingForm = () => {
 
   return (
     <form
-      className="max-w-2xl space-y-5 rounded-lg border border-white/10 bg-white/5 p-6"
+      className={
+        mode === "modal"
+          ? "space-y-5"
+          : "max-w-2xl space-y-5 rounded-lg border border-white/10 bg-white/5 p-6"
+      }
       onSubmit={handleSubmit}
     >
       <div className="space-y-2">
@@ -62,6 +97,7 @@ export const OnboardingForm = () => {
           id="displayName"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
+          placeholder="Your artist or profile name"
           required
           className="border-white/10 bg-slate-950/70 text-white"
         />

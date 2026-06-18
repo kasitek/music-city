@@ -101,6 +101,14 @@ const delay = (ms: number) =>
     window.setTimeout(resolve, ms);
   });
 
+const redirectToLandingPage = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.location.assign("/");
+};
+
 const isStellarAddress = (value?: string | null) =>
   typeof value === "string" && value.startsWith("G");
 
@@ -200,6 +208,7 @@ const FallbackAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = useCallback(async () => {
     clearSession();
+    redirectToLandingPage();
   }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
@@ -495,6 +504,7 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(async () => {
     clearSession();
     await handleLogOut();
+    redirectToLandingPage();
   }, [clearSession, handleLogOut]);
 
   const value = useMemo<AuthContextValue>(

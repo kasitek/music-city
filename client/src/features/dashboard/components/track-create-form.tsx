@@ -14,9 +14,13 @@ import { uploadsApi } from "@/features/uploads/lib/uploads-api";
 
 interface TrackCreateFormProps {
   onCreated: () => void;
+  onClose?: () => void;
 }
 
-export const TrackCreateForm = ({ onCreated }: TrackCreateFormProps) => {
+export const TrackCreateForm = ({
+  onCreated,
+  onClose,
+}: TrackCreateFormProps) => {
   const router = useRouter();
   const { session } = useAuth();
   const [title, setTitle] = useState("");
@@ -64,6 +68,7 @@ export const TrackCreateForm = ({ onCreated }: TrackCreateFormProps) => {
       setDescription("");
       setFile(null);
       onCreated();
+      onClose?.();
       toast.success(file ? "Track uploaded" : "Track draft created");
     } finally {
       setIsSaving(false);
@@ -122,6 +127,16 @@ export const TrackCreateForm = ({ onCreated }: TrackCreateFormProps) => {
       >
         {isSaving ? "Saving..." : "Create track"}
       </Button>
+      {onClose ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="ml-3 border-white/15 bg-white/5 text-white hover:bg-white/10"
+          onClick={onClose}
+        >
+          Cancel
+        </Button>
+      ) : null}
     </form>
   );
 };

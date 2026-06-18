@@ -4,19 +4,22 @@ import { useState } from "react";
 import type { TrackSummary } from "@music-city/shared";
 import MuxAudio from "@mux/mux-audio-react";
 import { Play } from "lucide-react";
+import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { playbackApi } from "@/features/playback/lib/playback-api";
 import { useAuth } from "@/hooks/use-auth";
+import { ApiClientError } from "@/lib/api/http-client";
 
-export const TrackGrid = ({ tracks }: { tracks: TrackSummary[] }) => {
-  const { session } = useAuth();
+export const TrackGrid = ({ tracks }: { tracks?: TrackSummary[] }) => {
+  const { session, logout } = useAuth();
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [streamProvider, setStreamProvider] = useState<"local" | "mux" | null>(null);
+  const safeTracks = Array.isArray(tracks) ? tracks : [];
 
-  if (tracks.length === 0) {
+  if (safeTracks.length === 0) {
     return (
       <div className="rounded-lg border border-white/10 bg-white/5 p-8 text-sm text-slate-300">
         No tracks are published yet.
@@ -24,9 +27,9 @@ export const TrackGrid = ({ tracks }: { tracks: TrackSummary[] }) => {
     );
   }
 
-  return (
+    return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {tracks.map((track) => (
+      {safeTracks.map((track) => (
         <Card
           key={track.id}
           className="border-white/10 bg-white/5 text-white shadow-none"
@@ -61,13 +64,28 @@ export const TrackGrid = ({ tracks }: { tracks: TrackSummary[] }) => {
                   return;
                 }
 
-                const playbackSession = await playbackApi.createSession(
-                  session.token,
-                  track.id,
-                );
-                setActiveTrackId(track.id);
-                setStreamUrl(playbackSession.streamUrl);
-                setStreamProvider(playbackSession.provider);
+                try {
+                  const playbackSession = await playbackApi.createSession(
+                    session.token,
+                    track.id,
+                  );
+
+                  setActiveTrackId(track.id);
+                  setStreamUrl(playbackSession.streamUrl);
+                  setStreamProvider(playbackSession.provider);
+                } catch (error) {
+                  if (error instanceof ApiClientError && error.status === 401) {
+                    toast.error("Your session expired. Please sign in again.");
+                    await logout();
+                    return;
+                  }
+
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to start playback",
+                  );
+                }
               }}
             >
               Play

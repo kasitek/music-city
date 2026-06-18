@@ -15,12 +15,12 @@ export const AuthPanel = () => {
   const dynamicConfigured = clientEnv.isDynamicConfigured;
 
   useEffect(() => {
-    if (!session) {
+    if (!session?.profileComplete) {
       return;
     }
 
-    router.push(session.profileComplete ? "/dashboard" : "/onboarding");
-  }, [router, session]);
+    router.push("/dashboard");
+  }, [router, session?.profileComplete]);
 
   return (
     <Card className="border-white/10 bg-white/5 text-white shadow-none">
@@ -28,31 +28,25 @@ export const AuthPanel = () => {
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
           <Sparkles className="h-5 w-5" />
         </span>
-        <CardTitle className="text-2xl">Social login with an embedded Stellar wallet</CardTitle>
+        <CardTitle className="text-2xl">Welcome back</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <p className="text-sm leading-7 text-slate-300">
-          Users log in with social or email first. Dynamic provisions the
-          embedded Stellar wallet, and the backend still owns the application
-          session.
+          Sign in with email or your preferred provider to continue.
         </p>
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
           <div className="mb-2 flex items-center gap-2 text-emerald-300">
             <Shield className="h-4 w-4" />
-            <span className="font-medium">Current status</span>
+            <span className="font-medium">Status</span>
           </div>
           {session ? (
-            <p>
-              Connected as {session.walletAddress}. Redirecting to your
-              workspace.
-            </p>
+            <p>Connected. Redirecting you now.</p>
           ) : dynamicConfigured ? (
-            <p>Ready. Continue with Google, email, or another enabled social provider.</p>
+            <p>Ready to sign in.</p>
           ) : (
             <p>
-              Dynamic is not configured yet. Set `NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID`
-              before using social login.
+              Login is not available right now.
             </p>
           )}
         </div>

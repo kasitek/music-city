@@ -9,8 +9,8 @@ export default function ArtistsPage() {
         <div className="space-y-12">
           <PageHero
             eyebrow="Artists"
-            title="Artist pages should become simple consumers of backend profile data."
-            description="Follow relationships, release lists, and fan access policy move out of the frontend tangle and into modular services."
+            title="Discover artists"
+            description="Browse artist profiles and explore the music they release on Music City."
           />
           <ArtistsOverview />
         </div>

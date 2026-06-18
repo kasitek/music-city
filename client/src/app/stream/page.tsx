@@ -42,8 +42,8 @@ export default function StreamPage() {
         <div className="space-y-12">
           <PageHero
             eyebrow="Streaming"
-            title="Playback will be served from encrypted HLS, not chain storage."
-            description="This route is now a focused streaming surface. Signed playback access and media manifests will come from the new Node backend."
+            title="Listen now"
+            description="Play tracks from the latest releases on Music City."
           />
           {isLoading ? (
             <div className="text-sm text-slate-400">Loading tracks...</div>

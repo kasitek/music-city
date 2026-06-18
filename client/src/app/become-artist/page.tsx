@@ -9,8 +9,8 @@ export default function BecomeArtistPage() {
         <div className="space-y-12">
           <PageHero
             eyebrow="Artist setup"
-            title="Artist workflows are being rebuilt for real release operations."
-            description="This route now reflects the new direction: storage-first uploads, backend-managed jobs, and Stellar-backed access rules."
+            title="Set up your artist account"
+            description="Get ready to upload music, manage releases, and control access."
           />
           <BecomeArtistOverview />
         </div>

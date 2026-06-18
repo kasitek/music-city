@@ -44,7 +44,7 @@ export const SiteHeader = () => {
                 variant="outline"
                 className="border-white/15 bg-white/5 text-white hover:bg-white/10"
               >
-                <Link href={session.profileComplete ? "/dashboard" : "/onboarding"}>
+                <Link href="/dashboard">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Workspace
                 </Link>
