@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { CircleUserRound, LayoutDashboard, LogOut, Music2, Settings } from "lucide-react";
+import {
+  ChevronDown,
+  CircleUserRound,
+  LayoutDashboard,
+  LogOut,
+  Music2,
+  Settings,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -61,11 +68,11 @@ export const SiteHeader = () => {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    size="icon"
-                    className="border-white/15 bg-white/5 text-white hover:bg-white/10"
+                    className="gap-2 border-white/15 bg-white/5 px-3 text-white hover:bg-white/10"
                     aria-label="Open account menu"
                   >
                     <CircleUserRound className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 text-slate-300" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent

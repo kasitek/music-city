@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { tracksApi } from "@/features/music/lib/tracks-api";
@@ -28,6 +29,8 @@ export const TrackCreateForm = ({
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,6 +42,8 @@ export const TrackCreateForm = ({
     }
 
     setIsSaving(true);
+    setUploadProgress(0);
+    setUploadStage("Creating track...");
 
     try {
       const track = await tracksApi.createTrack(session.token, {
@@ -50,17 +55,26 @@ export const TrackCreateForm = ({
       });
 
       if (file) {
+        setUploadStage("Preparing upload...");
         const uploadSession = await uploadsApi.createSession(session.token, {
           trackId: track.id,
           fileName: file.name,
           contentType: file.type || "application/octet-stream",
           sizeBytes: file.size,
         });
-        const eTag = await uploadsApi.uploadFile(uploadSession, file);
+        setUploadStage("Uploading audio...");
+        const eTag = await uploadsApi.uploadFile(
+          uploadSession,
+          file,
+          setUploadProgress,
+        );
+        setUploadStage("Finalizing upload...");
         await uploadsApi.completeSession(session.token, uploadSession.id, {
           uploadSessionId: uploadSession.id,
           eTag,
         });
+        setUploadProgress(100);
+        setUploadStage("Upload complete");
       }
 
       setTitle("");
@@ -70,8 +84,16 @@ export const TrackCreateForm = ({
       onCreated();
       onClose?.();
       toast.success(file ? "Track uploaded" : "Track draft created");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Track upload failed",
+      );
     } finally {
       setIsSaving(false);
+      setTimeout(() => {
+        setUploadProgress(0);
+        setUploadStage(null);
+      }, 1200);
     }
   };
 
@@ -121,11 +143,24 @@ export const TrackCreateForm = ({
           className="border-white/10 bg-slate-950/70 text-white file:text-white"
         />
       </div>
+      {isSaving && file ? (
+        <div className="space-y-2 rounded-lg border border-white/10 bg-slate-950/60 p-4">
+          <div className="flex items-center justify-between text-sm text-slate-300">
+            <span>{uploadStage ?? "Uploading..."}</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <Progress
+            value={uploadProgress}
+            className="h-2 bg-white/10 [&>div]:bg-emerald-400"
+          />
+          <p className="text-xs text-slate-400">{file.name}</p>
+        </div>
+      ) : null}
       <Button
         className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
         disabled={isSaving}
       >
-        {isSaving ? "Saving..." : "Create track"}
+        {isSaving ? "Uploading..." : "Create track"}
       </Button>
       {onClose ? (
         <Button
@@ -133,6 +168,7 @@ export const TrackCreateForm = ({
           variant="outline"
           className="ml-3 border-white/15 bg-white/5 text-white hover:bg-white/10"
           onClick={onClose}
+          disabled={isSaving}
         >
           Cancel
         </Button>

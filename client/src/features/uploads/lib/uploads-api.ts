@@ -8,6 +8,8 @@ import * as UpChunk from "@mux/upchunk";
 
 import { httpClient } from "@/lib/api/http-client";
 
+type UploadProgressCallback = (progress: number) => void;
+
 export const uploadsApi = {
   async createSession(token: string, input: CreateUploadSessionInput) {
     const response = await httpClient.post<{ uploadSession: UploadSession }>(
@@ -19,7 +21,11 @@ export const uploadsApi = {
     return response.uploadSession;
   },
 
-  async uploadFile(uploadSession: UploadSession, file: File) {
+  async uploadFile(
+    uploadSession: UploadSession,
+    file: File,
+    onProgress?: UploadProgressCallback,
+  ) {
     if (uploadSession.provider === "mux") {
       await new Promise<void>((resolve, reject) => {
         const upload = UpChunk.createUpload({
@@ -29,17 +35,28 @@ export const uploadsApi = {
           dynamicChunkSize: true,
         });
 
+        upload.on("progress", (event) => {
+          const percent = Math.max(
+            0,
+            Math.min(100, Math.round(event.detail)),
+          );
+          onProgress?.(percent);
+        });
+
         upload.on("error", (error) => {
           reject(error.detail ?? new Error("Mux upload failed"));
         });
 
         upload.on("success", () => {
+          onProgress?.(100);
           resolve();
         });
       });
 
       return undefined;
     }
+
+    onProgress?.(0);
 
     const response = await fetch(uploadSession.uploadUrl, {
       method: uploadSession.method,
@@ -51,6 +68,7 @@ export const uploadsApi = {
       throw new Error("File upload failed");
     }
 
+    onProgress?.(100);
     return response.headers.get("etag") ?? undefined;
   },
 
