@@ -77,6 +77,16 @@ const TrackArt = ({ track }: { track: TrackSummary }) => {
   );
 };
 
+const buildRangeBackground = (value: number, max: number, playedColor: string) => {
+  if (!Number.isFinite(max) || max <= 0) {
+    return "rgba(255,255,255,0.08)";
+  }
+
+  const clampedPercent = Math.max(0, Math.min(100, (value / max) * 100));
+
+  return `linear-gradient(90deg, ${playedColor} 0%, ${playedColor} ${clampedPercent}%, rgba(255,255,255,0.08) ${clampedPercent}%, rgba(255,255,255,0.08) 100%)`;
+};
+
 const GlobalPlaybackBar = ({
   activeTrack,
   isPlaying,
@@ -145,7 +155,14 @@ const GlobalPlaybackBar = ({
               step={0.1}
               value={Math.min(currentTime, duration || 0)}
               onChange={(event) => seekTo(Number(event.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-emerald-400"
+              className="h-2 w-full cursor-pointer appearance-none rounded-full"
+              style={{
+                background: buildRangeBackground(
+                  Math.min(currentTime, duration || 0),
+                  Math.max(duration, 0),
+                  "#34d399",
+                ),
+              }}
             />
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span>{formatClock(currentTime)}</span>
@@ -170,7 +187,10 @@ const GlobalPlaybackBar = ({
               step={0.01}
               value={volume}
               onChange={(event) => setVolumeLevel(Number(event.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-emerald-400"
+              className="h-2 w-full cursor-pointer appearance-none rounded-full"
+              style={{
+                background: buildRangeBackground(volume, 1, "#34d399"),
+              }}
             />
             <p className="text-xs text-slate-500">
               Private preview stream for this release.
@@ -186,12 +206,65 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
   const { session, logout } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const [activeTrack, setActiveTrack] = useState<TrackSummary | null>(null);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.85);
+
+  const syncProgress = () => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    setCurrentTime(audio.currentTime || 0);
+
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      setDuration(audio.duration);
+      return;
+    }
+
+    const seekableRange = audio.seekable;
+    const fallbackDuration =
+      seekableRange.length > 0 ? seekableRange.end(seekableRange.length - 1) : 0;
+
+    if (fallbackDuration > 0) {
+      setDuration(fallbackDuration);
+    }
+  };
+
+  const stopAnimationLoop = () => {
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  };
+
+  const startAnimationLoop = () => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    stopAnimationLoop();
+
+    const tick = () => {
+      syncProgress();
+
+      if (!audio.paused && !audio.ended) {
+        animationFrameRef.current = window.requestAnimationFrame(tick);
+      } else {
+        animationFrameRef.current = null;
+      }
+    };
+
+    animationFrameRef.current = window.requestAnimationFrame(tick);
+  };
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -200,17 +273,23 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
       return;
     }
 
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handleLoadedMetadata = () => setDuration(audio.duration || 0);
-    const handleDurationChange = () => setDuration(audio.duration || 0);
+    const handleTimeUpdate = () => syncProgress();
+    const handleLoadedMetadata = () => syncProgress();
+    const handleDurationChange = () => syncProgress();
     const handleCanPlay = () => {
-      if (audio.duration) {
-        setDuration(audio.duration);
-      }
+      syncProgress();
     };
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      startAnimationLoop();
+    };
+    const handlePause = () => {
+      setIsPlaying(false);
+      stopAnimationLoop();
+      syncProgress();
+    };
     const handleEnded = () => {
+      stopAnimationLoop();
       setIsPlaying(false);
       setCurrentTime(0);
     };
@@ -232,6 +311,7 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("ended", handleEnded);
+      stopAnimationLoop();
     };
   }, [volume]);
 
@@ -252,17 +332,29 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
 
     const startPlayback = async () => {
       try {
+        console.log("[playback] startPlayback", {
+          streamUrl,
+          isHls: isHlsStream(streamUrl),
+        });
+
         if (isHlsStream(streamUrl)) {
           if (Hls.isSupported()) {
+            console.log("[playback] using hls.js");
             const hls = new Hls();
             hls.loadSource(streamUrl);
             hls.attachMedia(audio);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              console.log("[playback] hls manifest parsed", {
+                duration: audio.duration,
+              });
               if (audio.duration) {
                 setDuration(audio.duration);
               }
             });
             hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
+              console.log("[playback] hls level loaded", {
+                totalduration: data.details?.totalduration,
+              });
               const nextDuration = data.details?.totalduration;
               if (nextDuration) {
                 setDuration(nextDuration);
@@ -270,14 +362,21 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
             });
             hlsRef.current = hls;
           } else {
+            console.log("[playback] native hls fallback");
             audio.src = streamUrl;
           }
         } else {
+          console.log("[playback] using direct audio src");
           audio.src = streamUrl;
         }
 
         await audio.play();
+        setIsPlaying(true);
+        syncProgress();
+        startAnimationLoop();
+        console.log("[playback] audio.play resolved");
       } catch (error) {
+        console.error("[playback] startPlayback failed", error);
         setIsPlaying(false);
         toast.error(
           error instanceof Error
@@ -294,6 +393,12 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
@@ -301,11 +406,26 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
   }, [streamUrl]);
 
   const playTrack = async (track: TrackSummary) => {
+    console.log("[playback] playTrack called", {
+      trackId: track.id,
+      title: track.title,
+      playbackReady: track.playbackReady,
+      access: track.access,
+      hasSessionToken: Boolean(session?.token),
+      activeTrackId: activeTrack?.id ?? null,
+    });
+
     if (!session?.token) {
+      console.log("[playback] playTrack aborted: no session token");
       return;
     }
 
     if (track.id === activeTrack?.id && audioRef.current) {
+      console.log("[playback] toggling existing active track", {
+        trackId: track.id,
+        paused: audioRef.current.paused,
+      });
+
       if (audioRef.current.paused) {
         await audioRef.current.play();
       } else {
@@ -316,9 +436,19 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
 
     try {
       const playbackSession = await playbackApi.createSession(session.token, track.id);
+      console.log("[playback] playback session created", {
+        trackId: track.id,
+        provider: playbackSession.provider,
+        streamUrl: playbackSession.streamUrl,
+      });
       setActiveTrack(track);
       setStreamUrl(playbackSession.streamUrl);
     } catch (error) {
+      console.error("[playback] playTrack failed", {
+        trackId: track.id,
+        error,
+      });
+
       if (error instanceof ApiClientError && error.status === 401) {
         toast.error("Your session expired. Please sign in again.");
         await logout();

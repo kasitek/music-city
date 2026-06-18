@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { TrackSummary } from "@music-city/shared";
+import type { TrackAccess, TrackSummary } from "@music-city/shared";
 import {
   Check,
   ExternalLink,
@@ -49,6 +49,7 @@ const TrackTableSection = ({
   onPlay,
   onSync,
   onDelete,
+  onUpdateAccess,
   onToggleSelectionMode,
   onToggleTrackSelected,
 }: {
@@ -64,6 +65,7 @@ const TrackTableSection = ({
   onPlay: (track: TrackSummary) => Promise<void>;
   onSync: (track: TrackSummary) => Promise<void>;
   onDelete: (track: TrackSummary) => Promise<void>;
+  onUpdateAccess: (track: TrackSummary, access: TrackAccess) => Promise<void>;
   onToggleSelectionMode: (track: TrackSummary) => void;
   onToggleTrackSelected: (trackId: string) => void;
 }) => {
@@ -123,6 +125,13 @@ const TrackTableSection = ({
                   disabled={!canPlayTrack(track)}
                   onClick={(event) => {
                     event.stopPropagation();
+                    console.log("[dashboard][play] button clicked", {
+                      trackId: track.id,
+                      title: track.title,
+                      playbackReady: track.playbackReady,
+                      access: track.access,
+                      canPlay: canPlayTrack(track),
+                    });
                     void onPlay(track);
                   }}
                 >
@@ -166,6 +175,34 @@ const TrackTableSection = ({
                       Manage
                       <ExternalLink className="ml-auto h-4 w-4" />
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10 focus:text-white"
+                    onClick={() => void onUpdateAccess(track, "private")}
+                  >
+                    Make private
+                    {track.access === "private" ? (
+                      <Check className="ml-auto h-4 w-4 text-emerald-300" />
+                    ) : null}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10 focus:text-white"
+                    onClick={() => void onUpdateAccess(track, "subscribers")}
+                  >
+                    Make subscriber-only
+                    {track.access === "subscribers" ? (
+                      <Check className="ml-auto h-4 w-4 text-emerald-300" />
+                    ) : null}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10 focus:text-white"
+                    onClick={() => void onUpdateAccess(track, "public")}
+                  >
+                    Make public
+                    {track.access === "public" ? (
+                      <Check className="ml-auto h-4 w-4 text-emerald-300" />
+                    ) : null}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer focus:bg-white/10 focus:text-white"
@@ -297,6 +334,24 @@ export const DashboardTrackShelves = ({
     );
   };
 
+  const updateTrackAccess = async (track: TrackSummary, access: TrackAccess) => {
+    const token = session?.token;
+
+    if (!token || track.access === access) {
+      return;
+    }
+
+    try {
+      const updated = await tracksApi.updateTrackAccess(token, track.id, access);
+      onTrackSynced(updated);
+      toast.success(`${track.title} is now ${formatTrackAccessLabel(updated).toLowerCase()}.`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update track access",
+      );
+    }
+  };
+
   return (
     <div className="space-y-10 pb-40">
       {selectionMode ? (
@@ -330,6 +385,7 @@ export const DashboardTrackShelves = ({
         onPlay={playTrack}
         onSync={syncTrack}
         onDelete={deleteTrack}
+        onUpdateAccess={updateTrackAccess}
         onToggleSelectionMode={toggleSelectionMode}
         onToggleTrackSelected={toggleTrackSelected}
       />
@@ -346,6 +402,7 @@ export const DashboardTrackShelves = ({
         onPlay={playTrack}
         onSync={syncTrack}
         onDelete={deleteTrack}
+        onUpdateAccess={updateTrackAccess}
         onToggleSelectionMode={toggleSelectionMode}
         onToggleTrackSelected={toggleTrackSelected}
       />
