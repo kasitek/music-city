@@ -2,21 +2,25 @@
 
 import { useState } from "react";
 import type { TrackSummary } from "@music-city/shared";
-import MuxAudio from "@mux/mux-audio-react";
-import { Play } from "lucide-react";
+import { LoaderCircle, Play, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { playbackApi } from "@/features/playback/lib/playback-api";
+import { tracksApi } from "@/features/music/lib/tracks-api";
+import { useGlobalPlayback } from "@/features/playback/providers/global-playback-provider";
 import { useAuth } from "@/hooks/use-auth";
-import { ApiClientError } from "@/lib/api/http-client";
 
-export const TrackGrid = ({ tracks }: { tracks?: TrackSummary[] }) => {
-  const { session, logout } = useAuth();
-  const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
-  const [streamProvider, setStreamProvider] = useState<"local" | "mux" | null>(null);
+export const TrackGrid = ({
+  tracks,
+  onTrackSynced,
+}: {
+  tracks?: TrackSummary[];
+  onTrackSynced?: (track: TrackSummary) => void;
+}) => {
+  const { session } = useAuth();
+  const { activeTrackId, playTrack } = useGlobalPlayback();
+  const [syncingTrackId, setSyncingTrackId] = useState<string | null>(null);
   const safeTracks = Array.isArray(tracks) ? tracks : [];
 
   if (safeTracks.length === 0) {
@@ -55,59 +59,71 @@ export const TrackGrid = ({ tracks }: { tracks?: TrackSummary[] }) => {
             <div className="rounded-2xl border border-white/10 bg-slate-950/70 px-3 py-2 text-emerald-300">
               {track.priceLabel}
             </div>
-            <Button
-              variant="outline"
-              className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
-              disabled={!session?.token || !track.playbackReady}
-              onClick={async () => {
-                if (!session?.token) {
-                  return;
-                }
+            {track.playbackReady ? (
+              <Button
+                variant="outline"
+                className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
+                disabled={!session?.token}
+                onClick={() => void playTrack(track)}
+              >
+                Play
+              </Button>
+            ) : track.mediaProvider === "mux" && session?.token ? (
+              <Button
+                variant="outline"
+                className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
+                disabled={syncingTrackId === track.id}
+                onClick={async () => {
+                  const token = session?.token;
 
-                try {
-                  const playbackSession = await playbackApi.createSession(
-                    session.token,
-                    track.id,
-                  );
-
-                  setActiveTrackId(track.id);
-                  setStreamUrl(playbackSession.streamUrl);
-                  setStreamProvider(playbackSession.provider);
-                } catch (error) {
-                  if (error instanceof ApiClientError && error.status === 401) {
-                    toast.error("Your session expired. Please sign in again.");
-                    await logout();
+                  if (!token) {
                     return;
                   }
 
-                  toast.error(
-                    error instanceof Error
-                      ? error.message
-                      : "Unable to start playback",
-                  );
-                }
-              }}
-            >
-              Play
-            </Button>
-            {activeTrackId === track.id && streamUrl ? (
-              streamProvider === "mux" ? (
-                <MuxAudio
-                  className="w-full"
-                  src={streamUrl}
-                  type="hls"
-                  streamType="on-demand"
-                  preferPlayback="mse"
-                  controls
-                  metadata={{
-                    video_id: track.id,
-                    video_title: track.title,
-                    viewer_user_id: session?.walletAddress ?? "anonymous",
-                  }}
-                />
-              ) : (
-                <audio controls className="w-full" src={streamUrl} />
-              )
+                  try {
+                    setSyncingTrackId(track.id);
+                    const updated = await tracksApi.syncTrackMedia(token, track.id);
+                    onTrackSynced?.(updated);
+
+                    if (updated.playbackReady) {
+                      toast.success("Track is ready to play.");
+                    } else {
+                      toast.message("Track is still processing.");
+                    }
+                  } catch (error) {
+                    toast.error(
+                      error instanceof Error ? error.message : "Unable to refresh track status",
+                    );
+                  } finally {
+                    setSyncingTrackId(null);
+                  }
+                }}
+              >
+                {syncingTrackId === track.id ? (
+                  <>
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                    Checking
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Check status
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10"
+                disabled
+              >
+                Play
+              </Button>
+            )}
+            {activeTrackId === track.id ? (
+              <p className="text-xs uppercase tracking-[0.22em] text-emerald-300">
+                Now playing
+              </p>
             ) : null}
           </CardContent>
         </Card>

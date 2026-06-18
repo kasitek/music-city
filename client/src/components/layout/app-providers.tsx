@@ -16,6 +16,7 @@ import {
   DYNAMIC_AUTH_SUCCESS_EVENT,
 } from "@/features/auth/providers/auth-provider";
 import { OnboardingGate } from "@/features/onboarding/components/onboarding-gate";
+import { GlobalPlaybackProvider } from "@/features/playback/providers/global-playback-provider";
 import { clientEnv } from "@/lib/config/env";
 
 const dispatchDynamicEvent = (name: string) => {
@@ -54,15 +55,19 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
           }}
         >
           <AuthProvider>
-            {children}
-            <OnboardingGate />
+            <GlobalPlaybackProvider>
+              {children}
+              <OnboardingGate />
+            </GlobalPlaybackProvider>
           </AuthProvider>
           <DynamicMultiWalletPromptsWidget />
         </DynamicContextProvider>
       ) : (
         <AuthProvider>
-          {children}
-          <OnboardingGate />
+          <GlobalPlaybackProvider>
+            {children}
+            <OnboardingGate />
+          </GlobalPlaybackProvider>
         </AuthProvider>
       )}
     </ThemeProvider>
