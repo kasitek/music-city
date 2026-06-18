@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Music2 } from "lucide-react";
+import { CircleUserRound, LayoutDashboard, Music2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { navigationItems } from "@/lib/constants/navigation";
@@ -39,6 +39,16 @@ export const SiteHeader = () => {
                 {session.walletAddress.slice(0, 6)}...
                 {session.walletAddress.slice(-4)}
               </span>
+              <Button
+                asChild
+                variant="outline"
+                size="icon"
+                className="border-white/15 bg-white/5 text-white hover:bg-white/10"
+              >
+                <Link href="/account" aria-label="Open account">
+                  <CircleUserRound className="h-4 w-4" />
+                </Link>
+              </Button>
               <Button
                 asChild
                 variant="outline"
