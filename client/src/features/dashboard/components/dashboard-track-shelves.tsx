@@ -32,25 +32,40 @@ const formatStatus = (track: TrackSummary) => {
     return "Needs attention";
   }
 
+  if (track.status === "awaiting_upload") {
+    return "Awaiting upload";
+  }
+
   return track.status;
 };
 
-const TrackArt = ({ track }: { track: TrackSummary }) => {
+const formatAccessLabel = (track: TrackSummary) => {
+  switch (track.access) {
+    case "public":
+      return "Public release";
+    case "subscribers":
+      return "Subscriber release";
+    default:
+      return "Private release";
+  }
+};
+
+const TrackThumbnail = ({ track }: { track: TrackSummary }) => {
   if (track.coverImageUrl) {
     return (
       <div
-        className="absolute inset-0 bg-cover bg-center"
+        className="h-14 w-14 shrink-0 rounded-2xl bg-cover bg-center"
         style={{ backgroundImage: `url(${track.coverImageUrl})` }}
       />
     );
   }
 
   return (
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(52,211,153,0.28),_transparent_52%),linear-gradient(180deg,_rgba(15,23,42,0.15),_rgba(15,23,42,0.94))]" />
+    <div className="h-14 w-14 shrink-0 rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(52,211,153,0.28),_transparent_52%),linear-gradient(180deg,_rgba(15,23,42,0.15),_rgba(15,23,42,0.94))]" />
   );
 };
 
-const TrackRow = ({
+const TrackTableSection = ({
   title,
   description,
   tracks,
@@ -77,79 +92,107 @@ const TrackRow = ({
         <h3 className="text-2xl font-semibold text-white">{title}</h3>
         <p className="text-sm text-slate-400">{description}</p>
       </div>
-      <div className="flex gap-5 overflow-x-auto pb-3">
-        {tracks.map((track) => (
-          <article
-            key={track.id}
-            className="group relative min-w-[280px] max-w-[280px] overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03]"
-          >
-            <div className="relative h-[180px] overflow-hidden">
-              <TrackArt track={track} />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0b1020] via-[#0b1020]/28 to-transparent" />
-              <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/35 px-3 py-1 text-xs uppercase tracking-[0.22em] text-emerald-300 backdrop-blur">
-                {track.genre}
-              </div>
-              <button
-                type="button"
-                className="absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-slate-950 shadow-lg transition group-hover:scale-105"
-                onClick={() => void (track.playbackReady ? onPlay(track) : onSync(track))}
+
+      <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03]">
+        <div className="hidden grid-cols-[minmax(260px,2.2fr)_1fr_1fr_1.1fr_180px] gap-4 border-b border-white/10 px-6 py-4 text-xs uppercase tracking-[0.24em] text-slate-500 lg:grid">
+          <span>Track</span>
+          <span>Status</span>
+          <span>Runtime</span>
+          <span>Access</span>
+          <span className="text-right">Action</span>
+        </div>
+
+        <div className="divide-y divide-white/10">
+          {tracks.map((track) => {
+            const isSyncing = syncingTrackId === track.id;
+            const isActive = activeTrackId === track.id;
+
+            return (
+              <article
+                key={track.id}
+                className="px-4 py-4 sm:px-6"
               >
-                {track.playbackReady ? (
-                  <Play className="h-5 w-5 fill-current" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-            <div className="space-y-4 p-5">
-              <div className="space-y-1">
-                <h4 className="truncate text-xl font-semibold text-white">{track.title}</h4>
-                <p className="truncate text-sm text-slate-400">{track.artistName}</p>
-              </div>
-              <div className="flex items-center justify-between text-sm text-slate-400">
-                <span className="capitalize">{formatStatus(track)}</span>
-                <span>{track.runtime}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="rounded-full border border-white/10 bg-slate-950/80 px-3 py-1 text-sm text-emerald-300">
-                  {track.priceLabel}
-                </div>
-                {track.playbackReady ? (
-                  <Button
-                    variant={activeTrackId === track.id ? "default" : "outline"}
-                    className={
-                      activeTrackId === track.id
-                        ? "bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-                        : "border-white/10 bg-white/5 text-white hover:bg-white/10"
-                    }
-                    onClick={() => void onPlay(track)}
-                  >
-                    {activeTrackId === track.id ? "Playing" : "Play"}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-                    disabled={syncingTrackId === track.id}
-                    onClick={() => void onSync(track)}
-                  >
-                    {syncingTrackId === track.id ? (
-                      <>
-                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                        Checking
-                      </>
+                <div className="grid gap-4 lg:grid-cols-[minmax(260px,2.2fr)_1fr_1fr_1.1fr_180px] lg:items-center">
+                  <div className="flex items-center gap-4">
+                    <TrackThumbnail track={track} />
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="truncate text-lg font-semibold text-white">
+                          {track.title}
+                        </h4>
+                        <span className="rounded-full border border-white/10 bg-slate-950/80 px-2.5 py-1 text-[11px] uppercase tracking-[0.2em] text-emerald-300">
+                          {track.genre}
+                        </span>
+                      </div>
+                      <p className="truncate text-sm text-slate-400">
+                        {track.artistName}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 lg:hidden">
+                      Status
+                    </p>
+                    <p className="text-sm text-slate-200">{formatStatus(track)}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 lg:hidden">
+                      Runtime
+                    </p>
+                    <p className="text-sm text-slate-200">{track.runtime}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 lg:hidden">
+                      Access
+                    </p>
+                    <p className="text-sm text-emerald-300">
+                      {formatAccessLabel(track)}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-start lg:justify-end">
+                    {track.playbackReady ? (
+                      <Button
+                        variant={isActive ? "default" : "outline"}
+                        className={
+                          isActive
+                            ? "bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                            : "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                        }
+                        onClick={() => void onPlay(track)}
+                      >
+                        <Play className="mr-2 h-4 w-4 fill-current" />
+                        {isActive ? "Playing" : "Play"}
+                      </Button>
                     ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Check
-                      </>
+                      <Button
+                        variant="outline"
+                        className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+                        disabled={isSyncing}
+                        onClick={() => void onSync(track)}
+                      >
+                        {isSyncing ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Checking
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Check
+                          </>
+                        )}
+                      </Button>
                     )}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </article>
-        ))}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -184,7 +227,9 @@ export const DashboardTrackShelves = ({
         toast.message("Track is still processing.");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to refresh track status");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to refresh track status",
+      );
     } finally {
       setSyncingTrackId(null);
     }
@@ -192,7 +237,7 @@ export const DashboardTrackShelves = ({
 
   return (
     <div className="space-y-10 pb-40">
-      <TrackRow
+      <TrackTableSection
         title="Ready to play"
         description="Finished releases you can preview right now."
         tracks={readyTracks}
@@ -201,7 +246,7 @@ export const DashboardTrackShelves = ({
         onPlay={playTrack}
         onSync={syncTrack}
       />
-      <TrackRow
+      <TrackTableSection
         title="Processing"
         description="Uploads still being finalized by Mux or waiting for sync."
         tracks={pipelineTracks}
