@@ -5,8 +5,11 @@ export type UserRole = z.infer<typeof userRoleSchema>;
 
 export const authSessionSchema = z.object({
   walletAddress: z.string(),
+  email: z.string().email().optional().or(z.literal("")),
   displayName: z.string().min(1),
   role: userRoleSchema,
+  profileImageUrl: z.string().optional(),
+  headerImageUrl: z.string().optional(),
   token: z.string().optional(),
   profileComplete: z.boolean().default(false),
 });

@@ -111,6 +111,7 @@ export const stellarAuthService = {
 
     return {
       walletAddress: source,
+      email: profile?.email ?? "",
       displayName: profile?.displayName ?? source.slice(0, 6),
       role: profile?.role ?? ("fan" as const),
       profileComplete: Boolean(profile),

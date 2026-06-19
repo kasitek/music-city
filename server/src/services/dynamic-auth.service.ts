@@ -30,6 +30,10 @@ type DynamicJwtPayload = JWTPayload & {
 
 const DYNAMIC_TOKEN_SCOPE = "user:basic";
 
+const logDynamicAuth = (label: string, payload?: Record<string, unknown>) => {
+  console.log(`[server][dynamic-auth] ${label}`, payload ?? {});
+};
+
 const getJwksUrl = () => {
   if (env.DYNAMIC_JWKS_URL) {
     return env.DYNAMIC_JWKS_URL;
@@ -121,6 +125,13 @@ export const dynamicAuthService = {
       throw new HttpError(501, "Dynamic environment is not configured");
     }
 
+    logDynamicAuth("create session start", {
+      environmentId: env.DYNAMIC_ENVIRONMENT_ID,
+      jwksUrl: getJwksUrl(),
+      requestedWalletAddress,
+      tokenPreview: `${dynamicToken.slice(0, 10)}...${dynamicToken.slice(-6)} (${dynamicToken.length})`,
+    });
+
     let payload: DynamicJwtPayload;
 
     try {
@@ -130,8 +141,31 @@ export const dynamicAuthService = {
       });
 
       payload = verified.payload as DynamicJwtPayload;
+      logDynamicAuth("token verified", {
+        issuer: payload.iss,
+        subject: payload.sub,
+        audience: payload.aud,
+        scope: payload.scope,
+        environmentId: payload.environment_id ?? payload.environmentId,
+        email: payload.email,
+        alias: payload.alias,
+        verifiedCredentialCount:
+          (payload.verified_credentials ?? payload.verifiedCredentials ?? []).length,
+        verifiedCredentials: (
+          payload.verified_credentials ??
+          payload.verifiedCredentials ??
+          []
+        ).map((credential) => ({
+          chain: credential.chain ?? null,
+          hasAddress: Boolean(normalizeCredentialAddress(credential)),
+          addressPrefix: normalizeCredentialAddress(credential).slice(0, 8) || null,
+          email: credential.email ?? null,
+          walletName: credential.wallet_name ?? credential.walletName ?? null,
+        })),
+      });
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown verification failure";
+      logDynamicAuth("token verification failed", { detail });
       throw new HttpError(
         401,
         `Invalid or expired Dynamic auth token: ${detail}`,
@@ -142,10 +176,18 @@ export const dynamicAuthService = {
       payload.environment_id ?? payload.environmentId;
 
     if (payloadEnvironmentId !== env.DYNAMIC_ENVIRONMENT_ID) {
+      logDynamicAuth("environment mismatch", {
+        payloadEnvironmentId,
+        expectedEnvironmentId: env.DYNAMIC_ENVIRONMENT_ID,
+      });
       throw new HttpError(401, "Dynamic auth token is for a different environment");
     }
 
     if (!payload.scope?.split(" ").includes(DYNAMIC_TOKEN_SCOPE)) {
+      logDynamicAuth("scope missing", {
+        scope: payload.scope,
+        requiredScope: DYNAMIC_TOKEN_SCOPE,
+      });
       throw new HttpError(
         403,
         "Dynamic auth token is missing the user:basic scope required for a completed login",
@@ -153,14 +195,26 @@ export const dynamicAuthService = {
     }
 
     const walletAddress = findStellarWalletAddress(payload, requestedWalletAddress);
+    logDynamicAuth("wallet resolved", {
+      walletAddress,
+      requestedWalletAddress,
+    });
     const profile = await usersService.getProfile(walletAddress);
 
     const session: Omit<AuthSession, "token"> = {
       walletAddress,
+      email: profile?.email ?? payload.email ?? "",
       displayName: buildDisplayName(payload, walletAddress, profile?.displayName),
       role: profile?.role ?? "fan",
       profileComplete: Boolean(profile),
     };
+
+    logDynamicAuth("session payload built", {
+      walletAddress: session.walletAddress,
+      displayName: session.displayName,
+      role: session.role,
+      profileComplete: session.profileComplete,
+    });
 
     return session;
   },

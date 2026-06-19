@@ -5,12 +5,14 @@ import { userRoleSchema } from "./auth.js";
 export const userProfileSchema = z.object({
   id: z.string(),
   walletAddress: z.string(),
+  email: z.string().email().optional().or(z.literal("")),
   displayName: z.string().min(1),
   role: userRoleSchema,
-  bio: z.string().default(""),
   location: z.string().default(""),
-  genres: z.array(z.string()).default([]),
   profileImageUrl: z.string().optional(),
+  profileImageStorageKey: z.string().optional(),
+  headerImageUrl: z.string().optional(),
+  headerImageStorageKey: z.string().optional(),
   verified: z.boolean().default(false),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -18,10 +20,29 @@ export const userProfileSchema = z.object({
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
 export const upsertUserProfileSchema = z.object({
+  email: z.string().email().optional().or(z.literal("")),
   displayName: z.string().min(1).max(80),
   role: userRoleSchema,
-  bio: z.string().max(500).optional(),
   location: z.string().max(120).optional(),
-  genres: z.array(z.string().max(40)).max(8).optional(),
+  profileImageStorageKey: z.string().max(300).optional(),
+  headerImageStorageKey: z.string().max(300).optional(),
 });
 export type UpsertUserProfileInput = z.infer<typeof upsertUserProfileSchema>;
+
+export const createUserMediaUploadSchema = z.object({
+  purpose: z.enum(["profile_image", "header_image"]),
+  fileName: z.string().min(1).max(180),
+  contentType: z.string().startsWith("image/").max(120),
+  sizeBytes: z.number().int().positive().max(10 * 1024 * 1024),
+});
+export type CreateUserMediaUploadInput = z.infer<
+  typeof createUserMediaUploadSchema
+>;
+
+export interface UserMediaUploadTarget {
+  storageKey: string;
+  uploadUrl: string;
+  method: "PUT";
+  headers: Record<string, string>;
+  expiresAt: string;
+}

@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 
 import { requireSession } from "../../middleware/require-session.js";
 import { asyncHandler } from "../../utils/async-handler.js";
@@ -26,6 +26,42 @@ usersRouter.put(
     );
 
     response.json({ profile });
+  }),
+);
+
+usersRouter.post(
+  "/me/media-upload-targets",
+  requireSession,
+  asyncHandler(async (request, response) => {
+    response.status(201).json({
+      uploadTarget: usersService.createMediaUploadTarget(
+        request.session!.walletAddress,
+        request.body,
+      ),
+    });
+  }),
+);
+
+usersRouter.put(
+  "/me/media/*",
+  requireSession,
+  express.raw({ type: "*/*", limit: "10mb" }),
+  asyncHandler(async (request, response) => {
+    if (!Buffer.isBuffer(request.body)) {
+      response.status(400).json({ message: "Upload body is required" });
+      return;
+    }
+
+    await usersService.uploadMedia(
+      request.session!.walletAddress,
+      decodeURIComponent(String(request.params[0])),
+      request.body,
+      Array.isArray(request.headers["content-type"])
+        ? request.headers["content-type"][0]
+        : request.headers["content-type"],
+    );
+
+    response.status(204).send();
   }),
 );
 

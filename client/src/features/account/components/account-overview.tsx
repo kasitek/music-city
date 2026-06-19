@@ -108,8 +108,30 @@ export const AccountOverview = () => {
   return (
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <Card className="border-white/10 bg-white/5 text-white shadow-none">
+        {profile?.headerImageUrl ? (
+          <div className="h-40 overflow-hidden rounded-t-xl border-b border-white/10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={profile.headerImageUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        ) : null}
         <CardHeader>
-          <CardTitle className="text-2xl">Profile</CardTitle>
+          <div className="flex items-center gap-4">
+            {profile?.profileImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.profileImageUrl}
+                alt=""
+                className="size-16 rounded-full object-cover ring-2 ring-emerald-300/40"
+              />
+            ) : (
+              <div className="size-16 rounded-full bg-gradient-to-br from-emerald-300/40 to-slate-950 ring-1 ring-white/10" />
+            )}
+            <CardTitle className="text-2xl">Profile</CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4 text-sm text-slate-300 sm:grid-cols-2">
           <div className="space-y-1">
@@ -125,24 +147,18 @@ export const AccountOverview = () => {
             </p>
           </div>
           <div className="space-y-1 sm:col-span-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Email</p>
+            <p className="text-base text-white">
+              {profile?.email || session.email || "Not added"}
+            </p>
+          </div>
+          <div className="space-y-1 sm:col-span-2">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Wallet</p>
             <p className="break-all text-base text-white">{session.walletAddress}</p>
           </div>
           <div className="space-y-1">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Location</p>
             <p className="text-base text-white">{profile?.location || "Not added"}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Genres</p>
-            <p className="text-base text-white">
-              {profile?.genres?.length ? profile.genres.join(", ") : "Not added"}
-            </p>
-          </div>
-          <div className="space-y-1 sm:col-span-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Bio</p>
-            <p className="text-base leading-7 text-white">
-              {profile?.bio || "No bio added yet."}
-            </p>
           </div>
         </CardContent>
       </Card>

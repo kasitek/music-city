@@ -1,6 +1,8 @@
 import type {
   ArtistSummary,
+  CreateUserMediaUploadInput,
   UpsertUserProfileInput,
+  UserMediaUploadTarget,
   UserProfile,
 } from "@music-city/shared";
 
@@ -24,6 +26,36 @@ export const usersApi = {
     );
 
     return response.profile;
+  },
+
+  async createMediaUploadTarget(
+    token: string,
+    input: CreateUserMediaUploadInput,
+  ) {
+    const response = await httpClient.post<{
+      uploadTarget: UserMediaUploadTarget;
+    }>("/users/me/media-upload-targets", input, token);
+
+    return response.uploadTarget;
+  },
+
+  async uploadMedia(
+    token: string,
+    uploadTarget: UserMediaUploadTarget,
+    file: File,
+  ) {
+    const response = await fetch(uploadTarget.uploadUrl, {
+      method: uploadTarget.method,
+      headers: {
+        ...uploadTarget.headers,
+        Authorization: `Bearer ${token}`,
+      },
+      body: file,
+    });
+
+    if (!response.ok) {
+      throw new Error("Profile image upload failed");
+    }
   },
 
   async listArtists() {

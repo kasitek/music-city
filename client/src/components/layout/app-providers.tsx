@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import {
   DynamicContextProvider,
@@ -24,31 +24,48 @@ const dispatchDynamicEvent = (name: string) => {
     return;
   }
 
+  console.log("[dynamic][event]", name);
   window.dispatchEvent(new CustomEvent(name));
 };
 
 export const AppProviders = ({ children }: { children: ReactNode }) => {
+  useEffect(() => {
+    console.log("[dynamic][boot]", {
+      environmentId: clientEnv.dynamicEnvironmentId,
+      isConfigured: clientEnv.isDynamicConfigured,
+      redirectUrl: clientEnv.appBaseUrl,
+      socialStrategy: "redirect",
+      href: window.location.href,
+    });
+  }, []);
+
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       {clientEnv.isDynamicConfigured ? (
         <DynamicContextProvider
           settings={{
             environmentId: clientEnv.dynamicEnvironmentId,
+            redirectUrl: clientEnv.appBaseUrl,
             walletConnectors: [
               EthereumWalletConnectors,
               DynamicWaasStellarConnectors,
             ],
             social: {
-              strategy: "popup",
+              strategy: "redirect",
             },
             events: {
-              onAuthSuccess: () => {
+              onAuthSuccess: (args) => {
+                console.log("[dynamic][event] onAuthSuccess", {
+                  hasArgs: Boolean(args),
+                });
                 dispatchDynamicEvent(DYNAMIC_AUTH_SUCCESS_EVENT);
               },
-              onAuthFailure: () => {
+              onAuthFailure: (args) => {
+                console.log("[dynamic][event] onAuthFailure", args);
                 dispatchDynamicEvent(DYNAMIC_AUTH_FAILURE_EVENT);
               },
               onAuthFlowCancel: () => {
+                console.log("[dynamic][event] onAuthFlowCancel");
                 dispatchDynamicEvent(DYNAMIC_AUTH_CANCEL_EVENT);
               },
             },

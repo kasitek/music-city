@@ -71,7 +71,16 @@ export const SiteHeader = () => {
                     className="gap-2 border-white/15 bg-white/5 px-3 text-white hover:bg-white/10"
                     aria-label="Open account menu"
                   >
-                    <CircleUserRound className="h-4 w-4" />
+                    {session.profileImageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={session.profileImageUrl}
+                        alt=""
+                        className="size-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <CircleUserRound className="h-4 w-4" />
+                    )}
                     <ChevronDown className="h-4 w-4 text-slate-300" />
                   </Button>
                 </DropdownMenuTrigger>
