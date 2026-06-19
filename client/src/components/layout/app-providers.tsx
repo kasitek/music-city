@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import {
   DynamicContextProvider,
@@ -29,11 +29,15 @@ const dispatchDynamicEvent = (name: string) => {
 };
 
 export const AppProviders = ({ children }: { children: ReactNode }) => {
+  const [redirectOrigin, setRedirectOrigin] = useState<string | null>(null);
+
   useEffect(() => {
+    const origin = window.location.origin;
+    setRedirectOrigin(origin);
     console.log("[dynamic][boot]", {
       environmentId: clientEnv.dynamicEnvironmentId,
       isConfigured: clientEnv.isDynamicConfigured,
-      redirectUrl: clientEnv.appBaseUrl,
+      redirectUrl: origin,
       socialStrategy: "redirect",
       href: window.location.href,
     });
@@ -42,10 +46,11 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       {clientEnv.isDynamicConfigured ? (
-        <DynamicContextProvider
-          settings={{
-            environmentId: clientEnv.dynamicEnvironmentId,
-            redirectUrl: clientEnv.appBaseUrl,
+        redirectOrigin ? (
+          <DynamicContextProvider
+            settings={{
+              environmentId: clientEnv.dynamicEnvironmentId,
+              redirectUrl: redirectOrigin,
             walletConnectors: [
               EthereumWalletConnectors,
               DynamicWaasStellarConnectors,
@@ -69,16 +74,17 @@ export const AppProviders = ({ children }: { children: ReactNode }) => {
                 dispatchDynamicEvent(DYNAMIC_AUTH_CANCEL_EVENT);
               },
             },
-          }}
-        >
-          <AuthProvider>
-            <GlobalPlaybackProvider>
-              {children}
-              <OnboardingGate />
-            </GlobalPlaybackProvider>
-          </AuthProvider>
-          <DynamicMultiWalletPromptsWidget />
-        </DynamicContextProvider>
+            }}
+          >
+            <AuthProvider>
+              <GlobalPlaybackProvider>
+                {children}
+                <OnboardingGate />
+              </GlobalPlaybackProvider>
+            </AuthProvider>
+            <DynamicMultiWalletPromptsWidget />
+          </DynamicContextProvider>
+        ) : null
       ) : (
         <AuthProvider>
           <GlobalPlaybackProvider>

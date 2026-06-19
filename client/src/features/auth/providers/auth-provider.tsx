@@ -119,21 +119,34 @@ const redirectToLandingPage = () => {
 const isStellarAddress = (value?: string | null) =>
   typeof value === "string" && value.startsWith("G");
 
+type DynamicCredentialLike = {
+  address?: string | null;
+  publicIdentifier?: string | null;
+  public_identifier?: string | null;
+  chain?: string | null;
+};
+
+const normalizeCredentialAddress = (credential: DynamicCredentialLike) =>
+  credential.address ??
+  credential.publicIdentifier ??
+  credential.public_identifier ??
+  "";
+
 const findStellarCredentialAddress = (
   user:
     | {
-        verifiedCredentials?: Array<{
-          address?: string | null;
-          chain?: string | null;
-        }>;
+        verifiedCredentials?: DynamicCredentialLike[];
       }
     | null
     | undefined,
 ) =>
-  user?.verifiedCredentials?.find(
-    (credential) =>
-      credential.chain?.toLowerCase().includes("stellar") && credential.address,
-  )?.address;
+  normalizeCredentialAddress(
+    user?.verifiedCredentials?.find(
+      (credential) =>
+        credential.chain?.toLowerCase().includes("stellar") &&
+        normalizeCredentialAddress(credential),
+    ) ?? {},
+  ) || undefined;
 
 const useBaseSessionState = () => {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -284,8 +297,8 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
       email: user?.email ?? null,
       verifiedCredentials: user?.verifiedCredentials?.map((credential) => ({
         chain: credential.chain ?? null,
-        hasAddress: Boolean(credential.address),
-        addressPrefix: credential.address?.slice(0, 8) ?? null,
+        hasAddress: Boolean(normalizeCredentialAddress(credential)),
+        addressPrefix: normalizeCredentialAddress(credential).slice(0, 8) || null,
       })),
     });
   }, [user]);
@@ -418,8 +431,8 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
       verifiedCredentialCount: currentUser?.verifiedCredentials?.length ?? 0,
       verifiedCredentials: currentUser?.verifiedCredentials?.map((credential) => ({
         chain: credential.chain ?? null,
-        hasAddress: Boolean(credential.address),
-        addressPrefix: credential.address?.slice(0, 8) ?? null,
+        hasAddress: Boolean(normalizeCredentialAddress(credential)),
+        addressPrefix: normalizeCredentialAddress(credential).slice(0, 8) || null,
       })),
     });
 
@@ -441,15 +454,13 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
 
     syncInFlightRef.current = true;
     const walletAddress = await waitForDynamicWalletAddress();
+    const requestedWalletAddress =
+      resolveRequestedWalletAddress(walletAddress) ?? stellarCredentialAddress;
 
-    if (!walletAddress) {
-      logDynamicAuth("sync stopped: no wallet address after wait");
-      setError(
-        "Dynamic login succeeded, but no Stellar embedded wallet is available for this user.",
+    if (!walletAddress && !requestedWalletAddress) {
+      logDynamicAuth(
+        "sync continuing without client wallet address; backend will inspect token",
       );
-      setIsLoading(false);
-      syncInFlightRef.current = false;
-      return;
     }
 
     const dynamicToken = await waitForDynamicToken();
@@ -462,8 +473,9 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const syncKey = `${currentUser.userId ?? currentUser.email ?? "user"}:${walletAddress}`;
-    const requestedWalletAddress = resolveRequestedWalletAddress(walletAddress);
+    const syncKey = `${currentUser.userId ?? currentUser.email ?? "user"}:${
+      walletAddress ?? requestedWalletAddress ?? "token-only"
+    }`;
 
     logDynamicAuth("sync key resolved", {
       syncKey,
@@ -476,11 +488,11 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (
       lastSyncedKeyRef.current === syncKey &&
-      session?.walletAddress === walletAddress
+      (!walletAddress || session?.walletAddress === walletAddress)
     ) {
       logDynamicAuth("sync skipped: already synced", {
         syncKey,
-        sessionWallet: session.walletAddress,
+        sessionWallet: session?.walletAddress ?? null,
       });
       setIsLoading(false);
       return;
@@ -587,11 +599,18 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    if (user && primaryWallet?.address && !session) {
-      logDynamicAuth("effect sync trigger", {
-        reason: "user and primary wallet without app session",
+    if (user && showAuthFlow) {
+      logDynamicAuth("closing auth flow after Dynamic user resolved", {
         userId: user.userId ?? null,
-        primaryWalletAddress: primaryWallet.address,
+      });
+      setShowAuthFlow(false);
+    }
+
+    if (user && !session) {
+      logDynamicAuth("effect sync trigger", {
+        reason: "user without app session",
+        userId: user.userId ?? null,
+        primaryWalletAddress: primaryWallet?.address ?? null,
       });
       setIsLoading(true);
       void syncDynamicSession();
@@ -606,6 +625,7 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     sdkHasLoaded,
     session,
     setIsLoading,
+    setShowAuthFlow,
     showAuthFlow,
     syncDynamicSession,
     user,
