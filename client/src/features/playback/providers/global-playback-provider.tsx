@@ -362,29 +362,17 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
 
     const startPlayback = async () => {
       try {
-        console.log("[playback] startPlayback", {
-          streamUrl,
-          isHls: isHlsStream(streamUrl),
-        });
-
         if (isHlsStream(streamUrl)) {
           if (Hls.isSupported()) {
-            console.log("[playback] using hls.js");
             const hls = new Hls();
             hls.loadSource(streamUrl);
             hls.attachMedia(audio);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              console.log("[playback] hls manifest parsed", {
-                duration: audio.duration,
-              });
               if (audio.duration) {
                 setDuration(audio.duration);
               }
             });
             hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
-              console.log("[playback] hls level loaded", {
-                totalduration: data.details?.totalduration,
-              });
               const nextDuration = data.details?.totalduration;
               if (nextDuration) {
                 setDuration(nextDuration);
@@ -392,11 +380,9 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
             });
             hlsRef.current = hls;
           } else {
-            console.log("[playback] native hls fallback");
             audio.src = streamUrl;
           }
         } else {
-          console.log("[playback] using direct audio src");
           audio.src = streamUrl;
         }
 
@@ -404,9 +390,7 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
         setIsPlaying(true);
         syncProgress();
         startAnimationLoop();
-        console.log("[playback] audio.play resolved");
       } catch (error) {
-        console.error("[playback] startPlayback failed", error);
         setIsPlaying(false);
         toast.error(
           error instanceof Error
@@ -436,26 +420,11 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
   }, [streamUrl]);
 
   const playTrack = useCallback(async (track: TrackSummary) => {
-    console.log("[playback] playTrack called", {
-      trackId: track.id,
-      title: track.title,
-      playbackReady: track.playbackReady,
-      access: track.access,
-      hasSessionToken: Boolean(session?.token),
-      activeTrackId: activeTrack?.id ?? null,
-    });
-
     if (!session?.token) {
-      console.log("[playback] playTrack aborted: no session token");
       return;
     }
 
     if (track.id === activeTrack?.id && audioRef.current) {
-      console.log("[playback] toggling existing active track", {
-        trackId: track.id,
-        paused: audioRef.current.paused,
-      });
-
       if (audioRef.current.paused) {
         await audioRef.current.play();
         setIsPlaying(true);
@@ -471,19 +440,9 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
 
     try {
       const playbackSession = await playbackApi.createSession(session.token, track.id);
-      console.log("[playback] playback session created", {
-        trackId: track.id,
-        provider: playbackSession.provider,
-        streamUrl: playbackSession.streamUrl,
-      });
       setActiveTrack(track);
       setStreamUrl(playbackSession.streamUrl);
     } catch (error) {
-      console.error("[playback] playTrack failed", {
-        trackId: track.id,
-        error,
-      });
-
       if (error instanceof ApiClientError && error.status === 401) {
         toast.error("Your session expired. Please sign in again.");
         await logout();

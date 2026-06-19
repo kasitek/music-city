@@ -125,13 +125,6 @@ const TrackTableSection = ({
                   disabled={!canPlayTrack(track)}
                   onClick={(event) => {
                     event.stopPropagation();
-                    console.log("[dashboard][play] button clicked", {
-                      trackId: track.id,
-                      title: track.title,
-                      playbackReady: track.playbackReady,
-                      access: track.access,
-                      canPlay: canPlayTrack(track),
-                    });
                     void onPlay(track);
                   }}
                 >
@@ -247,6 +240,10 @@ export const DashboardTrackShelves = ({
   const { activeTrackId, playTrack, setPlaybackQueue } = useGlobalPlayback();
   const [syncingTrackId, setSyncingTrackId] = useState<string | null>(null);
   const [deletingTrackId, setDeletingTrackId] = useState<string | null>(null);
+  const [trackPendingDelete, setTrackPendingDelete] = useState<TrackSummary | null>(null);
+  const [bulkDeleteCount, setBulkDeleteCount] = useState<number | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkAccessUpdating, setBulkAccessUpdating] = useState<TrackAccess | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const canPlayTrack = (track: TrackSummary) =>
@@ -286,17 +283,14 @@ export const DashboardTrackShelves = ({
   };
 
   const deleteTrack = async (track: TrackSummary) => {
+    setTrackPendingDelete(track);
+  };
+
+  const confirmDeleteTrack = async () => {
     const token = session?.token;
+    const track = trackPendingDelete;
 
-    if (!token) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Delete "${track.title}" everywhere? This will remove it from Mux, storage, and the database.`,
-    );
-
-    if (!confirmed) {
+    if (!token || !track) {
       return;
     }
 
@@ -311,6 +305,38 @@ export const DashboardTrackShelves = ({
       );
     } finally {
       setDeletingTrackId(null);
+      setTrackPendingDelete(null);
+    }
+  };
+
+  const confirmDeleteSelectedTracks = async () => {
+    const token = session?.token;
+
+    if (!token || selectedTrackIds.length === 0) {
+      return;
+    }
+
+    try {
+      setIsBulkDeleting(true);
+
+      await Promise.all(
+        selectedTrackIds.map(async (trackId) => {
+          await tracksApi.deleteTrack(token, trackId);
+          onTrackDeleted(trackId);
+        }),
+      );
+
+      toast.success(
+        `${selectedTrackIds.length} track${selectedTrackIds.length === 1 ? "" : "s"} deleted.`,
+      );
+      setBulkDeleteCount(null);
+      clearSelectionMode();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to delete selected tracks",
+      );
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -356,23 +382,175 @@ export const DashboardTrackShelves = ({
     }
   };
 
+  const clearSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedTrackIds([]);
+  };
+
+  const updateSelectedTracksAccess = async (access: TrackAccess) => {
+    const token = session?.token;
+
+    if (!token || selectedTrackIds.length === 0) {
+      return;
+    }
+
+    const selectedTracks = tracks.filter((track) => selectedTrackIds.includes(track.id));
+
+    try {
+      setBulkAccessUpdating(access);
+
+      const updatedTracks = await Promise.all(
+        selectedTracks
+          .filter((track) => track.access !== access)
+          .map((track) => tracksApi.updateTrackAccess(token, track.id, access)),
+      );
+
+      updatedTracks.forEach((track) => onTrackSynced(track));
+
+      toast.success(
+        `${selectedTracks.length} track${selectedTracks.length === 1 ? "" : "s"} updated.`,
+      );
+      clearSelectionMode();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update selected tracks",
+      );
+    } finally {
+      setBulkAccessUpdating(null);
+    }
+  };
+
+  const deleteSelectedTracks = async () => {
+    if (selectedTrackIds.length === 0) {
+      return;
+    }
+
+    setBulkDeleteCount(selectedTrackIds.length);
+  };
+
   return (
     <div className="space-y-10 pb-40">
+      {bulkDeleteCount ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#171a2a] p-6 shadow-2xl">
+            <div className="space-y-3">
+              <p className="text-sm font-medium uppercase tracking-[0.28em] text-red-300">
+                Confirm delete
+              </p>
+              <h3 className="text-2xl font-semibold text-white">
+                Are you sure you want to delete these tracks?
+              </h3>
+              <p className="text-sm leading-7 text-slate-300">
+                This action can't be undone.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+                disabled={isBulkDeleting}
+                onClick={() => setBulkDeleteCount(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-500 text-white hover:bg-red-400"
+                disabled={isBulkDeleting}
+                onClick={() => void confirmDeleteSelectedTracks()}
+              >
+                {isBulkDeleting ? "Deleting..." : `Delete ${bulkDeleteCount}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {trackPendingDelete ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#171a2a] p-6 shadow-2xl">
+            <div className="space-y-3">
+              <p className="text-sm font-medium uppercase tracking-[0.28em] text-red-300">
+                Confirm delete
+              </p>
+              <h3 className="text-2xl font-semibold text-white">
+                Are you sure you want to delete this track?
+              </h3>
+              <p className="text-sm leading-7 text-slate-300">
+                This action can't be undone.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+                disabled={Boolean(deletingTrackId)}
+                onClick={() => setTrackPendingDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-red-500 text-white hover:bg-red-400"
+                disabled={deletingTrackId === trackPendingDelete.id}
+                onClick={() => void confirmDeleteTrack()}
+              >
+                {deletingTrackId === trackPendingDelete.id ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {selectionMode ? (
-        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">
           <span>
             {selectedTrackIds.length} track{selectedTrackIds.length === 1 ? "" : "s"} selected
           </span>
-          <Button
-            variant="outline"
-            className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-            onClick={() => {
-              setSelectionMode(false);
-              setSelectedTrackIds([]);
-            }}
-          >
-            Done
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <Button
+              variant="outline"
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+              disabled={Boolean(bulkAccessUpdating) || isBulkDeleting || selectedTrackIds.length === 0}
+              onClick={() => void updateSelectedTracksAccess("private")}
+            >
+              {bulkAccessUpdating === "private" ? "Updating..." : "Make private"}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+              disabled={Boolean(bulkAccessUpdating) || isBulkDeleting || selectedTrackIds.length === 0}
+              onClick={() => void updateSelectedTracksAccess("subscribers")}
+            >
+              {bulkAccessUpdating === "subscribers"
+                ? "Updating..."
+                : "Make subscriber-only"}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+              disabled={Boolean(bulkAccessUpdating) || isBulkDeleting || selectedTrackIds.length === 0}
+              onClick={() => void updateSelectedTracksAccess("public")}
+            >
+              {bulkAccessUpdating === "public" ? "Updating..." : "Make public"}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-red-400/30 bg-red-500/10 text-red-100 hover:bg-red-500/20"
+              disabled={Boolean(bulkAccessUpdating) || isBulkDeleting || selectedTrackIds.length === 0}
+              onClick={() => void deleteSelectedTracks()}
+            >
+              {isBulkDeleting ? "Deleting..." : "Delete selected"}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+              disabled={Boolean(bulkAccessUpdating) || isBulkDeleting}
+              onClick={clearSelectionMode}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       ) : null}
 
