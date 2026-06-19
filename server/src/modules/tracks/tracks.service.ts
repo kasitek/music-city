@@ -82,6 +82,12 @@ export const tracksService = {
     return hydrated;
   },
 
+  async getTrackForUpload(trackId: string) {
+    const track = await tracksRepository.findById(trackId);
+
+    return track ? hydrateTrackUrls(track) : null;
+  },
+
   async getManageTrack(walletAddress: string, trackId: string) {
     const profile = await usersService.getProfile(walletAddress);
     const track = await tracksRepository.findById(trackId);

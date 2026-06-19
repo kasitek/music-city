@@ -23,7 +23,7 @@ export const uploadsService = {
   async createSession(input: CreateUploadSessionInput) {
     const parsed = createUploadSessionSchema.parse(input);
     const id = createId("upl");
-    const track = await tracksService.getTrack(parsed.trackId);
+    const track = await tracksService.getTrackForUpload(parsed.trackId);
 
     if (!track) {
       throw new Error("Track not found");
