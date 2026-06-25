@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
-import type { ArtistSummary } from "@music-city/shared";
+import type { ArtistSummary, TrackAccess } from "@music-city/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,8 @@ export const TrackCreateForm = ({
   const [genre, setGenre] = useState("");
   const [country, setCountry] = useState("");
   const [description, setDescription] = useState("");
+  const [access, setAccess] = useState<TrackAccess>("private");
+  const [purchasePrice, setPurchasePrice] = useState("5");
   const [composer, setComposer] = useState("");
   const [producer, setProducer] = useState("");
   const [isrc, setIsrc] = useState("");
@@ -156,6 +158,11 @@ export const TrackCreateForm = ({
         toast.error("Add the track title, artist name, and genre first.");
         return false;
       }
+
+      if (access === "purchase_required" && !purchasePrice.trim()) {
+        toast.error("Add a purchase price before continuing.");
+        return false;
+      }
     }
 
     return true;
@@ -192,6 +199,8 @@ export const TrackCreateForm = ({
     setGenre("");
     setCountry("");
     setDescription("");
+    setAccess("private");
+    setPurchasePrice("5");
     setComposer("");
     setProducer("");
     setIsrc("");
@@ -266,8 +275,10 @@ export const TrackCreateForm = ({
         country,
         genre,
         description,
-        priceLabel: "Private",
-        access: "private",
+        priceLabel: access === "purchase_required" ? purchasePrice : "Private",
+        access,
+        purchaseEnabled: access === "purchase_required",
+        purchasePrice: access === "purchase_required" ? purchasePrice : undefined,
       });
 
       if (coverFile) {
@@ -445,6 +456,31 @@ export const TrackCreateForm = ({
               className="border-white/10 bg-slate-950/70 text-white"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="trackAccess">Release access</Label>
+            <select
+              id="trackAccess"
+              value={access}
+              onChange={(event) => setAccess(event.target.value as TrackAccess)}
+              className="h-10 rounded-md border border-white/10 bg-slate-950/70 px-3 text-sm text-white"
+            >
+              <option value="private">Private</option>
+              <option value="subscribers">Subscribers only</option>
+              <option value="purchase_required">One-time purchase</option>
+              <option value="public">Public</option>
+            </select>
+          </div>
+          {access === "purchase_required" ? (
+            <div className="space-y-2">
+              <Label htmlFor="trackPurchasePrice">Purchase price (XLM)</Label>
+              <Input
+                id="trackPurchasePrice"
+                value={purchasePrice}
+                onChange={(event) => setPurchasePrice(event.target.value)}
+                className="border-white/10 bg-slate-950/70 text-white"
+              />
+            </div>
+          ) : null}
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="trackDescription">Description</Label>
             <Textarea

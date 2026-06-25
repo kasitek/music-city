@@ -8,6 +8,7 @@ import { ArrowLeft, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { tracksApi } from "@/features/music/lib/tracks-api";
 
@@ -27,6 +28,11 @@ const accessOptions: Array<{
     description: "Visible in discovery, but reserved for gated listener access.",
   },
   {
+    value: "purchase_required",
+    label: "Purchase required",
+    description: "Visible in discovery and unlocked only after a one-time payment.",
+  },
+  {
     value: "public",
     label: "Public",
     description: "Visible in discovery and open for normal listening.",
@@ -39,6 +45,7 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
   const [track, setTrack] = useState<TrackSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [purchasePrice, setPurchasePrice] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +61,7 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
 
         if (!cancelled) {
           setTrack(nextTrack);
+          setPurchasePrice(nextTrack?.purchasePrice ?? "");
         }
       } catch (error) {
         if (!cancelled) {
@@ -92,6 +100,36 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Unable to update track access",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const savePurchaseSettings = async () => {
+    if (!session?.token || !track) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const updatedTrack = await tracksApi.updateTrackMonetization(
+        session.token,
+        track.id,
+        {
+          access: track.access,
+          purchaseEnabled: track.access === "purchase_required",
+          purchasePrice,
+        },
+      );
+      setTrack(updatedTrack);
+      setPurchasePrice(updatedTrack.purchasePrice ?? "");
+      toast.success("Track monetization saved.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to save track monetization",
       );
     } finally {
       setIsSaving(false);
@@ -233,6 +271,41 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
           </div>
         ) : null}
       </div>
+
+      {track.access === "purchase_required" ? (
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 sm:p-8">
+          <div className="max-w-3xl space-y-2">
+            <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">
+              Monetization
+            </p>
+            <h3 className="text-2xl font-semibold text-white">
+              Configure the unlock price.
+            </h3>
+            <p className="text-slate-400">
+              Fans pay once, then playback is unlocked immediately after payment confirmation.
+            </p>
+          </div>
+
+          <div className="mt-8 max-w-sm space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm text-slate-300">Price ({track.purchaseAssetCode ?? "XLM"})</p>
+              <Input
+                value={purchasePrice}
+                onChange={(event) => setPurchasePrice(event.target.value)}
+                className="border-white/10 bg-slate-950 text-white"
+                placeholder="5"
+              />
+            </div>
+            <Button
+              className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+              disabled={isSaving}
+              onClick={() => void savePurchaseSettings()}
+            >
+              {isSaving ? "Saving..." : "Save purchase settings"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

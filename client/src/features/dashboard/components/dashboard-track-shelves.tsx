@@ -190,6 +190,15 @@ const TrackTableSection = ({
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer focus:bg-white/10 focus:text-white"
+                    onClick={() => void onUpdateAccess(track, "purchase_required")}
+                  >
+                    Make purchasable
+                    {track.access === "purchase_required" ? (
+                      <Check className="ml-auto h-4 w-4 text-emerald-300" />
+                    ) : null}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10 focus:text-white"
                     onClick={() => void onUpdateAccess(track, "public")}
                   >
                     Make public

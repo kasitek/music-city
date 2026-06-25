@@ -3,6 +3,10 @@ import type { UserProfile } from "@music-city/shared";
 import { databaseService } from "../../services/database.service.js";
 
 export const usersRepository = {
+  async findById(id: string) {
+    return databaseService.findUserById<UserProfile>(id);
+  },
+
   async findByWallet(walletAddress: string) {
     return databaseService.findUserByWallet<UserProfile>(walletAddress);
   },

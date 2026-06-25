@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { TrackSummary, UserProfile } from "@music-city/shared";
+import type {
+  PaymentRecord,
+  SubscriptionRecord,
+  TrackSummary,
+  UserProfile,
+} from "@music-city/shared";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { tracksApi } from "@/features/music/lib/tracks-api";
+import { paymentsApi } from "@/features/payments/lib/payments-api";
+import { subscriptionsApi } from "@/features/subscriptions/lib/subscriptions-api";
 import { usersApi } from "@/features/users/lib/users-api";
 
 const formatRole = (role?: "artist" | "fan") =>
@@ -36,8 +46,14 @@ export const AccountOverview = () => {
   const { session } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tracks, setTracks] = useState<TrackSummary[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSavingMonetization, setIsSavingMonetization] = useState(false);
+  const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
+  const [subscriptionPrice, setSubscriptionPrice] = useState("10");
+  const [subscriptionPeriodDays, setSubscriptionPeriodDays] = useState("30");
 
   useEffect(() => {
     const token = session?.token;
@@ -56,19 +72,30 @@ export const AccountOverview = () => {
       setLoadError(null);
 
       try {
-        const [nextProfile, nextTracks] = await Promise.all([
+        const [nextProfile, nextTracks, nextPayments, nextSubscriptions] = await Promise.all([
           usersApi.getMe(token),
           tracksApi.listMyTracks(token),
+          paymentsApi.listMine(token),
+          subscriptionsApi.listMine(token),
         ]);
 
         if (!cancelled) {
           setProfile(nextProfile ?? null);
           setTracks(Array.isArray(nextTracks) ? nextTracks : []);
+          setPayments(Array.isArray(nextPayments) ? nextPayments : []);
+          setSubscriptions(Array.isArray(nextSubscriptions) ? nextSubscriptions : []);
+          setSubscriptionEnabled(nextProfile?.subscriptionEnabled ?? false);
+          setSubscriptionPrice(nextProfile?.subscriptionPrice ?? "10");
+          setSubscriptionPeriodDays(
+            String(nextProfile?.subscriptionPeriodDays ?? 30),
+          );
         }
       } catch (error) {
         if (!cancelled) {
           setProfile(null);
           setTracks([]);
+          setPayments([]);
+          setSubscriptions([]);
           setLoadError(error instanceof Error ? error.message : "Failed to load account.");
         }
       } finally {
@@ -84,6 +111,40 @@ export const AccountOverview = () => {
       cancelled = true;
     };
   }, [session?.token]);
+
+  const saveArtistSubscriptionSettings = async () => {
+    const token = session?.token;
+
+    if (!token || !profile) {
+      return;
+    }
+
+    try {
+      setIsSavingMonetization(true);
+      const nextProfile = await usersApi.saveMe(token, {
+        email: profile.email,
+        displayName: profile.displayName,
+        role: profile.role,
+        location: profile.location,
+        profileImageStorageKey: profile.profileImageStorageKey,
+        headerImageStorageKey: profile.headerImageStorageKey,
+        subscriptionEnabled,
+        subscriptionPrice,
+        subscriptionPeriodDays: Number(subscriptionPeriodDays),
+      });
+
+      setProfile(nextProfile);
+      toast.success("Subscription settings saved.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to save subscription settings",
+      );
+    } finally {
+      setIsSavingMonetization(false);
+    }
+  };
 
   if (!session) {
     return (
@@ -188,6 +249,61 @@ export const AccountOverview = () => {
           </CardContent>
         </Card>
 
+        {profile?.role === "artist" ? (
+          <Card className="border-white/10 bg-white/5 text-white shadow-none">
+            <CardHeader>
+              <CardTitle className="text-2xl">Artist subscription plan</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-white">
+                    Enable artist subscription
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Fans can subscribe for access to subscriber-only tracks.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={subscriptionEnabled}
+                  onChange={(event) => setSubscriptionEnabled(event.target.checked)}
+                  className="h-4 w-4 accent-emerald-400"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-300">Price</p>
+                  <Input
+                    value={subscriptionPrice}
+                    onChange={(event) => setSubscriptionPrice(event.target.value)}
+                    className="border-white/10 bg-slate-950 text-white"
+                    placeholder="10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-300">Billing period (days)</p>
+                  <Input
+                    value={subscriptionPeriodDays}
+                    onChange={(event) => setSubscriptionPeriodDays(event.target.value)}
+                    className="border-white/10 bg-slate-950 text-white"
+                    placeholder="30"
+                  />
+                </div>
+              </div>
+
+              <Button
+                className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                disabled={isSavingMonetization}
+                onClick={() => void saveArtistSubscriptionSettings()}
+              >
+                {isSavingMonetization ? "Saving..." : "Save subscription settings"}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card className="border-white/10 bg-white/5 text-white shadow-none">
           <CardHeader>
             <CardTitle className="text-2xl">Recent track activity</CardTitle>
@@ -208,6 +324,68 @@ export const AccountOverview = () => {
                     <p className="text-sm text-slate-400">{track.genre}</p>
                   </div>
                   <p className="text-sm text-emerald-300">{activityLabel(track)}</p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-white/5 text-white shadow-none">
+          <CardHeader>
+            <CardTitle className="text-2xl">Payments</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {payments.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
+                No payments yet.
+              </div>
+            ) : (
+              payments.slice(0, 6).map((payment) => (
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4"
+                >
+                  <div className="space-y-1">
+                    <p className="text-base font-medium text-white">
+                      {payment.productType === "track_purchase"
+                        ? "Track purchase"
+                        : "Artist subscription"}
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      {payment.amount} {payment.assetCode}
+                    </p>
+                  </div>
+                  <p className="text-sm text-emerald-300">Confirmed</p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-white/5 text-white shadow-none">
+          <CardHeader>
+            <CardTitle className="text-2xl">Subscriptions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {subscriptions.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
+                No active subscriptions yet.
+              </div>
+            ) : (
+              subscriptions.slice(0, 6).map((subscription) => (
+                <div
+                  key={subscription.id}
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4"
+                >
+                  <div className="space-y-1">
+                    <p className="text-base font-medium text-white">
+                      Artist subscription
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      Ends {new Date(subscription.endsAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <p className="text-sm text-emerald-300">{subscription.status}</p>
                 </div>
               ))
             )}

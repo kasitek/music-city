@@ -30,7 +30,7 @@ const createTableStatements = [
     CONSTRAINT tracks_status_check
       CHECK (status IN ('draft', 'awaiting_upload', 'uploaded', 'processing', 'published', 'failed')),
     CONSTRAINT tracks_access_check
-      CHECK (access IN ('private', 'subscribers', 'public')),
+      CHECK (access IN ('private', 'subscribers', 'purchase_required', 'public')),
     CONSTRAINT tracks_media_provider_check
       CHECK (media_provider IS NULL OR media_provider IN ('local', 'mux'))
   )`,
@@ -77,6 +77,55 @@ const createTableStatements = [
     CONSTRAINT archives_track_id_fk
       FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
   )`,
+  `CREATE TABLE IF NOT EXISTS payment_intents (
+    id TEXT PRIMARY KEY,
+    wallet_address TEXT NOT NULL,
+    product_type TEXT NOT NULL,
+    track_id TEXT,
+    artist_id TEXT,
+    status TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL,
+    CONSTRAINT payment_intents_track_id_fk
+      FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
+    CONSTRAINT payment_intents_artist_id_fk
+      FOREIGN KEY (artist_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT payment_intents_product_type_check
+      CHECK (product_type IN ('track_purchase', 'artist_subscription')),
+    CONSTRAINT payment_intents_status_check
+      CHECK (status IN ('pending', 'confirmed', 'expired', 'failed'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY,
+    intent_id TEXT NOT NULL UNIQUE,
+    wallet_address TEXT NOT NULL,
+    tx_hash TEXT NOT NULL UNIQUE,
+    product_type TEXT NOT NULL,
+    track_id TEXT,
+    artist_id TEXT,
+    confirmed_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL,
+    CONSTRAINT payments_intent_id_fk
+      FOREIGN KEY (intent_id) REFERENCES payment_intents(id) ON DELETE CASCADE,
+    CONSTRAINT payments_track_id_fk
+      FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
+    CONSTRAINT payments_artist_id_fk
+      FOREIGN KEY (artist_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT payments_product_type_check
+      CHECK (product_type IN ('track_purchase', 'artist_subscription'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY,
+    wallet_address TEXT NOT NULL,
+    artist_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    ends_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL,
+    CONSTRAINT subscriptions_artist_id_fk
+      FOREIGN KEY (artist_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT subscriptions_status_check
+      CHECK (status IN ('active', 'expired', 'cancelled'))
+  )`,
   "CREATE INDEX IF NOT EXISTS users_wallet_address_idx ON users (wallet_address)",
   "CREATE INDEX IF NOT EXISTS users_role_idx ON users (role)",
   "CREATE INDEX IF NOT EXISTS tracks_artist_id_idx ON tracks (artist_id)",
@@ -86,6 +135,12 @@ const createTableStatements = [
   "CREATE INDEX IF NOT EXISTS entitlements_wallet_address_idx ON entitlements (wallet_address)",
   "CREATE INDEX IF NOT EXISTS entitlements_track_id_idx ON entitlements (track_id)",
   "CREATE INDEX IF NOT EXISTS archives_track_id_idx ON archives (track_id)",
+  "CREATE INDEX IF NOT EXISTS payment_intents_wallet_address_idx ON payment_intents (wallet_address)",
+  "CREATE INDEX IF NOT EXISTS payment_intents_track_id_idx ON payment_intents (track_id)",
+  "CREATE INDEX IF NOT EXISTS payment_intents_artist_id_idx ON payment_intents (artist_id)",
+  "CREATE INDEX IF NOT EXISTS payments_wallet_address_idx ON payments (wallet_address)",
+  "CREATE INDEX IF NOT EXISTS subscriptions_wallet_address_idx ON subscriptions (wallet_address)",
+  "CREATE INDEX IF NOT EXISTS subscriptions_artist_id_idx ON subscriptions (artist_id)",
 ];
 
 const mapPayloadRows = <T>(rows: PersistedRow[]) =>
@@ -156,6 +211,15 @@ export const databaseService = {
     );
 
     return mapPayloadRows<T>(result.rows);
+  },
+
+  async findUserById<T>(id: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM users WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+
+    return result.rows[0]?.payload as T | null;
   },
 
   async upsertTrack(
@@ -292,6 +356,124 @@ export const databaseService = {
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM archives WHERE track_id = $1 ORDER BY created_at DESC, id`,
       [trackId],
+    );
+
+    return mapPayloadRows<T>(result.rows);
+  },
+
+  async upsertPaymentIntent(
+    id: string,
+    walletAddress: string,
+    productType: string,
+    trackId: string | null,
+    artistId: string | null,
+    status: string,
+    expiresAt: string,
+    payload: unknown,
+  ) {
+    await pool.query(
+      `INSERT INTO payment_intents (id, wallet_address, product_type, track_id, artist_id, status, expires_at, payload)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+       ON CONFLICT (id) DO UPDATE SET
+         wallet_address = EXCLUDED.wallet_address,
+         product_type = EXCLUDED.product_type,
+         track_id = EXCLUDED.track_id,
+         artist_id = EXCLUDED.artist_id,
+         status = EXCLUDED.status,
+         expires_at = EXCLUDED.expires_at,
+         payload = EXCLUDED.payload`,
+      [id, walletAddress, productType, trackId, artistId, status, expiresAt, JSON.stringify(payload)],
+    );
+  },
+
+  async listPaymentIntentsByWallet<T>(walletAddress: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM payment_intents WHERE wallet_address = $1 ORDER BY expires_at DESC, id DESC`,
+      [walletAddress],
+    );
+
+    return mapPayloadRows<T>(result.rows);
+  },
+
+  async upsertPayment(
+    id: string,
+    intentId: string,
+    walletAddress: string,
+    txHash: string,
+    productType: string,
+    trackId: string | null,
+    artistId: string | null,
+    confirmedAt: string,
+    payload: unknown,
+  ) {
+    await pool.query(
+      `INSERT INTO payments (id, intent_id, wallet_address, tx_hash, product_type, track_id, artist_id, confirmed_at, payload)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+       ON CONFLICT (id) DO UPDATE SET
+         intent_id = EXCLUDED.intent_id,
+         wallet_address = EXCLUDED.wallet_address,
+         tx_hash = EXCLUDED.tx_hash,
+         product_type = EXCLUDED.product_type,
+         track_id = EXCLUDED.track_id,
+         artist_id = EXCLUDED.artist_id,
+         confirmed_at = EXCLUDED.confirmed_at,
+         payload = EXCLUDED.payload`,
+      [id, intentId, walletAddress, txHash, productType, trackId, artistId, confirmedAt, JSON.stringify(payload)],
+    );
+  },
+
+  async findPaymentByTxHash<T>(txHash: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM payments WHERE tx_hash = $1 LIMIT 1`,
+      [txHash],
+    );
+
+    return result.rows[0]?.payload as T | null;
+  },
+
+  async listPaymentsByWallet<T>(walletAddress: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM payments WHERE wallet_address = $1 ORDER BY confirmed_at DESC, id DESC`,
+      [walletAddress],
+    );
+
+    return mapPayloadRows<T>(result.rows);
+  },
+
+  async upsertSubscription(
+    id: string,
+    walletAddress: string,
+    artistId: string,
+    status: string,
+    endsAt: string,
+    payload: unknown,
+  ) {
+    await pool.query(
+      `INSERT INTO subscriptions (id, wallet_address, artist_id, status, ends_at, payload)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+       ON CONFLICT (id) DO UPDATE SET
+         wallet_address = EXCLUDED.wallet_address,
+         artist_id = EXCLUDED.artist_id,
+         status = EXCLUDED.status,
+         ends_at = EXCLUDED.ends_at,
+         payload = EXCLUDED.payload`,
+      [id, walletAddress, artistId, status, endsAt, JSON.stringify(payload)],
+    );
+  },
+
+  async listSubscriptionsByWallet<T>(walletAddress: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM subscriptions WHERE wallet_address = $1 ORDER BY ends_at DESC, id DESC`,
+      [walletAddress],
+    );
+
+    return mapPayloadRows<T>(result.rows);
+  },
+
+  async listSubscriptionsByArtist<T>(artistId: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM subscriptions WHERE artist_id = $1 ORDER BY ends_at DESC, id DESC`,
+      [artistId],
     );
 
     return mapPayloadRows<T>(result.rows);

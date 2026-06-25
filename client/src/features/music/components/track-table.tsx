@@ -36,6 +36,8 @@ export const formatTrackAccessLabel = (track: TrackSummary) => {
       return "Public release";
     case "subscribers":
       return "Subscriber release";
+    case "purchase_required":
+      return "Purchase required";
     default:
       return "Private release";
   }

@@ -66,6 +66,17 @@ usersRouter.put(
 );
 
 usersRouter.get(
+  "/artists/:artistId",
+  asyncHandler(async (request, response) => {
+    const profile = await usersService.getPublicArtistProfile(
+      String(request.params.artistId),
+    );
+
+    response.json({ profile });
+  }),
+);
+
+usersRouter.get(
   "/artists",
   asyncHandler(async (_request, response) => {
     response.json({ items: await usersService.listArtists() });

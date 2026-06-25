@@ -11,6 +11,12 @@ export const clientEnv = {
     process.env.NEXT_PUBLIC_APP_BASE_URL ?? "http://localhost:3000",
   ),
   dynamicEnvironmentId,
+  stellarHorizonUrl:
+    process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL ??
+    "https://horizon-testnet.stellar.org",
+  stellarNetworkPassphrase:
+    process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ??
+    "Test SDF Network ; September 2015",
   isDynamicConfigured:
     dynamicEnvironmentId !== "dynamic-environment-id-required",
 };

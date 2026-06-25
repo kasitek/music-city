@@ -449,6 +449,18 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
         return;
       }
 
+      if (error instanceof ApiClientError && error.status === 403) {
+        if (track.access === "purchase_required") {
+          toast.error("Buy this track first to unlock playback.");
+          return;
+        }
+
+        if (track.access === "subscribers") {
+          toast.error("Subscribe to this artist first to unlock playback.");
+          return;
+        }
+      }
+
       toast.error(error instanceof Error ? error.message : "Unable to start playback");
     }
   }, [activeTrack?.id, logout, session?.token]);

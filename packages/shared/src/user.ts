@@ -9,6 +9,11 @@ export const userProfileSchema = z.object({
   displayName: z.string().min(1),
   role: userRoleSchema,
   location: z.string().default(""),
+  subscriptionEnabled: z.boolean().default(false),
+  subscriptionPrice: z.string().optional(),
+  subscriptionAssetCode: z.string().optional(),
+  subscriptionAssetIssuer: z.string().optional(),
+  subscriptionPeriodDays: z.number().int().positive().default(30),
   profileImageUrl: z.string().optional(),
   profileImageStorageKey: z.string().optional(),
   headerImageUrl: z.string().optional(),
@@ -24,6 +29,11 @@ export const upsertUserProfileSchema = z.object({
   displayName: z.string().min(1).max(80),
   role: userRoleSchema,
   location: z.string().max(120).optional(),
+  subscriptionEnabled: z.boolean().optional(),
+  subscriptionPrice: z.string().max(32).optional(),
+  subscriptionAssetCode: z.string().max(32).optional(),
+  subscriptionAssetIssuer: z.string().max(80).optional(),
+  subscriptionPeriodDays: z.number().int().positive().max(3650).optional(),
   profileImageStorageKey: z.string().max(300).optional(),
   headerImageStorageKey: z.string().max(300).optional(),
 });
@@ -46,3 +56,19 @@ export interface UserMediaUploadTarget {
   headers: Record<string, string>;
   expiresAt: string;
 }
+
+export const artistPublicProfileSchema = z.object({
+  id: z.string(),
+  walletAddress: z.string(),
+  displayName: z.string().min(1),
+  location: z.string().default(""),
+  subscriptionEnabled: z.boolean().default(false),
+  subscriptionPrice: z.string().optional(),
+  subscriptionAssetCode: z.string().optional(),
+  subscriptionAssetIssuer: z.string().optional(),
+  subscriptionPeriodDays: z.number().int().positive().default(30),
+  profileImageUrl: z.string().optional(),
+  headerImageUrl: z.string().optional(),
+  verified: z.boolean().default(false),
+});
+export type ArtistPublicProfile = z.infer<typeof artistPublicProfileSchema>;

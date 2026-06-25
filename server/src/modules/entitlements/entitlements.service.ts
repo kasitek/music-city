@@ -4,6 +4,7 @@ import { grantEntitlementSchema } from "@music-city/shared";
 
 import { env } from "../../config/env.js";
 import { createId } from "../../services/id.service.js";
+import { subscriptionsService } from "../subscriptions/subscriptions.service.js";
 import { tracksService } from "../tracks/tracks.service.js";
 import { usersService } from "../users/users.service.js";
 import { entitlementsRepository } from "./entitlements.repository.js";
@@ -66,6 +67,13 @@ export const entitlementsService = {
     });
   },
 
+  grantPurchase(walletAddress: string, trackId: string) {
+    return this.grant(walletAddress, {
+      trackId,
+      source: "purchase",
+    });
+  },
+
   async canPlayTrack(walletAddress: string, trackId: string) {
     const track = await tracksService.getTrackForPlayback(trackId);
 
@@ -91,7 +99,21 @@ export const entitlementsService = {
       return true;
     }
 
+    if (track.access === "purchase_required") {
+      return false;
+    }
+
     if (track.access === "subscribers") {
+      const hasLocalSubscription =
+        await subscriptionsService.hasActiveArtistSubscription(
+          walletAddress,
+          track.artistId,
+        );
+
+      if (hasLocalSubscription) {
+        return true;
+      }
+
       return this.hasStellarAssetEntitlement(walletAddress);
     }
 

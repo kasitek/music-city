@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { TrackSummary } from "@music-city/shared";
-import { ArrowLeft, Play } from "lucide-react";
+import type { ArtistPublicProfile, TrackSummary } from "@music-city/shared";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { TrackCommerceActions } from "@/features/music/components/track-commerce-actions";
 import { tracksApi } from "@/features/music/lib/tracks-api";
+import { usersApi } from "@/features/users/lib/users-api";
 import { useGlobalPlayback } from "@/features/playback/providers/global-playback-provider";
-import { useAuth } from "@/hooks/use-auth";
 
 const formatAccessLabel = (track: TrackSummary) => {
   switch (track.access) {
@@ -17,15 +18,17 @@ const formatAccessLabel = (track: TrackSummary) => {
       return "Public release";
     case "subscribers":
       return "Subscriber release";
+    case "purchase_required":
+      return "Purchase required";
     default:
       return "Private release";
   }
 };
 
 export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
-  const { session } = useAuth();
-  const { playTrack, activeTrackId, setPlaybackQueue } = useGlobalPlayback();
+  const { setPlaybackQueue } = useGlobalPlayback();
   const [track, setTrack] = useState<TrackSummary | null>(null);
+  const [artistProfile, setArtistProfile] = useState<ArtistPublicProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +40,9 @@ export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
 
         if (!cancelled) {
           setTrack(nextTrack);
+          setArtistProfile(
+            nextTrack ? await usersApi.getArtistProfile(nextTrack.artistId) : null,
+          );
         }
       } catch (error) {
         if (!cancelled) {
@@ -154,16 +160,13 @@ export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
             </div>
           ) : null}
 
-          <div className="flex flex-wrap gap-4">
-            <Button
-              className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-              disabled={!track.playbackReady || !session?.token}
-              onClick={() => void playTrack(track)}
-            >
-              <Play className="mr-2 h-4 w-4 fill-current" />
-              {activeTrackId === track.id ? "Playing" : "Play track"}
-            </Button>
-          </div>
+          <TrackCommerceActions
+            track={track}
+            artistProfile={artistProfile}
+            onUnlocked={async () => {
+              setTrack(await tracksApi.getTrack(track.id));
+            }}
+          />
         </div>
       </div>
     </div>

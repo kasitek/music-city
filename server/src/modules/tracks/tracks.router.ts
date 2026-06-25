@@ -51,6 +51,27 @@ tracksRouter.get(
 );
 
 tracksRouter.put(
+  "/:trackId/monetization",
+  requireSession,
+  asyncHandler(async (request, response) => {
+    try {
+      const track = await tracksService.updateTrackMonetization(
+        request.session!.walletAddress,
+        String(request.params.trackId),
+        request.body,
+      );
+
+      response.json({ track });
+    } catch (error) {
+      throw new HttpError(
+        400,
+        error instanceof Error ? error.message : "Track monetization update failed",
+      );
+    }
+  }),
+);
+
+tracksRouter.put(
   "/:trackId/access",
   requireSession,
   asyncHandler(async (request, response) => {

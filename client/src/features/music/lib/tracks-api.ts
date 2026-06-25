@@ -1,6 +1,7 @@
 import type {
   TrackAccess,
   TrackCreateInput,
+  TrackMonetizationUpdateInput,
   TrackSummary,
 } from "@music-city/shared";
 
@@ -67,6 +68,20 @@ export const tracksApi = {
     const response = await httpClient.put<{ track: TrackSummary }>(
       `/tracks/${trackId}/access`,
       { access },
+      token,
+    );
+
+    return response.track;
+  },
+
+  async updateTrackMonetization(
+    token: string,
+    trackId: string,
+    input: TrackMonetizationUpdateInput,
+  ) {
+    const response = await httpClient.put<{ track: TrackSummary }>(
+      `/tracks/${trackId}/monetization`,
+      input,
       token,
     );
 

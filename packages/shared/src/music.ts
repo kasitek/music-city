@@ -10,7 +10,12 @@ export const trackStatusSchema = z.enum([
 ]);
 export type TrackStatus = z.infer<typeof trackStatusSchema>;
 
-export const trackAccessSchema = z.enum(["private", "subscribers", "public"]);
+export const trackAccessSchema = z.enum([
+  "private",
+  "subscribers",
+  "purchase_required",
+  "public",
+]);
 export type TrackAccess = z.infer<typeof trackAccessSchema>;
 
 export interface ArtistSummary {
@@ -46,6 +51,10 @@ export interface TrackSummary {
   description?: string;
   coverImageUrl?: string;
   coverStorageKey?: string;
+  purchaseEnabled?: boolean;
+  purchasePrice?: string;
+  purchaseAssetCode?: string;
+  purchaseAssetIssuer?: string;
   playbackUrl?: string;
   streamManifestUrl?: string;
   streamMediaUrl?: string;
@@ -79,6 +88,10 @@ export const trackCreateSchema = z.object({
   description: z.string().max(1000).optional(),
   priceLabel: z.string().max(80).optional(),
   access: trackAccessSchema.default("private"),
+  purchaseEnabled: z.boolean().optional(),
+  purchasePrice: z.string().max(32).optional(),
+  purchaseAssetCode: z.string().max(32).optional(),
+  purchaseAssetIssuer: z.string().max(80).optional(),
 });
 export type TrackCreateInput = z.infer<typeof trackCreateSchema>;
 
@@ -86,3 +99,14 @@ export const trackAccessUpdateSchema = z.object({
   access: trackAccessSchema,
 });
 export type TrackAccessUpdateInput = z.infer<typeof trackAccessUpdateSchema>;
+
+export const trackMonetizationUpdateSchema = z.object({
+  access: trackAccessSchema,
+  purchaseEnabled: z.boolean().optional(),
+  purchasePrice: z.string().max(32).optional(),
+  purchaseAssetCode: z.string().max(32).optional(),
+  purchaseAssetIssuer: z.string().max(80).optional(),
+});
+export type TrackMonetizationUpdateInput = z.infer<
+  typeof trackMonetizationUpdateSchema
+>;

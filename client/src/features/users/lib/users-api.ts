@@ -1,5 +1,6 @@
 import type {
   ArtistSummary,
+  ArtistPublicProfile,
   CreateUserMediaUploadInput,
   UpsertUserProfileInput,
   UserMediaUploadTarget,
@@ -64,5 +65,13 @@ export const usersApi = {
     );
 
     return response.items;
+  },
+
+  async getArtistProfile(artistId: string) {
+    const response = await httpClient.get<{ profile: ArtistPublicProfile | null }>(
+      `/users/artists/${artistId}`,
+    );
+
+    return response.profile;
   },
 };

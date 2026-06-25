@@ -1,4 +1,5 @@
 import {
+  artistPublicProfileSchema,
   createUserMediaUploadSchema,
   upsertUserProfileSchema,
   type CreateUserMediaUploadInput,
@@ -56,6 +57,33 @@ const withMediaUrls = (profile: UserProfile | null) => {
 };
 
 export const usersService = {
+  async getPublicArtistProfile(id: string) {
+    const profile = await this.getProfileById(id);
+
+    if (!profile || profile.role !== "artist") {
+      return null;
+    }
+
+    return artistPublicProfileSchema.parse({
+      id: profile.id,
+      walletAddress: profile.walletAddress,
+      displayName: profile.displayName,
+      location: profile.location,
+      subscriptionEnabled: profile.subscriptionEnabled,
+      subscriptionPrice: profile.subscriptionPrice,
+      subscriptionAssetCode: profile.subscriptionAssetCode,
+      subscriptionAssetIssuer: profile.subscriptionAssetIssuer,
+      subscriptionPeriodDays: profile.subscriptionPeriodDays,
+      profileImageUrl: profile.profileImageUrl,
+      headerImageUrl: profile.headerImageUrl,
+      verified: profile.verified,
+    });
+  },
+
+  async getProfileById(id: string) {
+    return withMediaUrls(await usersRepository.findById(id));
+  },
+
   async getProfile(walletAddress: string) {
     return withMediaUrls(await usersRepository.findByWallet(walletAddress));
   },
@@ -72,6 +100,24 @@ export const usersService = {
       displayName: parsed.displayName,
       role: parsed.role,
       location: parsed.location ?? existing?.location ?? "",
+      subscriptionEnabled:
+        parsed.subscriptionEnabled ?? existing?.subscriptionEnabled ?? false,
+      subscriptionPrice:
+        parsed.subscriptionPrice ??
+        existing?.subscriptionPrice ??
+        env.ARTIST_SUBSCRIPTION_DEFAULT_PRICE,
+      subscriptionAssetCode:
+        parsed.subscriptionAssetCode ??
+        existing?.subscriptionAssetCode ??
+        env.STELLAR_SETTLEMENT_ASSET_CODE,
+      subscriptionAssetIssuer:
+        parsed.subscriptionAssetIssuer ??
+        existing?.subscriptionAssetIssuer ??
+        env.STELLAR_SETTLEMENT_ASSET_ISSUER,
+      subscriptionPeriodDays:
+        parsed.subscriptionPeriodDays ??
+        existing?.subscriptionPeriodDays ??
+        env.ARTIST_SUBSCRIPTION_PERIOD_DAYS,
       profileImageStorageKey:
         ensureOwnedProfileStorageKey(
           walletAddress,

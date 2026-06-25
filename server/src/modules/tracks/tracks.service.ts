@@ -1,7 +1,9 @@
 import {
+  trackMonetizationUpdateSchema,
   trackAccessUpdateSchema,
   trackCreateSchema,
   type TrackAccessUpdateInput,
+  type TrackMonetizationUpdateInput,
   type TrackSummary,
   type TrackCreateInput,
 } from "@music-city/shared";
@@ -9,6 +11,7 @@ import {
 import { createId } from "../../services/id.service.js";
 import { muxService } from "../../services/mux.service.js";
 import { storageService } from "../../services/storage.service.js";
+import { env } from "../../config/env.js";
 import { usersService } from "../users/users.service.js";
 import { tracksRepository } from "./tracks.repository.js";
 
@@ -177,9 +180,29 @@ export const tracksService = {
       country: parsed.country?.trim() || undefined,
       genre: parsed.genre,
       runtime: "Not processed",
-      priceLabel: parsed.priceLabel ?? "Private",
+      priceLabel:
+        parsed.access === "purchase_required"
+          ? parsed.purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
+          : parsed.priceLabel ?? "Private",
       status: "awaiting_upload",
       access: parsed.access,
+      purchaseEnabled:
+        parsed.purchaseEnabled ?? parsed.access === "purchase_required",
+      purchasePrice:
+        parsed.purchasePrice ??
+        (parsed.access === "purchase_required"
+          ? env.TRACK_PURCHASE_DEFAULT_PRICE
+          : undefined),
+      purchaseAssetCode:
+        parsed.purchaseAssetCode ??
+        (parsed.access === "purchase_required"
+          ? env.STELLAR_SETTLEMENT_ASSET_CODE
+          : undefined),
+      purchaseAssetIssuer:
+        parsed.purchaseAssetIssuer ??
+        (parsed.access === "purchase_required"
+          ? env.STELLAR_SETTLEMENT_ASSET_ISSUER
+          : undefined),
       plays: 0,
       likes: 0,
       description: parsed.description,
@@ -215,7 +238,69 @@ export const tracksService = {
           ? "Public"
           : parsed.access === "subscribers"
             ? "Subscribers"
+            : parsed.access === "purchase_required"
+              ? existing.purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
             : "Private",
+      purchaseEnabled:
+        parsed.access === "purchase_required"
+          ? (existing.purchaseEnabled ?? true)
+          : existing.purchaseEnabled,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  async updateTrackMonetization(
+    walletAddress: string,
+    trackId: string,
+    input: TrackMonetizationUpdateInput,
+  ) {
+    const profile = await usersService.getProfile(walletAddress);
+    const existing = await tracksRepository.findById(trackId);
+
+    if (!profile || !existing || existing.artistId !== profile.id) {
+      throw new Error("Track not found");
+    }
+
+    const parsed = trackMonetizationUpdateSchema.parse(input);
+    const purchaseEnabled =
+      parsed.purchaseEnabled ?? parsed.access === "purchase_required";
+    const purchasePrice =
+      parsed.purchasePrice?.trim() ||
+      existing.purchasePrice ||
+      env.TRACK_PURCHASE_DEFAULT_PRICE;
+    const purchaseAssetCode =
+      parsed.purchaseAssetCode?.trim() ||
+      existing.purchaseAssetCode ||
+      env.STELLAR_SETTLEMENT_ASSET_CODE;
+    const purchaseAssetIssuer =
+      parsed.purchaseAssetIssuer?.trim() ||
+      existing.purchaseAssetIssuer ||
+      env.STELLAR_SETTLEMENT_ASSET_ISSUER;
+
+    return tracksRepository.upsert({
+      ...existing,
+      access: parsed.access,
+      purchaseEnabled,
+      purchasePrice:
+        parsed.access === "purchase_required" || purchaseEnabled
+          ? purchasePrice
+          : existing.purchasePrice,
+      purchaseAssetCode:
+        parsed.access === "purchase_required" || purchaseEnabled
+          ? purchaseAssetCode
+          : existing.purchaseAssetCode,
+      purchaseAssetIssuer:
+        parsed.access === "purchase_required" || purchaseEnabled
+          ? purchaseAssetIssuer
+          : existing.purchaseAssetIssuer,
+      priceLabel:
+        parsed.access === "public"
+          ? "Public"
+          : parsed.access === "subscribers"
+            ? "Subscribers"
+            : parsed.access === "purchase_required"
+              ? purchasePrice
+              : "Private",
       updatedAt: new Date().toISOString(),
     });
   },
