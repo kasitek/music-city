@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+import {
+  optionalStellarAssetIssuerSchema,
+  positiveAmountSchema,
+  stellarAssetCodeSchema,
+  stellarWalletAddressSchema,
+} from "./commerce.js";
+
 export const paymentProductTypeSchema = z.enum([
   "track_purchase",
   "artist_subscription",
@@ -21,22 +28,22 @@ export const subscriptionStatusSchema = z.enum(["active", "expired", "cancelled"
 export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
 
 export const stellarAssetSchema = z.object({
-  code: z.string(),
-  issuer: z.string().optional(),
+  code: stellarAssetCodeSchema,
+  issuer: optionalStellarAssetIssuerSchema,
   isNative: z.boolean().default(false),
 });
 export type StellarAssetDescriptor = z.infer<typeof stellarAssetSchema>;
 
 export const paymentIntentSchema = z.object({
   id: z.string(),
-  walletAddress: z.string(),
+  walletAddress: stellarWalletAddressSchema,
   productType: paymentProductTypeSchema,
   trackId: z.string().optional(),
   artistId: z.string().optional(),
-  amount: z.string(),
-  assetCode: z.string(),
-  assetIssuer: z.string().optional(),
-  destinationAddress: z.string(),
+  amount: positiveAmountSchema,
+  assetCode: stellarAssetCodeSchema,
+  assetIssuer: optionalStellarAssetIssuerSchema,
+  destinationAddress: stellarWalletAddressSchema,
   memo: z.string(),
   status: paymentIntentStatusSchema,
   txHash: z.string().optional(),
@@ -49,14 +56,14 @@ export type PaymentIntentRecord = z.infer<typeof paymentIntentSchema>;
 export const paymentRecordSchema = z.object({
   id: z.string(),
   intentId: z.string(),
-  walletAddress: z.string(),
+  walletAddress: stellarWalletAddressSchema,
   productType: paymentProductTypeSchema,
   trackId: z.string().optional(),
   artistId: z.string().optional(),
   txHash: z.string(),
-  amount: z.string(),
-  assetCode: z.string(),
-  assetIssuer: z.string().optional(),
+  amount: positiveAmountSchema,
+  assetCode: stellarAssetCodeSchema,
+  assetIssuer: optionalStellarAssetIssuerSchema,
   status: paymentStatusSchema,
   confirmedAt: z.string(),
   createdAt: z.string(),
@@ -65,7 +72,7 @@ export type PaymentRecord = z.infer<typeof paymentRecordSchema>;
 
 export const subscriptionRecordSchema = z.object({
   id: z.string(),
-  walletAddress: z.string(),
+  walletAddress: stellarWalletAddressSchema,
   artistId: z.string(),
   status: subscriptionStatusSchema,
   startsAt: z.string(),

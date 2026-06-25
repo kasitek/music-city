@@ -30,6 +30,16 @@ export const subscriptionsService = {
     );
   },
 
+  async findByArtistAndPayment(walletAddress: string, artistId: string, paymentId: string) {
+    const items = await subscriptionsRepository.listByWallet(walletAddress);
+
+    return items.find(
+      (subscription) =>
+        subscription.artistId === artistId &&
+        subscription.paymentId === paymentId,
+    );
+  },
+
   async activateOrExtend(
     walletAddress: string,
     artistId: string,

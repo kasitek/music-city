@@ -1,5 +1,6 @@
 export * from "./auth.js";
 export * from "./archive.js";
+export * from "./commerce.js";
 export * from "./entitlements.js";
 export * from "./music.js";
 export * from "./payments.js";

@@ -1,18 +1,25 @@
 import { z } from "zod";
 
 import { userRoleSchema } from "./auth.js";
+import {
+  optionalPositiveAmountSchema,
+  optionalStellarAssetCodeSchema,
+  optionalStellarAssetIssuerSchema,
+  requireIssuerForNonNativeAsset,
+  stellarWalletAddressSchema,
+} from "./commerce.js";
 
 export const userProfileSchema = z.object({
   id: z.string(),
-  walletAddress: z.string(),
+  walletAddress: stellarWalletAddressSchema,
   email: z.string().email().optional().or(z.literal("")),
   displayName: z.string().min(1),
   role: userRoleSchema,
   location: z.string().default(""),
   subscriptionEnabled: z.boolean().default(false),
-  subscriptionPrice: z.string().optional(),
-  subscriptionAssetCode: z.string().optional(),
-  subscriptionAssetIssuer: z.string().optional(),
+  subscriptionPrice: optionalPositiveAmountSchema,
+  subscriptionAssetCode: optionalStellarAssetCodeSchema,
+  subscriptionAssetIssuer: optionalStellarAssetIssuerSchema,
   subscriptionPeriodDays: z.number().int().positive().default(30),
   profileImageUrl: z.string().optional(),
   profileImageStorageKey: z.string().optional(),
@@ -24,19 +31,34 @@ export const userProfileSchema = z.object({
 });
 export type UserProfile = z.infer<typeof userProfileSchema>;
 
-export const upsertUserProfileSchema = z.object({
-  email: z.string().email().optional().or(z.literal("")),
-  displayName: z.string().min(1).max(80),
-  role: userRoleSchema,
-  location: z.string().max(120).optional(),
-  subscriptionEnabled: z.boolean().optional(),
-  subscriptionPrice: z.string().max(32).optional(),
-  subscriptionAssetCode: z.string().max(32).optional(),
-  subscriptionAssetIssuer: z.string().max(80).optional(),
-  subscriptionPeriodDays: z.number().int().positive().max(3650).optional(),
-  profileImageStorageKey: z.string().max(300).optional(),
-  headerImageStorageKey: z.string().max(300).optional(),
-});
+export const upsertUserProfileSchema = z
+  .object({
+    email: z.string().email().optional().or(z.literal("")),
+    displayName: z.string().min(1).max(80),
+    role: userRoleSchema,
+    location: z.string().max(120).optional(),
+    subscriptionEnabled: z.boolean().optional(),
+    subscriptionPrice: optionalPositiveAmountSchema,
+    subscriptionAssetCode: optionalStellarAssetCodeSchema,
+    subscriptionAssetIssuer: optionalStellarAssetIssuerSchema,
+    subscriptionPeriodDays: z.number().int().positive().max(3650).optional(),
+    profileImageStorageKey: z.string().max(300).optional(),
+    headerImageStorageKey: z.string().max(300).optional(),
+  })
+  .superRefine((value, context) => {
+    const issue = requireIssuerForNonNativeAsset({
+      assetCode: value.subscriptionAssetCode,
+      assetIssuer: value.subscriptionAssetIssuer,
+    });
+
+    if (issue) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["subscriptionAssetIssuer"],
+        message: issue.message,
+      });
+    }
+  });
 export type UpsertUserProfileInput = z.infer<typeof upsertUserProfileSchema>;
 
 export const createUserMediaUploadSchema = z.object({
@@ -59,13 +81,13 @@ export interface UserMediaUploadTarget {
 
 export const artistPublicProfileSchema = z.object({
   id: z.string(),
-  walletAddress: z.string(),
+  walletAddress: stellarWalletAddressSchema,
   displayName: z.string().min(1),
   location: z.string().default(""),
   subscriptionEnabled: z.boolean().default(false),
-  subscriptionPrice: z.string().optional(),
-  subscriptionAssetCode: z.string().optional(),
-  subscriptionAssetIssuer: z.string().optional(),
+  subscriptionPrice: optionalPositiveAmountSchema,
+  subscriptionAssetCode: optionalStellarAssetCodeSchema,
+  subscriptionAssetIssuer: optionalStellarAssetIssuerSchema,
   subscriptionPeriodDays: z.number().int().positive().default(30),
   profileImageUrl: z.string().optional(),
   headerImageUrl: z.string().optional(),

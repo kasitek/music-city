@@ -12,6 +12,7 @@ import { Readable } from "node:stream";
 import { env } from "../../config/env.js";
 import { createId } from "../../services/id.service.js";
 import { storageService } from "../../services/storage.service.js";
+import { normalizePositiveAmount, normalizeStellarAsset } from "../../utils/commerce.js";
 import { HttpError } from "../../utils/http-error.js";
 import { usersRepository } from "./users.repository.js";
 
@@ -92,6 +93,25 @@ export const usersService = {
     const parsed = upsertUserProfileSchema.parse(input);
     const existing = await usersRepository.findByWallet(walletAddress);
     const timestamp = nowIso();
+    const subscriptionAsset = normalizeStellarAsset(
+      {
+        code:
+          parsed.subscriptionAssetCode ??
+          existing?.subscriptionAssetCode ??
+          env.STELLAR_SETTLEMENT_ASSET_CODE,
+        issuer:
+          parsed.subscriptionAssetIssuer ??
+          existing?.subscriptionAssetIssuer ??
+          env.STELLAR_SETTLEMENT_ASSET_ISSUER,
+      },
+      "Subscription",
+    );
+    const subscriptionPrice = normalizePositiveAmount(
+      parsed.subscriptionPrice ??
+        existing?.subscriptionPrice ??
+        env.ARTIST_SUBSCRIPTION_DEFAULT_PRICE,
+      "Subscription price",
+    );
 
     const profile: UserProfile = {
       id: existing?.id ?? createId("usr"),
@@ -102,18 +122,9 @@ export const usersService = {
       location: parsed.location ?? existing?.location ?? "",
       subscriptionEnabled:
         parsed.subscriptionEnabled ?? existing?.subscriptionEnabled ?? false,
-      subscriptionPrice:
-        parsed.subscriptionPrice ??
-        existing?.subscriptionPrice ??
-        env.ARTIST_SUBSCRIPTION_DEFAULT_PRICE,
-      subscriptionAssetCode:
-        parsed.subscriptionAssetCode ??
-        existing?.subscriptionAssetCode ??
-        env.STELLAR_SETTLEMENT_ASSET_CODE,
-      subscriptionAssetIssuer:
-        parsed.subscriptionAssetIssuer ??
-        existing?.subscriptionAssetIssuer ??
-        env.STELLAR_SETTLEMENT_ASSET_ISSUER,
+      subscriptionPrice,
+      subscriptionAssetCode: subscriptionAsset.code,
+      subscriptionAssetIssuer: subscriptionAsset.issuer,
       subscriptionPeriodDays:
         parsed.subscriptionPeriodDays ??
         existing?.subscriptionPeriodDays ??

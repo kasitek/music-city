@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+import { stellarWalletAddressSchema } from "./commerce.js";
+
 export const userRoleSchema = z.enum(["artist", "fan"]);
 export type UserRole = z.infer<typeof userRoleSchema>;
 
 export const authSessionSchema = z.object({
-  walletAddress: z.string(),
+  walletAddress: stellarWalletAddressSchema,
   email: z.string().email().optional().or(z.literal("")),
   displayName: z.string().min(1),
   role: userRoleSchema,
@@ -16,7 +18,7 @@ export const authSessionSchema = z.object({
 export type AuthSession = z.infer<typeof authSessionSchema>;
 
 export const challengeRequestSchema = z.object({
-  account: z.string().min(1),
+  account: stellarWalletAddressSchema,
 });
 export type ChallengeRequest = z.infer<typeof challengeRequestSchema>;
 
@@ -32,6 +34,6 @@ export const verifyChallengeSchema = z.object({
 export type VerifyChallengeRequest = z.infer<typeof verifyChallengeSchema>;
 
 export const dynamicSessionRequestSchema = z.object({
-  walletAddress: z.string().optional(),
+  walletAddress: stellarWalletAddressSchema.optional(),
 });
 export type DynamicSessionRequest = z.infer<typeof dynamicSessionRequestSchema>;

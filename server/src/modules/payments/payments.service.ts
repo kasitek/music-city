@@ -15,16 +15,20 @@ import { entitlementsService } from "../entitlements/entitlements.service.js";
 import { tracksService } from "../tracks/tracks.service.js";
 import { usersService } from "../users/users.service.js";
 import { createId } from "../../services/id.service.js";
+import { normalizePositiveAmount, normalizeStellarAsset } from "../../utils/commerce.js";
 import { HttpError } from "../../utils/http-error.js";
 import { paymentsRepository } from "./payments.repository.js";
 import { subscriptionsService } from "../subscriptions/subscriptions.service.js";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
-const normalizeAmount = (value: string) => Number(value).toFixed(7);
+const normalizeAmount = (value: string) =>
+  Number(normalizePositiveAmount(value, "Payment amount")).toFixed(7);
 
 const withIntentPrecision = (amount: string, intentId: string) => {
-  const baseUnits = Math.round(Number(amount) * 10_000_000);
+  const baseUnits = Math.round(
+    Number(normalizePositiveAmount(amount, "Payment amount")) * 10_000_000,
+  );
   const nonce = [...intentId].reduce(
     (sum, char, index) => (sum + char.charCodeAt(0) * (index + 1)) % 100_000,
     0,
@@ -34,11 +38,13 @@ const withIntentPrecision = (amount: string, intentId: string) => {
 };
 
 const settlementAsset = (): StellarAssetDescriptor => ({
-  code: env.STELLAR_SETTLEMENT_ASSET_CODE,
-  issuer: env.STELLAR_SETTLEMENT_ASSET_ISSUER,
-  isNative:
-    env.STELLAR_SETTLEMENT_ASSET_CODE.toUpperCase() === "XLM" &&
-    !env.STELLAR_SETTLEMENT_ASSET_ISSUER,
+  ...normalizeStellarAsset(
+    {
+      code: env.STELLAR_SETTLEMENT_ASSET_CODE,
+      issuer: env.STELLAR_SETTLEMENT_ASSET_ISSUER,
+    },
+    "Settlement",
+  ),
 });
 
 const requireTreasuryAddress = () => {
@@ -77,6 +83,45 @@ const createIntentRecord = (input: {
     createdAt: timestamp,
     updatedAt: timestamp,
   });
+};
+
+const paymentResultFromExistingRecord = async (
+  walletAddress: string,
+  intent: PaymentIntentRecord,
+  payment: PaymentRecord,
+) => {
+  if (intent.productType === "track_purchase" && intent.trackId) {
+    const entitlement =
+      (await entitlementsService.findMineForTrack(walletAddress, intent.trackId)) ??
+      (await entitlementsService.grantPurchase(walletAddress, intent.trackId));
+
+    return { payment, entitlement };
+  }
+
+  if (intent.productType === "artist_subscription" && intent.artistId) {
+    const artist = await usersService.getProfileById(intent.artistId);
+
+    if (!artist) {
+      throw new HttpError(404, "Artist not found");
+    }
+
+    const subscription =
+      (await subscriptionsService.findByArtistAndPayment(
+        walletAddress,
+        intent.artistId,
+        payment.id,
+      )) ??
+      (await subscriptionsService.activateOrExtend(
+        walletAddress,
+        intent.artistId,
+        payment.id,
+        artist.subscriptionPeriodDays,
+      ));
+
+    return { payment, subscription };
+  }
+
+  throw new HttpError(400, "Unsupported payment product");
 };
 
 type HorizonTransaction = {
@@ -213,15 +258,14 @@ export const paymentsService = {
       walletAddress,
       productType: "track_purchase",
       trackId,
-      amount: track.purchasePrice,
-      asset: {
-        code: track.purchaseAssetCode ?? settlementAsset().code,
-        issuer: track.purchaseAssetIssuer ?? settlementAsset().issuer,
-        isNative:
-          (track.purchaseAssetCode ?? settlementAsset().code).toUpperCase() ===
-            "XLM" &&
-          !(track.purchaseAssetIssuer ?? settlementAsset().issuer),
-      },
+      amount: normalizePositiveAmount(track.purchasePrice, "Track purchase price"),
+      asset: normalizeStellarAsset(
+        {
+          code: track.purchaseAssetCode ?? settlementAsset().code,
+          issuer: track.purchaseAssetIssuer ?? settlementAsset().issuer,
+        },
+        "Track purchase",
+      ),
     });
 
     return paymentsRepository.upsertIntent(intent);
@@ -242,19 +286,30 @@ export const paymentsService = {
       throw new HttpError(400, "Artist subscription is not enabled");
     }
 
+    if (
+      await subscriptionsService.hasActiveArtistSubscription(
+        walletAddress,
+        artistId,
+      )
+    ) {
+      throw new HttpError(400, "Artist subscription is already active");
+    }
+
     const intent = createIntentRecord({
       walletAddress,
       productType: "artist_subscription",
       artistId,
-      amount: artist.subscriptionPrice,
-      asset: {
-        code: artist.subscriptionAssetCode ?? settlementAsset().code,
-        issuer: artist.subscriptionAssetIssuer ?? settlementAsset().issuer,
-        isNative:
-          (artist.subscriptionAssetCode ?? settlementAsset().code).toUpperCase() ===
-            "XLM" &&
-          !(artist.subscriptionAssetIssuer ?? settlementAsset().issuer),
-      },
+      amount: normalizePositiveAmount(
+        artist.subscriptionPrice,
+        "Artist subscription price",
+      ),
+      asset: normalizeStellarAsset(
+        {
+          code: artist.subscriptionAssetCode ?? settlementAsset().code,
+          issuer: artist.subscriptionAssetIssuer ?? settlementAsset().issuer,
+        },
+        "Artist subscription",
+      ),
     });
 
     return paymentsRepository.upsertIntent(intent);
@@ -266,6 +321,24 @@ export const paymentsService = {
 
     if (!intent || intent.walletAddress !== walletAddress) {
       throw new HttpError(404, "Payment intent not found");
+    }
+
+    if (intent.status === "confirmed") {
+      if (intent.txHash && intent.txHash !== parsed.txHash) {
+        throw new HttpError(400, "Payment intent has already been confirmed");
+      }
+
+      const existingPayment =
+        (await paymentsRepository.findPaymentByIntentId(intent.id)) ??
+        (intent.txHash
+          ? await paymentsRepository.findPaymentByTxHash(intent.txHash)
+          : null);
+
+      if (!existingPayment) {
+        throw new HttpError(409, "Payment confirmation is incomplete; please contact support");
+      }
+
+      return paymentResultFromExistingRecord(walletAddress, intent, existingPayment);
     }
 
     if (intent.status !== "pending") {
@@ -286,6 +359,10 @@ export const paymentsService = {
     );
 
     if (existingPayment) {
+      if (existingPayment.intentId === intent.id) {
+        return paymentResultFromExistingRecord(walletAddress, intent, existingPayment);
+      }
+
       throw new HttpError(400, "Transaction has already been used");
     }
 
@@ -308,7 +385,23 @@ export const paymentsService = {
       createdAt: timestamp,
     };
 
-    await paymentsRepository.upsertPayment(payment);
+    try {
+      await paymentsRepository.upsertPayment(payment);
+    } catch (error) {
+      const existingByIntent = await paymentsRepository.findPaymentByIntentId(intent.id);
+
+      if (existingByIntent) {
+        return paymentResultFromExistingRecord(walletAddress, intent, existingByIntent);
+      }
+
+      const existingByTxHash = await paymentsRepository.findPaymentByTxHash(parsed.txHash);
+
+      if (existingByTxHash?.intentId === intent.id) {
+        return paymentResultFromExistingRecord(walletAddress, intent, existingByTxHash);
+      }
+
+      throw error;
+    }
     await paymentsRepository.upsertIntent({
       ...intent,
       status: "confirmed",
@@ -316,31 +409,6 @@ export const paymentsService = {
       updatedAt: timestamp,
     });
 
-    if (intent.productType === "track_purchase" && intent.trackId) {
-      const entitlement = await entitlementsService.grantPurchase(
-        walletAddress,
-        intent.trackId,
-      );
-      return { payment, entitlement };
-    }
-
-    if (intent.productType === "artist_subscription" && intent.artistId) {
-      const artist = await usersService.getProfileById(intent.artistId);
-
-      if (!artist) {
-        throw new HttpError(404, "Artist not found");
-      }
-
-      const subscription = await subscriptionsService.activateOrExtend(
-        walletAddress,
-        intent.artistId,
-        payment.id,
-        artist.subscriptionPeriodDays,
-      );
-
-      return { payment, subscription };
-    }
-
-    throw new HttpError(400, "Unsupported payment product");
+    return paymentResultFromExistingRecord(walletAddress, intent, payment);
   },
 };

@@ -53,6 +53,12 @@ export const entitlementsService = {
     return (await entitlementsRepository.listByWallet(walletAddress)).filter(withinWindow);
   },
 
+  async findMineForTrack(walletAddress: string, trackId: string) {
+    return (await this.listMine(walletAddress)).find(
+      (record) => record.trackId === trackId,
+    );
+  },
+
   grant(walletAddress: string, input: GrantEntitlementInput) {
     const parsed = grantEntitlementSchema.parse(input);
     const now = new Date().toISOString();

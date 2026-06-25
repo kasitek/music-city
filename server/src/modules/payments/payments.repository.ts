@@ -42,6 +42,10 @@ export const paymentsRepository = {
     return databaseService.findPaymentByTxHash<PaymentRecord>(txHash);
   },
 
+  async findPaymentByIntentId(intentId: string) {
+    return databaseService.findPaymentByIntentId<PaymentRecord>(intentId);
+  },
+
   async listPaymentsByWallet(walletAddress: string) {
     return databaseService.listPaymentsByWallet<PaymentRecord>(walletAddress);
   },

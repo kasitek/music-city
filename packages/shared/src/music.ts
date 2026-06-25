@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+import {
+  optionalPositiveAmountSchema,
+  optionalStellarAssetCodeSchema,
+  optionalStellarAssetIssuerSchema,
+  requireIssuerForNonNativeAsset,
+  stellarWalletAddressSchema,
+} from "./commerce.js";
+
 export const trackStatusSchema = z.enum([
   "draft",
   "awaiting_upload",
@@ -20,7 +28,7 @@ export type TrackAccess = z.infer<typeof trackAccessSchema>;
 
 export interface ArtistSummary {
   id: string;
-  walletAddress: string;
+  walletAddress: z.infer<typeof stellarWalletAddressSchema>;
   name: string;
   genre: string;
   city: string;
@@ -89,9 +97,30 @@ export const trackCreateSchema = z.object({
   priceLabel: z.string().max(80).optional(),
   access: trackAccessSchema.default("private"),
   purchaseEnabled: z.boolean().optional(),
-  purchasePrice: z.string().max(32).optional(),
-  purchaseAssetCode: z.string().max(32).optional(),
-  purchaseAssetIssuer: z.string().max(80).optional(),
+  purchasePrice: optionalPositiveAmountSchema,
+  purchaseAssetCode: optionalStellarAssetCodeSchema,
+  purchaseAssetIssuer: optionalStellarAssetIssuerSchema,
+}).superRefine((value, context) => {
+  if (value.access === "purchase_required" && !value.purchasePrice) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["purchasePrice"],
+      message: "Purchase price is required when purchase access is enabled",
+    });
+  }
+
+  const issue = requireIssuerForNonNativeAsset({
+    assetCode: value.purchaseAssetCode,
+    assetIssuer: value.purchaseAssetIssuer,
+  });
+
+  if (issue) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["purchaseAssetIssuer"],
+      message: issue.message,
+    });
+  }
 });
 export type TrackCreateInput = z.infer<typeof trackCreateSchema>;
 
@@ -100,13 +129,39 @@ export const trackAccessUpdateSchema = z.object({
 });
 export type TrackAccessUpdateInput = z.infer<typeof trackAccessUpdateSchema>;
 
-export const trackMonetizationUpdateSchema = z.object({
-  access: trackAccessSchema,
-  purchaseEnabled: z.boolean().optional(),
-  purchasePrice: z.string().max(32).optional(),
-  purchaseAssetCode: z.string().max(32).optional(),
-  purchaseAssetIssuer: z.string().max(80).optional(),
-});
+export const trackMonetizationUpdateSchema = z
+  .object({
+    access: trackAccessSchema,
+    purchaseEnabled: z.boolean().optional(),
+    purchasePrice: optionalPositiveAmountSchema,
+    purchaseAssetCode: optionalStellarAssetCodeSchema,
+    purchaseAssetIssuer: optionalStellarAssetIssuerSchema,
+  })
+  .superRefine((value, context) => {
+    const purchaseEnabled =
+      value.purchaseEnabled ?? value.access === "purchase_required";
+
+    if (purchaseEnabled && !value.purchasePrice) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["purchasePrice"],
+        message: "Purchase price is required when track purchases are enabled",
+      });
+    }
+
+    const issue = requireIssuerForNonNativeAsset({
+      assetCode: value.purchaseAssetCode,
+      assetIssuer: value.purchaseAssetIssuer,
+    });
+
+    if (issue) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["purchaseAssetIssuer"],
+        message: issue.message,
+      });
+    }
+  });
 export type TrackMonetizationUpdateInput = z.infer<
   typeof trackMonetizationUpdateSchema
 >;

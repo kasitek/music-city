@@ -12,6 +12,7 @@ import { createId } from "../../services/id.service.js";
 import { muxService } from "../../services/mux.service.js";
 import { storageService } from "../../services/storage.service.js";
 import { env } from "../../config/env.js";
+import { normalizePositiveAmount, normalizeStellarAsset } from "../../utils/commerce.js";
 import { usersService } from "../users/users.service.js";
 import { tracksRepository } from "./tracks.repository.js";
 
@@ -165,6 +166,26 @@ export const tracksService = {
 
     const timestamp = new Date().toISOString();
     const parsed = trackCreateSchema.parse(input);
+    const purchaseEnabled =
+      parsed.purchaseEnabled ?? parsed.access === "purchase_required";
+    const purchasePrice = purchaseEnabled
+      ? normalizePositiveAmount(
+          parsed.purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE,
+          "Track purchase price",
+        )
+      : undefined;
+    const purchaseAsset = purchaseEnabled
+      ? normalizeStellarAsset(
+          {
+            code:
+              parsed.purchaseAssetCode ?? env.STELLAR_SETTLEMENT_ASSET_CODE,
+            issuer:
+              parsed.purchaseAssetIssuer ??
+              env.STELLAR_SETTLEMENT_ASSET_ISSUER,
+          },
+          "Track purchase",
+        )
+      : undefined;
     const track = tracksRepository.upsert({
       id: createId("trk"),
       title: parsed.title,
@@ -182,27 +203,14 @@ export const tracksService = {
       runtime: "Not processed",
       priceLabel:
         parsed.access === "purchase_required"
-          ? parsed.purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
+          ? purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
           : parsed.priceLabel ?? "Private",
       status: "awaiting_upload",
       access: parsed.access,
-      purchaseEnabled:
-        parsed.purchaseEnabled ?? parsed.access === "purchase_required",
-      purchasePrice:
-        parsed.purchasePrice ??
-        (parsed.access === "purchase_required"
-          ? env.TRACK_PURCHASE_DEFAULT_PRICE
-          : undefined),
-      purchaseAssetCode:
-        parsed.purchaseAssetCode ??
-        (parsed.access === "purchase_required"
-          ? env.STELLAR_SETTLEMENT_ASSET_CODE
-          : undefined),
-      purchaseAssetIssuer:
-        parsed.purchaseAssetIssuer ??
-        (parsed.access === "purchase_required"
-          ? env.STELLAR_SETTLEMENT_ASSET_ISSUER
-          : undefined),
+      purchaseEnabled,
+      purchasePrice,
+      purchaseAssetCode: purchaseAsset?.code,
+      purchaseAssetIssuer: purchaseAsset?.issuer,
       plays: 0,
       likes: 0,
       description: parsed.description,
@@ -264,42 +272,47 @@ export const tracksService = {
     const parsed = trackMonetizationUpdateSchema.parse(input);
     const purchaseEnabled =
       parsed.purchaseEnabled ?? parsed.access === "purchase_required";
-    const purchasePrice =
-      parsed.purchasePrice?.trim() ||
-      existing.purchasePrice ||
-      env.TRACK_PURCHASE_DEFAULT_PRICE;
-    const purchaseAssetCode =
-      parsed.purchaseAssetCode?.trim() ||
-      existing.purchaseAssetCode ||
-      env.STELLAR_SETTLEMENT_ASSET_CODE;
-    const purchaseAssetIssuer =
-      parsed.purchaseAssetIssuer?.trim() ||
-      existing.purchaseAssetIssuer ||
-      env.STELLAR_SETTLEMENT_ASSET_ISSUER;
+    const purchasePrice = purchaseEnabled
+      ? normalizePositiveAmount(
+          parsed.purchasePrice ||
+            existing.purchasePrice ||
+            env.TRACK_PURCHASE_DEFAULT_PRICE,
+          "Track purchase price",
+        )
+      : existing.purchasePrice;
+    const purchaseAsset =
+      parsed.access === "purchase_required" || purchaseEnabled
+        ? normalizeStellarAsset(
+            {
+              code:
+                parsed.purchaseAssetCode ||
+                existing.purchaseAssetCode ||
+                env.STELLAR_SETTLEMENT_ASSET_CODE,
+              issuer:
+                parsed.purchaseAssetIssuer ||
+                existing.purchaseAssetIssuer ||
+                env.STELLAR_SETTLEMENT_ASSET_ISSUER,
+            },
+            "Track purchase",
+          )
+        : undefined;
 
     return tracksRepository.upsert({
       ...existing,
       access: parsed.access,
       purchaseEnabled,
-      purchasePrice:
-        parsed.access === "purchase_required" || purchaseEnabled
-          ? purchasePrice
-          : existing.purchasePrice,
+      purchasePrice,
       purchaseAssetCode:
-        parsed.access === "purchase_required" || purchaseEnabled
-          ? purchaseAssetCode
-          : existing.purchaseAssetCode,
+        purchaseAsset?.code ?? existing.purchaseAssetCode,
       purchaseAssetIssuer:
-        parsed.access === "purchase_required" || purchaseEnabled
-          ? purchaseAssetIssuer
-          : existing.purchaseAssetIssuer,
+        purchaseAsset?.issuer ?? existing.purchaseAssetIssuer,
       priceLabel:
         parsed.access === "public"
           ? "Public"
           : parsed.access === "subscribers"
             ? "Subscribers"
             : parsed.access === "purchase_required"
-              ? purchasePrice
+              ? purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
               : "Private",
       updatedAt: new Date().toISOString(),
     });

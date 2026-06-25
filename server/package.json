@@ -9,6 +9,7 @@
     "start": "node dist/main.js",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
     "db:bootstrap": "tsx src/scripts/bootstrap-postgres.ts"
   },
   "dependencies": {

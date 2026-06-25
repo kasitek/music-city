@@ -431,6 +431,15 @@ export const databaseService = {
     return result.rows[0]?.payload as T | null;
   },
 
+  async findPaymentByIntentId<T>(intentId: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM payments WHERE intent_id = $1 LIMIT 1`,
+      [intentId],
+    );
+
+    return result.rows[0]?.payload as T | null;
+  },
+
   async listPaymentsByWallet<T>(walletAddress: string) {
     const result = await pool.query<PersistedRow>(
       `SELECT id, payload FROM payments WHERE wallet_address = $1 ORDER BY confirmed_at DESC, id DESC`,
