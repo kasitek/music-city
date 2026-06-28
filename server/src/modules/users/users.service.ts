@@ -81,6 +81,17 @@ export const usersService = {
     });
   },
 
+  async getPublicArtistTracks(id: string) {
+    const profile = await this.getProfileById(id);
+
+    if (!profile || profile.role !== "artist") {
+      return [];
+    }
+
+    const { tracksService } = await import("../tracks/tracks.service.js");
+    return tracksService.listPublicTracksByArtist(id);
+  },
+
   async getProfileById(id: string) {
     return withMediaUrls(await usersRepository.findById(id));
   },

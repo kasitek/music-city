@@ -7,6 +7,7 @@ import type {
   TrackSummary,
   UserProfile,
 } from "@music-city/shared";
+import { Settings2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,9 @@ const activityLabel = (track: TrackSummary) => {
   }
 };
 
+const formatSubscriptionAccess = (enabled: boolean) =>
+  enabled ? "Subscriber access is live" : "No active fan subscription plan";
+
 export const AccountOverview = () => {
   const { session } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -53,7 +57,10 @@ export const AccountOverview = () => {
   const [isSavingMonetization, setIsSavingMonetization] = useState(false);
   const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
   const [subscriptionPrice, setSubscriptionPrice] = useState("10");
+  const [subscriptionAssetCode, setSubscriptionAssetCode] = useState("XLM");
+  const [subscriptionAssetIssuer, setSubscriptionAssetIssuer] = useState("");
   const [subscriptionPeriodDays, setSubscriptionPeriodDays] = useState("30");
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
 
   useEffect(() => {
     const token = session?.token;
@@ -86,6 +93,8 @@ export const AccountOverview = () => {
           setSubscriptions(Array.isArray(nextSubscriptions) ? nextSubscriptions : []);
           setSubscriptionEnabled(nextProfile?.subscriptionEnabled ?? false);
           setSubscriptionPrice(nextProfile?.subscriptionPrice ?? "10");
+          setSubscriptionAssetCode(nextProfile?.subscriptionAssetCode ?? "XLM");
+          setSubscriptionAssetIssuer(nextProfile?.subscriptionAssetIssuer ?? "");
           setSubscriptionPeriodDays(
             String(nextProfile?.subscriptionPeriodDays ?? 30),
           );
@@ -116,7 +125,7 @@ export const AccountOverview = () => {
     const token = session?.token;
 
     if (!token || !profile) {
-      return;
+      return false;
     }
 
     try {
@@ -130,21 +139,38 @@ export const AccountOverview = () => {
         headerImageStorageKey: profile.headerImageStorageKey,
         subscriptionEnabled,
         subscriptionPrice,
+        subscriptionAssetCode,
+        subscriptionAssetIssuer,
         subscriptionPeriodDays: Number(subscriptionPeriodDays),
       });
 
       setProfile(nextProfile);
       toast.success("Subscription settings saved.");
+      return true;
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
           : "Unable to save subscription settings",
       );
+      return false;
     } finally {
       setIsSavingMonetization(false);
     }
   };
+
+  useEffect(() => {
+    if (!isSubscriptionModalOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isSubscriptionModalOpen]);
 
   if (!session) {
     return (
@@ -252,54 +278,49 @@ export const AccountOverview = () => {
         {profile?.role === "artist" ? (
           <Card className="border-white/10 bg-white/5 text-white shadow-none">
             <CardHeader>
-              <CardTitle className="text-2xl">Artist subscription plan</CardTitle>
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <CardTitle className="text-2xl">Artist subscription plan</CardTitle>
+                  <p className="text-sm text-slate-400">
+                    Set the plan up only when you need to update pricing or access rules.
+                  </p>
+                </div>
+                <Button
+                  className="shrink-0 rounded-full bg-emerald-400 px-4 text-slate-950 hover:bg-emerald-300"
+                  onClick={() => setIsSubscriptionModalOpen(true)}
+                >
+                  <Settings2 className="size-4" />
+                  Configure
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-white">
-                    Enable artist subscription
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Status
                   </p>
-                  <p className="text-sm text-slate-400">
-                    Fans can subscribe for access to subscriber-only tracks.
+                  <p className="mt-2 text-base font-medium text-white">
+                    {formatSubscriptionAccess(subscriptionEnabled)}
                   </p>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={subscriptionEnabled}
-                  onChange={(event) => setSubscriptionEnabled(event.target.checked)}
-                  className="h-4 w-4 accent-emerald-400"
-                />
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-300">Price</p>
-                  <Input
-                    value={subscriptionPrice}
-                    onChange={(event) => setSubscriptionPrice(event.target.value)}
-                    className="border-white/10 bg-slate-950 text-white"
-                    placeholder="10"
-                  />
+                <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Price
+                  </p>
+                  <p className="mt-2 text-base font-medium text-white">
+                    {subscriptionPrice} {subscriptionAssetCode}
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-300">Billing period (days)</p>
-                  <Input
-                    value={subscriptionPeriodDays}
-                    onChange={(event) => setSubscriptionPeriodDays(event.target.value)}
-                    className="border-white/10 bg-slate-950 text-white"
-                    placeholder="30"
-                  />
+                <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Billing
+                  </p>
+                  <p className="mt-2 text-base font-medium text-white">
+                    Every {subscriptionPeriodDays} days
+                  </p>
                 </div>
               </div>
-
-              <Button
-                className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-                disabled={isSavingMonetization}
-                onClick={() => void saveArtistSubscriptionSettings()}
-              >
-                {isSavingMonetization ? "Saving..." : "Save subscription settings"}
-              </Button>
             </CardContent>
           </Card>
         ) : null}
@@ -392,6 +413,125 @@ export const AccountOverview = () => {
           </CardContent>
         </Card>
       </div>
+
+      {profile?.role === "artist" && isSubscriptionModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-8 backdrop-blur-md"
+          onClick={() => setIsSubscriptionModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-[28px] border border-white/10 bg-[#111527] p-6 text-white shadow-[0_24px_100px_rgba(0,0,0,0.45)] sm:p-8"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.28em] text-emerald-300">
+                  Subscription setup
+                </p>
+                <h2 className="text-3xl font-semibold text-white">
+                  Configure your artist plan
+                </h2>
+                <p className="max-w-xl text-sm text-slate-400">
+                  Choose whether the plan is active, what fans pay, and how often access renews.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                onClick={() => setIsSubscriptionModalOpen(false)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            <div className="mt-8 space-y-6">
+              <label className="flex items-center justify-between rounded-3xl border border-white/10 bg-slate-950/70 px-5 py-4">
+                <div className="space-y-1">
+                  <p className="text-base font-medium text-white">
+                    Enable artist subscription
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Fans can subscribe for access to subscriber-only tracks.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={subscriptionEnabled}
+                  onChange={(event) => setSubscriptionEnabled(event.target.checked)}
+                  className="h-4 w-4 accent-emerald-400"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-300">Price</p>
+                  <Input
+                    value={subscriptionPrice}
+                    onChange={(event) => setSubscriptionPrice(event.target.value)}
+                    className="h-12 border-white/10 bg-slate-950 text-white"
+                    placeholder="10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-300">Asset code</p>
+                  <Input
+                    value={subscriptionAssetCode}
+                    onChange={(event) =>
+                      setSubscriptionAssetCode(event.target.value.toUpperCase())
+                    }
+                    className="h-12 border-white/10 bg-slate-950 text-white"
+                    placeholder="XLM"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <p className="text-sm text-slate-300">
+                    Asset issuer <span className="text-slate-500">(leave blank for XLM)</span>
+                  </p>
+                  <Input
+                    value={subscriptionAssetIssuer}
+                    onChange={(event) => setSubscriptionAssetIssuer(event.target.value)}
+                    className="h-12 border-white/10 bg-slate-950 text-white"
+                    placeholder="G..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-300">Billing period (days)</p>
+                  <Input
+                    value={subscriptionPeriodDays}
+                    onChange={(event) => setSubscriptionPeriodDays(event.target.value)}
+                    className="h-12 border-white/10 bg-slate-950 text-white"
+                    placeholder="30"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                variant="ghost"
+                className="border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white"
+                onClick={() => setIsSubscriptionModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                disabled={isSavingMonetization}
+                onClick={async () => {
+                  const didSave = await saveArtistSubscriptionSettings();
+
+                  if (didSave) {
+                    setIsSubscriptionModalOpen(false);
+                  }
+                }}
+              >
+                {isSavingMonetization ? "Saving..." : "Save subscription settings"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

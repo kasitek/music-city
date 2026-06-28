@@ -155,6 +155,7 @@ const useBaseSessionState = () => {
   const lastSyncedKeyRef = useRef<string | null>(null);
   const failedSyncKeyRef = useRef<string | null>(null);
   const syncInFlightRef = useRef(false);
+  const autoProfileRefreshTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setSession(readStoredSession());
@@ -169,6 +170,7 @@ const useBaseSessionState = () => {
     lastSyncedKeyRef.current = null;
     failedSyncKeyRef.current = null;
     syncInFlightRef.current = false;
+    autoProfileRefreshTokenRef.current = null;
     persistFailedSyncKey(null);
   }, []);
 
@@ -183,6 +185,7 @@ const useBaseSessionState = () => {
     lastSyncedKeyRef,
     failedSyncKeyRef,
     syncInFlightRef,
+    autoProfileRefreshTokenRef,
   };
 };
 
@@ -194,6 +197,7 @@ const FallbackAuthProvider = ({ children }: { children: ReactNode }) => {
     error,
     setError,
     clearSession,
+    autoProfileRefreshTokenRef,
   } = useBaseSessionState();
 
   const refreshSessionProfile = useCallback(async () => {
@@ -222,12 +226,22 @@ const FallbackAuthProvider = ({ children }: { children: ReactNode }) => {
   }, [session, setSession]);
 
   useEffect(() => {
-    if (!session?.token || !session.profileComplete || session.profileImageUrl) {
+    if (
+      !session?.token ||
+      !session.profileComplete ||
+      session.profileImageUrl ||
+      autoProfileRefreshTokenRef.current === session.token
+    ) {
       return;
     }
 
-    void refreshSessionProfile();
+    autoProfileRefreshTokenRef.current = session.token;
+
+    void refreshSessionProfile().catch(() => {
+      autoProfileRefreshTokenRef.current = null;
+    });
   }, [
+    autoProfileRefreshTokenRef,
     refreshSessionProfile,
     session?.profileComplete,
     session?.profileImageUrl,
@@ -236,7 +250,7 @@ const FallbackAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const connectWallet = useCallback(async () => {
     const message =
-      "Dynamic is not configured. Set NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID first.";
+      "Dynamic is not configured. Set VITE_DYNAMIC_ENVIRONMENT_ID first.";
 
     setError(message);
     toast.error(message);
@@ -284,6 +298,7 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
     lastSyncedKeyRef,
     failedSyncKeyRef,
     syncInFlightRef,
+    autoProfileRefreshTokenRef,
   } = useBaseSessionState();
   const userRef = useRef(user);
   const primaryWalletRef = useRef(primaryWallet);
@@ -339,12 +354,22 @@ const DynamicAuthProvider = ({ children }: { children: ReactNode }) => {
   }, [session, setSession]);
 
   useEffect(() => {
-    if (!session?.token || !session.profileComplete || session.profileImageUrl) {
+    if (
+      !session?.token ||
+      !session.profileComplete ||
+      session.profileImageUrl ||
+      autoProfileRefreshTokenRef.current === session.token
+    ) {
       return;
     }
 
-    void refreshSessionProfile();
+    autoProfileRefreshTokenRef.current = session.token;
+
+    void refreshSessionProfile().catch(() => {
+      autoProfileRefreshTokenRef.current = null;
+    });
   }, [
+    autoProfileRefreshTokenRef,
     refreshSessionProfile,
     session?.profileComplete,
     session?.profileImageUrl,

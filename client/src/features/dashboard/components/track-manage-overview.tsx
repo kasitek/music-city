@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { tracksApi } from "@/features/music/lib/tracks-api";
+import { usersApi } from "@/features/users/lib/users-api";
 
 const accessOptions: Array<{
   value: TrackAccess;
@@ -43,6 +44,7 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
   const router = useRouter();
   const { session } = useAuth();
   const [track, setTrack] = useState<TrackSummary | null>(null);
+  const [hasSubscriptionPlan, setHasSubscriptionPlan] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [purchasePrice, setPurchasePrice] = useState("");
@@ -57,11 +59,17 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
       }
 
       try {
-        const nextTrack = await tracksApi.getManageTrack(session.token, trackId);
+        const [nextTrack, profile] = await Promise.all([
+          tracksApi.getManageTrack(session.token, trackId),
+          usersApi.getMe(session.token),
+        ]);
 
         if (!cancelled) {
           setTrack(nextTrack);
           setPurchasePrice(nextTrack?.purchasePrice ?? "");
+          setHasSubscriptionPlan(
+            Boolean(profile?.subscriptionEnabled && profile?.subscriptionPrice),
+          );
         }
       } catch (error) {
         if (!cancelled) {
@@ -85,6 +93,11 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
 
   const updateAccess = async (access: TrackAccess) => {
     if (!session?.token || !track || track.access === access) {
+      return;
+    }
+
+    if (access === "subscribers" && !hasSubscriptionPlan) {
+      toast.error("Set up and enable your artist subscription plan first.");
       return;
     }
 
@@ -254,6 +267,11 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
                 <p className="mt-3 text-sm leading-6 text-slate-400">
                   {option.description}
                 </p>
+                {option.value === "subscribers" && !hasSubscriptionPlan ? (
+                  <p className="mt-4 text-xs uppercase tracking-[0.24em] text-amber-300">
+                    Subscription plan required
+                  </p>
+                ) : null}
                 {isActive ? (
                   <p className="mt-4 text-xs uppercase tracking-[0.24em] text-emerald-300">
                     Active
@@ -304,6 +322,13 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
               {isSaving ? "Saving..." : "Save purchase settings"}
             </Button>
           </div>
+        </div>
+      ) : null}
+
+      {!hasSubscriptionPlan ? (
+        <div className="rounded-[28px] border border-amber-400/20 bg-amber-500/10 p-5 text-sm text-amber-100">
+          Configure your artist subscription plan in Account before switching this
+          release to subscriber-only access.
         </div>
       ) : null}
     </div>

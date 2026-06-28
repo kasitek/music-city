@@ -1,22 +1,48 @@
 const trimSlash = (value: string) => value.replace(/\/$/, "");
+
+const readClientEnv = (viteKey: string, legacyKey: string, fallback?: string) => {
+  const viteValue = import.meta.env[viteKey];
+  const legacyValue = import.meta.env[legacyKey];
+  return (typeof viteValue === "string" && viteValue) ||
+    (typeof legacyValue === "string" && legacyValue) ||
+    fallback;
+};
+
 const dynamicEnvironmentId =
-  process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID?.trim() ||
-  "dynamic-environment-id-required";
+  readClientEnv(
+    "VITE_DYNAMIC_ENVIRONMENT_ID",
+    "NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID",
+    "dynamic-environment-id-required",
+  )?.trim() || "dynamic-environment-id-required";
 
 export const clientEnv = {
   apiBaseUrl: trimSlash(
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1",
+    readClientEnv(
+      "VITE_API_BASE_URL",
+      "NEXT_PUBLIC_API_BASE_URL",
+      "http://localhost:4000/api/v1",
+    ) ?? "http://localhost:4000/api/v1",
   ),
   appBaseUrl: trimSlash(
-    process.env.NEXT_PUBLIC_APP_BASE_URL ?? "http://localhost:3000",
+    readClientEnv(
+      "VITE_APP_BASE_URL",
+      "NEXT_PUBLIC_APP_BASE_URL",
+      "http://localhost:3000",
+    ) ?? "http://localhost:3000",
   ),
   dynamicEnvironmentId,
   stellarHorizonUrl:
-    process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL ??
-    "https://horizon-testnet.stellar.org",
+    readClientEnv(
+      "VITE_STELLAR_HORIZON_URL",
+      "NEXT_PUBLIC_STELLAR_HORIZON_URL",
+      "https://horizon-testnet.stellar.org",
+    ) ?? "https://horizon-testnet.stellar.org",
   stellarNetworkPassphrase:
-    process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ??
-    "Test SDF Network ; September 2015",
+    readClientEnv(
+      "VITE_STELLAR_NETWORK_PASSPHRASE",
+      "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE",
+      "Test SDF Network ; September 2015",
+    ) ?? "Test SDF Network ; September 2015",
   isDynamicConfigured:
     dynamicEnvironmentId !== "dynamic-environment-id-required",
 };

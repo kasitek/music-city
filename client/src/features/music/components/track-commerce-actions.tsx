@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LoaderCircle, Play, ShoppingBag, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LoaderCircle, Lock, Play, ShoppingBag, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import type { ArtistPublicProfile, TrackSummary } from "@music-city/shared";
@@ -32,11 +33,14 @@ export const TrackCommerceActions = ({
   onUnlocked?: () => void | Promise<void>;
   hidePlay?: boolean;
 }) => {
+  const router = useRouter();
   const { session } = useAuth();
   const { activeTrackId, playTrack } = useGlobalPlayback();
   const runCheckout = useStellarCheckout();
   const [isBuying, setIsBuying] = useState(false);
-  const [isSubscribing, setIsSubscribing] = useState(false);
+  const isPurchaseLocked = track.access === "purchase_required";
+  const isSubscriptionLocked = track.access === "subscribers";
+  const isLocked = isPurchaseLocked || isSubscriptionLocked;
 
   const purchaseLabel = useMemo(
     () => formatAmountLabel(track.purchasePrice, track.purchaseAssetCode),
@@ -77,6 +81,7 @@ export const TrackCommerceActions = ({
       });
       toast.success("Track unlocked.");
       await onUnlocked?.();
+      await playTrack(track);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Unable to complete purchase",
@@ -87,34 +92,9 @@ export const TrackCommerceActions = ({
   };
 
   const handleSubscribe = async () => {
-    const token = ensureSession();
-
-    if (!token || !artistProfile?.subscriptionEnabled) {
-      return;
-    }
-
-    try {
-      setIsSubscribing(true);
-      const intent = await paymentsApi.createArtistSubscriptionIntent(
-        token,
-        artistProfile.id,
-      );
-      const txHash = await runCheckout(intent);
-      await paymentsApi.confirm(token, {
-        intentId: intent.id,
-        txHash,
-      });
-      toast.success("Subscription activated.");
-      await onUnlocked?.();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to complete subscription",
-      );
-    } finally {
-      setIsSubscribing(false);
-    }
+    router.push(
+      `/artists/${track.artistId}/subscribe?trackId=${encodeURIComponent(track.id)}`,
+    );
   };
 
   const handlePlay = async () => {
@@ -141,7 +121,7 @@ export const TrackCommerceActions = ({
 
   return (
     <div className="flex flex-wrap gap-3">
-      {!hidePlay ? (
+      {!hidePlay && !isLocked ? (
         <Button
           className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
           disabled={!track.playbackReady || !session?.token}
@@ -152,10 +132,9 @@ export const TrackCommerceActions = ({
         </Button>
       ) : null}
 
-      {track.access === "purchase_required" ? (
+      {isPurchaseLocked ? (
         <Button
-          variant="outline"
-          className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+          className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
           disabled={isBuying}
           onClick={() => void handleBuyTrack()}
         >
@@ -168,21 +147,21 @@ export const TrackCommerceActions = ({
         </Button>
       ) : null}
 
-      {track.access === "subscribers" && artistProfile?.subscriptionEnabled ? (
+      {isSubscriptionLocked ? (
         <Button
-          variant="outline"
-          className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-          disabled={isSubscribing}
+          className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
           onClick={() => void handleSubscribe()}
         >
-          {isSubscribing ? (
-            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+          {!artistProfile?.subscriptionEnabled ? (
+            <Lock className="mr-2 h-4 w-4" />
           ) : (
             <Sparkles className="mr-2 h-4 w-4" />
           )}
-          {subscriptionLabel
-            ? `Subscribe ${subscriptionLabel} / ${artistProfile.subscriptionPeriodDays}d`
-            : "Subscribe"}
+          {artistProfile?.subscriptionEnabled && subscriptionLabel
+            ? `View plan ${subscriptionLabel} / ${artistProfile.subscriptionPeriodDays}d`
+            : artistProfile?.subscriptionEnabled
+              ? "View subscription plan"
+              : "View subscription options"}
         </Button>
       ) : null}
     </div>
