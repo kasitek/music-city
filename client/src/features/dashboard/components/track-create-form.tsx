@@ -16,6 +16,11 @@ import { uploadsApi } from "@/features/uploads/lib/uploads-api";
 import { usersApi } from "@/features/users/lib/users-api";
 import { useAuth } from "@/hooks/use-auth";
 
+type EditableTrackAccess = Extract<
+  TrackAccess,
+  "private" | "purchase_required" | "public"
+>;
+
 interface TrackCreateFormProps {
   onCreated: () => void;
   onClose?: () => void;
@@ -55,7 +60,7 @@ export const TrackCreateForm = ({
   const [genre, setGenre] = useState("");
   const [country, setCountry] = useState("");
   const [description, setDescription] = useState("");
-  const [access, setAccess] = useState<TrackAccess>("private");
+  const [access, setAccess] = useState<EditableTrackAccess>("private");
   const [purchasePrice, setPurchasePrice] = useState("5");
   const [composer, setComposer] = useState("");
   const [producer, setProducer] = useState("");
@@ -461,11 +466,10 @@ export const TrackCreateForm = ({
             <select
               id="trackAccess"
               value={access}
-              onChange={(event) => setAccess(event.target.value as TrackAccess)}
+              onChange={(event) => setAccess(event.target.value as EditableTrackAccess)}
               className="h-10 rounded-md border border-white/10 bg-slate-950/70 px-3 text-sm text-white"
             >
               <option value="private">Private</option>
-              <option value="subscribers">Subscribers only</option>
               <option value="purchase_required">One-time purchase</option>
               <option value="public">Public</option>
             </select>
@@ -626,12 +630,6 @@ export const TrackCreateForm = ({
 
       {stepIndex === 2 ? (
         <div className="space-y-5">
-          {access === "subscribers" ? (
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-              Subscriber-only releases are included in Music City Pass, so fans only need one active platform membership to unlock this track.
-            </div>
-          ) : null}
-
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="trackCover">Song banner / cover</Label>

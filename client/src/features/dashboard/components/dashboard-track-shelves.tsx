@@ -181,15 +181,6 @@ const TrackTableSection = ({
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer focus:bg-white/10 focus:text-white"
-                    onClick={() => void onUpdateAccess(track, "subscribers")}
-                  >
-                    Make subscriber-only
-                    {track.access === "subscribers" ? (
-                      <Check className="ml-auto h-4 w-4 text-emerald-300" />
-                    ) : null}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="cursor-pointer focus:bg-white/10 focus:text-white"
                     onClick={() => void onUpdateAccess(track, "purchase_required")}
                   >
                     Make purchasable
@@ -537,16 +528,6 @@ export const DashboardTrackShelves = ({
               variant="outline"
               className="border-white/10 bg-white/5 text-white hover:bg-white/10"
               disabled={Boolean(bulkAccessUpdating) || isBulkDeleting || selectedTrackIds.length === 0}
-              onClick={() => void updateSelectedTracksAccess("subscribers")}
-            >
-              {bulkAccessUpdating === "subscribers"
-                ? "Updating..."
-                : "Make subscriber-only"}
-            </Button>
-            <Button
-              variant="outline"
-              className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-              disabled={Boolean(bulkAccessUpdating) || isBulkDeleting || selectedTrackIds.length === 0}
               onClick={() => void updateSelectedTracksAccess("public")}
             >
               {bulkAccessUpdating === "public" ? "Updating..." : "Make public"}
@@ -574,7 +555,7 @@ export const DashboardTrackShelves = ({
       {!selectionMode ? (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
           <span>
-            Subscriber-only releases are now included in Music City Pass. Fans subscribe once for platform-wide access.
+            Music City Pass access is managed by the platform. Creators only control private, public, and purchase-required releases here.
           </span>
         </div>
       ) : null}

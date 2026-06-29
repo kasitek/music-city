@@ -12,8 +12,13 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { tracksApi } from "@/features/music/lib/tracks-api";
 
+type EditableTrackAccess = Extract<
+  TrackAccess,
+  "private" | "purchase_required" | "public"
+>;
+
 const accessOptions: Array<{
-  value: TrackAccess;
+  value: EditableTrackAccess;
   label: string;
   description: string;
 }> = [
@@ -21,11 +26,6 @@ const accessOptions: Array<{
     value: "private",
     label: "Private",
     description: "Only you and explicitly entitled listeners can access it.",
-  },
-  {
-    value: "subscribers",
-    label: "Subscribers",
-    description: "Visible in discovery, but reserved for gated listener access.",
   },
   {
     value: "purchase_required",
@@ -233,14 +233,16 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
             Change who can discover and play this song.
           </h3>
           <p className="text-slate-400">
-            Private songs stay out of discovery. Subscriber and public songs can
+            Private songs stay out of discovery. Public and purchasable songs can
             appear in discovery once playback is ready.
           </p>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-          Subscriber-only releases are now included in Music City Pass, so fans only need one active platform membership to unlock them.
-        </div>
+        {track.access === "subscribers" ? (
+          <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            This track is currently included in Music City Pass. Subscriber access is managed by the platform, not by creators.
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
           {accessOptions.map((option) => {
@@ -262,11 +264,6 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
                 <p className="mt-3 text-sm leading-6 text-slate-400">
                   {option.description}
                 </p>
-                {option.value === "subscribers" ? (
-                  <p className="mt-4 text-xs uppercase tracking-[0.24em] text-emerald-300">
-                    Included in Music City Pass
-                  </p>
-                ) : null}
                 {isActive ? (
                   <p className="mt-4 text-xs uppercase tracking-[0.24em] text-emerald-300">
                     Active

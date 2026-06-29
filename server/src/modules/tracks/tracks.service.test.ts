@@ -21,8 +21,7 @@ const restore = <T extends object, K extends keyof T>(
   };
 };
 
-test("createTrack allows subscriber-only access without an artist-scoped subscription plan", async () => {
-  let receivedAccess: string | undefined;
+test("createTrack rejects subscriber-only access from creator-controlled input", async () => {
   const cleanup = [
     restore(
       usersService,
@@ -48,32 +47,23 @@ test("createTrack allows subscriber-only access without an artist-scoped subscri
         updatedAt: new Date().toISOString(),
       })) as typeof usersService.getProfile,
     ),
-    restore(
-      tracksRepository,
-      "upsert",
-      (async (track) => {
-        receivedAccess = track.access;
-        return track;
-      }) as typeof tracksRepository.upsert,
-    ),
   ];
 
   try {
-    const track = await tracksService.createTrack(walletAddress, {
-      title: "Locked track",
-      genre: "Pop",
-      access: "subscribers",
-    });
-
-    assert.equal(track.access, "subscribers");
-    assert.equal(receivedAccess, "subscribers");
+    await assert.rejects(
+      () =>
+        tracksService.createTrack(walletAddress, {
+          title: "Locked track",
+          genre: "Pop",
+          access: "subscribers",
+        }),
+    );
   } finally {
     cleanup.reverse().forEach((fn) => fn());
   }
 });
 
-test("updateTrackAccess allows subscriber-only access without an artist-scoped subscription plan", async () => {
-  let receivedAccess: string | undefined;
+test("updateTrackAccess rejects subscriber-only access from creator-controlled input", async () => {
   const cleanup = [
     restore(
       usersService,
@@ -117,23 +107,15 @@ test("updateTrackAccess allows subscriber-only access without an artist-scoped s
         playbackReady: true,
       })) as typeof tracksRepository.findById,
     ),
-    restore(
-      tracksRepository,
-      "upsert",
-      (async (track) => {
-        receivedAccess = track.access;
-        return track;
-      }) as typeof tracksRepository.upsert,
-    ),
   ];
 
   try {
-    const track = await tracksService.updateTrackAccess(walletAddress, "trk-1", {
-      access: "subscribers",
-    });
-
-    assert.equal(track.access, "subscribers");
-    assert.equal(receivedAccess, "subscribers");
+    await assert.rejects(
+      () =>
+        tracksService.updateTrackAccess(walletAddress, "trk-1", {
+          access: "subscribers",
+        }),
+    );
   } finally {
     cleanup.reverse().forEach((fn) => fn());
   }

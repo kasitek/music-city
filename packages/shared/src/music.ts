@@ -26,6 +26,13 @@ export const trackAccessSchema = z.enum([
 ]);
 export type TrackAccess = z.infer<typeof trackAccessSchema>;
 
+export const creatorTrackAccessSchema = z.enum([
+  "private",
+  "purchase_required",
+  "public",
+]);
+export type CreatorTrackAccess = z.infer<typeof creatorTrackAccessSchema>;
+
 export interface ArtistSummary {
   id: string;
   walletAddress: z.infer<typeof stellarWalletAddressSchema>;
@@ -95,7 +102,7 @@ export const trackCreateSchema = z.object({
   genre: z.string().min(1).max(80),
   description: z.string().max(1000).optional(),
   priceLabel: z.string().max(80).optional(),
-  access: trackAccessSchema.default("private"),
+  access: creatorTrackAccessSchema.default("private"),
   purchaseEnabled: z.boolean().optional(),
   purchasePrice: optionalPositiveAmountSchema,
   purchaseAssetCode: optionalStellarAssetCodeSchema,
@@ -125,13 +132,13 @@ export const trackCreateSchema = z.object({
 export type TrackCreateInput = z.infer<typeof trackCreateSchema>;
 
 export const trackAccessUpdateSchema = z.object({
-  access: trackAccessSchema,
+  access: creatorTrackAccessSchema,
 });
 export type TrackAccessUpdateInput = z.infer<typeof trackAccessUpdateSchema>;
 
 export const trackMonetizationUpdateSchema = z
   .object({
-    access: trackAccessSchema,
+    access: creatorTrackAccessSchema,
     purchaseEnabled: z.boolean().optional(),
     purchasePrice: optionalPositiveAmountSchema,
     purchaseAssetCode: optionalStellarAssetCodeSchema,

@@ -143,7 +143,7 @@ export const TrackCommerceActions = ({
           onClick={() => void handleSubscribe()}
         >
           <Ticket className="mr-2 h-4 w-4" />
-          Unlock with Music City Pass
+          Subscribe
         </Button>
       ) : null}
     </div>
