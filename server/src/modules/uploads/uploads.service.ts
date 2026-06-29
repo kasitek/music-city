@@ -131,13 +131,17 @@ export const uploadsService = {
 
     const storageKey = session.storageKey;
     const fileName = storageKey.split("/").pop() ?? storageKey;
-
-    const metadata = await storageService.getObjectMetadata(storageKey, fileName);
+    const fallbackMetadata =
+      session.contentType && session.sizeBytes
+        ? null
+        : await storageService.getObjectMetadata(storageKey, fileName);
     const track = await tracksService.attachMaster(session.trackId, {
       masterStorageKey: storageKey,
       sourceFileName: fileName,
-      sourceContentType: metadata.contentType,
-      sourceSizeBytes: metadata.sizeBytes,
+      sourceContentType:
+        session.contentType || fallbackMetadata?.contentType || "application/octet-stream",
+      sourceSizeBytes:
+        session.sizeBytes || fallbackMetadata?.sizeBytes || 0,
     });
 
     if (env.MEDIA_PROVIDER === "mux") {
