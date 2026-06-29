@@ -43,6 +43,18 @@ paymentsRouter.post(
 );
 
 paymentsRouter.post(
+  "/intents/platform-subscription",
+  requireSession,
+  asyncHandler(async (request, response) => {
+    response.status(201).json({
+      intent: await paymentsService.createPlatformSubscriptionIntent(
+        request.session!.walletAddress,
+      ),
+    });
+  }),
+);
+
+paymentsRouter.post(
   "/confirm",
   requireSession,
   asyncHandler(async (request, response) => {

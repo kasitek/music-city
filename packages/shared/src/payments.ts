@@ -10,6 +10,7 @@ import {
 export const paymentProductTypeSchema = z.enum([
   "track_purchase",
   "artist_subscription",
+  "platform_subscription",
 ]);
 export type PaymentProductType = z.infer<typeof paymentProductTypeSchema>;
 
@@ -27,6 +28,9 @@ export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 export const subscriptionStatusSchema = z.enum(["active", "expired", "cancelled"]);
 export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
 
+export const subscriptionScopeSchema = z.enum(["artist", "platform"]);
+export type SubscriptionScope = z.infer<typeof subscriptionScopeSchema>;
+
 export const stellarAssetSchema = z.object({
   code: stellarAssetCodeSchema,
   issuer: optionalStellarAssetIssuerSchema,
@@ -38,6 +42,7 @@ export const paymentIntentSchema = z.object({
   id: z.string(),
   walletAddress: stellarWalletAddressSchema,
   productType: paymentProductTypeSchema,
+  subscriptionScope: subscriptionScopeSchema.optional(),
   trackId: z.string().optional(),
   artistId: z.string().optional(),
   amount: positiveAmountSchema,
@@ -58,6 +63,7 @@ export const paymentRecordSchema = z.object({
   intentId: z.string(),
   walletAddress: stellarWalletAddressSchema,
   productType: paymentProductTypeSchema,
+  subscriptionScope: subscriptionScopeSchema.optional(),
   trackId: z.string().optional(),
   artistId: z.string().optional(),
   txHash: z.string(),
@@ -73,7 +79,8 @@ export type PaymentRecord = z.infer<typeof paymentRecordSchema>;
 export const subscriptionRecordSchema = z.object({
   id: z.string(),
   walletAddress: stellarWalletAddressSchema,
-  artistId: z.string(),
+  scope: subscriptionScopeSchema.default("artist"),
+  artistId: z.string().optional(),
   status: subscriptionStatusSchema,
   startsAt: z.string(),
   endsAt: z.string(),
@@ -82,6 +89,19 @@ export const subscriptionRecordSchema = z.object({
   updatedAt: z.string(),
 });
 export type SubscriptionRecord = z.infer<typeof subscriptionRecordSchema>;
+
+export const platformSubscriptionPlanSchema = z.object({
+  enabled: z.boolean().default(false),
+  name: z.string().default("Music City Pass"),
+  description: z.string().default(
+    "One subscription unlocks every subscriber-only release across Music City.",
+  ),
+  price: positiveAmountSchema,
+  assetCode: stellarAssetCodeSchema,
+  assetIssuer: optionalStellarAssetIssuerSchema,
+  periodDays: z.number().int().positive(),
+});
+export type PlatformSubscriptionPlan = z.infer<typeof platformSubscriptionPlanSchema>;
 
 export const createTrackPurchaseIntentSchema = z.object({
   trackId: z.string().min(1),
@@ -95,6 +115,11 @@ export const createArtistSubscriptionIntentSchema = z.object({
 });
 export type CreateArtistSubscriptionIntentInput = z.infer<
   typeof createArtistSubscriptionIntentSchema
+>;
+
+export const createPlatformSubscriptionIntentSchema = z.object({});
+export type CreatePlatformSubscriptionIntentInput = z.infer<
+  typeof createPlatformSubscriptionIntentSchema
 >;
 
 export const confirmPaymentSchema = z.object({

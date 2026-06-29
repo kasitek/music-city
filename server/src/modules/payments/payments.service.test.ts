@@ -71,6 +71,40 @@ test("createArtistSubscriptionIntent rejects wallets that already have an active
   }
 });
 
+test("createPlatformSubscriptionIntent rejects wallets that already have an active platform subscription", async () => {
+  const cleanup = [
+    restore(
+      subscriptionsService,
+      "getPlatformPlan",
+      (async () => ({
+        enabled: true,
+        name: "Music City Pass",
+        description: "Unlock subscriber-only releases.",
+        price: "15",
+        assetCode: "XLM",
+        assetIssuer: undefined,
+        periodDays: 30,
+      })) as typeof subscriptionsService.getPlatformPlan,
+    ),
+    restore(
+      subscriptionsService,
+      "hasActivePlatformSubscription",
+      (async () => true) as typeof subscriptionsService.hasActivePlatformSubscription,
+    ),
+  ];
+
+  try {
+    await assert.rejects(
+      () => paymentsService.createPlatformSubscriptionIntent(walletAddress),
+      (error: { message?: string; statusCode?: number }) =>
+        error.statusCode === 400 &&
+        error.message === "Platform subscription is already active",
+    );
+  } finally {
+    cleanup.reverse().forEach((fn) => fn());
+  }
+});
+
 test("confirm returns the existing purchase result when the same transaction is retried", async () => {
   const intent = {
     id: "payi-1",
@@ -173,6 +207,7 @@ test("confirm is idempotent after an intent has already been confirmed", async (
   const subscription = {
     id: "sub-1",
     walletAddress,
+    scope: "artist" as const,
     artistId: "artist-1",
     status: "active" as const,
     startsAt: new Date().toISOString(),

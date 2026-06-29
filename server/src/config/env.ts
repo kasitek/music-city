@@ -21,8 +21,10 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().default(4000),
   CLIENT_ORIGIN: z.string().default("http://localhost:3000"),
+  ADMIN_CLIENT_ORIGIN: z.string().default("http://localhost:3001"),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().default("music-city-dev-secret"),
+  ADMIN_JWT_SECRET: z.string().default("music-city-admin-secret"),
   STELLAR_NETWORK_PASSPHRASE: z
     .string()
     .default("Test SDF Network ; September 2015"),
@@ -54,6 +56,18 @@ const envSchema = z.object({
   TRACK_PURCHASE_DEFAULT_PRICE: z.string().default("5"),
   ARTIST_SUBSCRIPTION_DEFAULT_PRICE: z.string().default("10"),
   ARTIST_SUBSCRIPTION_PERIOD_DAYS: z.coerce.number().int().positive().default(30),
+  PLATFORM_SUBSCRIPTION_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value !== "false"),
+  PLATFORM_SUBSCRIPTION_NAME: z.string().default("Music City Pass"),
+  PLATFORM_SUBSCRIPTION_DESCRIPTION: z
+    .string()
+    .default("One subscription unlocks every subscriber-only release across Music City."),
+  PLATFORM_SUBSCRIPTION_PRICE: z.string().default("15"),
+  PLATFORM_SUBSCRIPTION_ASSET_CODE: z.string().default("XLM"),
+  PLATFORM_SUBSCRIPTION_ASSET_ISSUER: z.string().optional(),
+  PLATFORM_SUBSCRIPTION_PERIOD_DAYS: z.coerce.number().int().positive().default(30),
   ARCHIVE_OUTPUT_ROOT: z.string().default("server/data/archives"),
   ARCHIVE_MASTER_KEY: z.string().optional(),
   ARCHIVE_REMOTE_UPLOAD_URL: z.string().optional(),

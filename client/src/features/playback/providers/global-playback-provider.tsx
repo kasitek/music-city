@@ -456,7 +456,7 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
         }
 
         if (track.access === "subscribers") {
-          toast.error("Subscribe to this artist first to unlock playback.");
+          toast.error("Subscribe to Music City Pass first to unlock playback.");
           return;
         }
       }

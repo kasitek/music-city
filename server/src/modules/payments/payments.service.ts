@@ -4,6 +4,7 @@ import type {
   PaymentProductType,
   PaymentRecord,
   StellarAssetDescriptor,
+  SubscriptionScope,
 } from "@music-city/shared";
 import {
   confirmPaymentSchema,
@@ -58,6 +59,7 @@ const requireTreasuryAddress = () => {
 const createIntentRecord = (input: {
   walletAddress: string;
   productType: PaymentProductType;
+  subscriptionScope?: SubscriptionScope;
   trackId?: string;
   artistId?: string;
   amount: string;
@@ -71,6 +73,7 @@ const createIntentRecord = (input: {
     id,
     walletAddress: input.walletAddress,
     productType: input.productType,
+    subscriptionScope: input.subscriptionScope,
     trackId: input.trackId,
     artistId: input.artistId,
     amount: preciseAmount,
@@ -116,6 +119,23 @@ const paymentResultFromExistingRecord = async (
         intent.artistId,
         payment.id,
         artist.subscriptionPeriodDays,
+      ));
+
+    return { payment, subscription };
+  }
+
+  if (intent.productType === "platform_subscription") {
+    const plan = await subscriptionsService.getPlatformPlan();
+
+    const subscription =
+      (await subscriptionsService.findPlatformByPayment(
+        walletAddress,
+        payment.id,
+      )) ??
+      (await subscriptionsService.activateOrExtendPlatform(
+        walletAddress,
+        payment.id,
+        plan.periodDays,
       ));
 
     return { payment, subscription };
@@ -315,6 +335,37 @@ export const paymentsService = {
     return paymentsRepository.upsertIntent(intent);
   },
 
+  async createPlatformSubscriptionIntent(walletAddress: string) {
+    const plan = await subscriptionsService.getPlatformPlan();
+
+    if (!plan.enabled) {
+      throw new HttpError(400, "Platform subscription is not enabled");
+    }
+
+    if (await subscriptionsService.hasActivePlatformSubscription(walletAddress)) {
+      throw new HttpError(400, "Platform subscription is already active");
+    }
+
+    const intent = createIntentRecord({
+      walletAddress,
+      productType: "platform_subscription",
+      subscriptionScope: "platform",
+      amount: normalizePositiveAmount(
+        plan.price,
+        "Platform subscription price",
+      ),
+      asset: normalizeStellarAsset(
+        {
+          code: plan.assetCode,
+          issuer: plan.assetIssuer,
+        },
+        "Platform subscription",
+      ),
+    });
+
+    return paymentsRepository.upsertIntent(intent);
+  },
+
   async confirm(walletAddress: string, input: ConfirmPaymentInput) {
     const parsed = confirmPaymentSchema.parse(input);
     const intent = await paymentsRepository.findIntentById(parsed.intentId);
@@ -374,6 +425,7 @@ export const paymentsService = {
       intentId: intent.id,
       walletAddress,
       productType: intent.productType,
+      subscriptionScope: intent.subscriptionScope,
       trackId: intent.trackId,
       artistId: intent.artistId,
       txHash: parsed.txHash,

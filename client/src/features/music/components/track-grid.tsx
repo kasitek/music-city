@@ -28,9 +28,7 @@ export const TrackGrid = ({
 
   const routeToUnlock = (track: TrackSummary) => {
     if (track.access === "subscribers") {
-      router.push(
-        `/artists/${track.artistId}/subscribe?trackId=${encodeURIComponent(track.id)}`,
-      );
+      router.push(`/subscribe?trackId=${encodeURIComponent(track.id)}`);
       return;
     }
 

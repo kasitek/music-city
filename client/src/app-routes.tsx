@@ -13,9 +13,9 @@ import { TrackDetailOverview } from "@/features/music/components/track-detail-ov
 import { TrackGrid } from "@/features/music/components/track-grid";
 import { tracksApi } from "@/features/music/lib/tracks-api";
 import { OnboardingForm } from "@/features/onboarding/components/onboarding-form";
-import { ArtistSubscriptionOverview } from "@/features/subscriptions/components/artist-subscription-overview";
+import { PlatformSubscriptionOverview } from "@/features/subscriptions/components/platform-subscription-overview";
 import { useEffect, useState } from "react";
-import { Routes, Route, useParams, useSearchParams } from "react-router-dom";
+import { Navigate, Routes, Route, useParams, useSearchParams } from "react-router-dom";
 import type { TrackSummary } from "@music-city/shared";
 
 const PageSection = ({
@@ -110,20 +110,29 @@ const DashboardTrackPage = () => {
   );
 };
 
-const ArtistSubscribePage = () => {
-  const { artistId = "" } = useParams();
+const SubscribePage = () => {
   const [searchParams] = useSearchParams();
   const trackId = searchParams.get("trackId") ?? undefined;
 
   return (
     <PageSection
       eyebrow="Subscriptions"
-      title="Artist subscription"
-      description="Review the plan, see what unlocks, and subscribe with your Stellar wallet."
+      title="Music City Pass"
+      description="Subscribe once to unlock every subscriber-only release across the platform."
     >
-      <ArtistSubscriptionOverview artistId={artistId} trackId={trackId} />
+      <PlatformSubscriptionOverview trackId={trackId} />
     </PageSection>
   );
+};
+
+const ArtistSubscribeRedirectPage = () => {
+  const [searchParams] = useSearchParams();
+  const trackId = searchParams.get("trackId");
+  const nextPath = trackId
+    ? `/subscribe?trackId=${encodeURIComponent(trackId)}`
+    : "/subscribe";
+
+  return <Navigate replace to={nextPath} />;
 };
 
 export const AppRoutes = () => (
@@ -153,7 +162,8 @@ export const AppRoutes = () => (
         </PageSection>
       }
     />
-    <Route path="/artists/:artistId/subscribe" element={<ArtistSubscribePage />} />
+    <Route path="/artists/:artistId/subscribe" element={<ArtistSubscribeRedirectPage />} />
+    <Route path="/subscribe" element={<SubscribePage />} />
     <Route
       path="/auth"
       element={

@@ -241,7 +241,7 @@ export const TrackCreateForm = ({
     toast.error("Enter a valid collaborator email or choose an artist.");
   };
 
-  const handleCreateTrack = async () => {
+  const createTrack = async () => {
     if (!session?.token) {
       toast.error("Connect your wallet first");
       router.push("/auth");
@@ -625,32 +625,40 @@ export const TrackCreateForm = ({
       ) : null}
 
       {stepIndex === 2 ? (
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="trackCover">Song banner / cover</Label>
-            <Input
-              id="trackCover"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => setCoverFile(event.target.files?.[0] ?? null)}
-              className="border-white/10 bg-slate-950/70 text-white file:text-white"
-            />
-            <p className="text-sm text-slate-500">
-              Upload the artwork shown across shelves and the player.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="trackFile">Audio file</Label>
-            <Input
-              id="trackFile"
-              type="file"
-              accept="audio/*"
-              onChange={(event) => setAudioFile(event.target.files?.[0] ?? null)}
-              className="border-white/10 bg-slate-950/70 text-white file:text-white"
-            />
-            <p className="text-sm text-slate-500">
-              High quality master audio. Mux will process playback versions after upload.
-            </p>
+        <div className="space-y-5">
+          {access === "subscribers" ? (
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+              Subscriber-only releases are included in Music City Pass, so fans only need one active platform membership to unlock this track.
+            </div>
+          ) : null}
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="trackCover">Song banner / cover</Label>
+              <Input
+                id="trackCover"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => setCoverFile(event.target.files?.[0] ?? null)}
+                className="border-white/10 bg-slate-950/70 text-white file:text-white"
+              />
+              <p className="text-sm text-slate-500">
+                Upload the artwork shown across shelves and the player.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="trackFile">Audio file</Label>
+              <Input
+                id="trackFile"
+                type="file"
+                accept="audio/*"
+                onChange={(event) => setAudioFile(event.target.files?.[0] ?? null)}
+                className="border-white/10 bg-slate-950/70 text-white file:text-white"
+              />
+              <p className="text-sm text-slate-500">
+                High quality master audio. Mux will process playback versions after upload.
+              </p>
+            </div>
           </div>
         </div>
       ) : null}
@@ -715,12 +723,13 @@ export const TrackCreateForm = ({
             type="button"
             className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
             disabled={isSaving}
-            onClick={() => void handleCreateTrack()}
+            onClick={() => void createTrack()}
           >
             {isSaving ? "Uploading..." : "Create track"}
           </Button>
         )}
       </div>
+
     </div>
   );
 };

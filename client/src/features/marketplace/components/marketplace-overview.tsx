@@ -2,105 +2,33 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { ArtistPublicProfile, ArtistSummary, TrackSummary } from "@music-city/shared";
+import type { PlatformSubscriptionPlan, TrackSummary } from "@music-city/shared";
+import { Ticket } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrackCommerceActions } from "@/features/music/components/track-commerce-actions";
 import { TrackThumbnail } from "@/features/music/components/track-table";
 import { tracksApi } from "@/features/music/lib/tracks-api";
-import { usersApi } from "@/features/users/lib/users-api";
-
-const ArtistSubscriptionCard = ({
-  artist,
-  profile,
-  onUnlocked,
-}: {
-  artist: ArtistSummary;
-  profile: ArtistPublicProfile;
-  onUnlocked: () => Promise<void>;
-}) => (
-  <Card className="border-white/10 bg-white/5 text-white shadow-none">
-    <CardHeader className="space-y-4">
-      <div className="flex items-center gap-4">
-        {profile.profileImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={profile.profileImageUrl}
-            alt=""
-            className="size-14 rounded-full object-cover"
-          />
-        ) : (
-          <div className="size-14 rounded-full bg-gradient-to-br from-emerald-300/40 to-slate-950" />
-        )}
-        <div className="space-y-1">
-          <CardTitle className="text-xl">{artist.name}</CardTitle>
-          <p className="text-sm text-slate-400">{artist.city}</p>
-        </div>
-      </div>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      <p className="text-sm text-slate-300">
-        Unlock subscriber-only drops and private listening access from this artist.
-      </p>
-      <div className="text-sm text-emerald-300">
-        {profile.subscriptionPrice} {profile.subscriptionAssetCode ?? "XLM"} every{" "}
-        {profile.subscriptionPeriodDays} days
-      </div>
-      <TrackCommerceActions
-        track={{
-          id: `${artist.id}-subscription`,
-          title: `${artist.name} subscriber access`,
-          artistId: artist.id,
-          artistName: artist.name,
-          genre: artist.genre,
-          runtime: "Membership",
-          priceLabel: profile.subscriptionPrice ?? "",
-          status: "published",
-          access: "subscribers",
-          plays: 0,
-          likes: 0,
-          playbackReady: false,
-        }}
-        artistProfile={profile}
-        onUnlocked={onUnlocked}
-        hidePlay
-      />
-    </CardContent>
-  </Card>
-);
+import { subscriptionsApi } from "@/features/subscriptions/lib/subscriptions-api";
 
 export const MarketplaceOverview = () => {
   const [tracks, setTracks] = useState<TrackSummary[]>([]);
-  const [artists, setArtists] = useState<ArtistSummary[]>([]);
-  const [artistProfiles, setArtistProfiles] = useState<
-    Record<string, ArtistPublicProfile>
-  >({});
+  const [platformPlan, setPlatformPlan] = useState<PlatformSubscriptionPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const load = async () => {
     setIsLoading(true);
 
     try {
-      const [nextTracks, nextArtists] = await Promise.all([
+      const [nextTracks, nextPlatformPlan] = await Promise.all([
         tracksApi.listTracks(),
-        usersApi.listArtists(),
+        subscriptionsApi.getPlatformPlan(),
       ]);
 
-      const monetizedArtists = await Promise.all(
-        nextArtists.map(async (artist) => {
-          const profile = await usersApi.getArtistProfile(artist.id);
-          return profile?.subscriptionEnabled ? [artist.id, profile] : null;
-        }),
-      );
-
       setTracks(nextTracks.filter((track) => track.access === "purchase_required"));
-      setArtists(nextArtists);
-      setArtistProfiles(
-        Object.fromEntries(
-          monetizedArtists.filter(Boolean) as Array<[string, ArtistPublicProfile]>,
-        ),
-      );
+      setPlatformPlan(nextPlatformPlan);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Unable to load marketplace",
@@ -113,8 +41,6 @@ export const MarketplaceOverview = () => {
   useEffect(() => {
     void load();
   }, []);
-
-  const artistsWithSubscriptions = artists.filter((artist) => artistProfiles[artist.id]);
 
   if (isLoading) {
     return <div className="text-sm text-slate-400">Loading marketplace...</div>;
@@ -164,27 +90,38 @@ export const MarketplaceOverview = () => {
 
       <section className="space-y-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-white">Artist subscriptions</h2>
+          <h2 className="text-2xl font-semibold text-white">Music City Pass</h2>
           <p className="text-sm text-slate-400">
-            Recurring access to subscriber-only tracks and future drops.
+            One membership unlocks every subscriber-only release across the platform.
           </p>
         </div>
-        {artistsWithSubscriptions.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-slate-300">
-            No artist subscriptions are live yet.
-          </div>
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {artistsWithSubscriptions.map((artist) => (
-              <ArtistSubscriptionCard
-                key={artist.id}
-                artist={artist}
-                profile={artistProfiles[artist.id]}
-                onUnlocked={load}
-              />
-            ))}
-          </div>
-        )}
+        <Card className="border-white/10 bg-white/5 text-white shadow-none">
+          <CardHeader className="space-y-2">
+            <CardTitle className="text-2xl">
+              {platformPlan?.name ?? "Music City Pass"}
+            </CardTitle>
+            <p className="text-sm text-slate-300">
+              {platformPlan?.description ??
+                "One subscription unlocks every subscriber-only release across Music City."}
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-4">
+            <div className="text-sm text-emerald-300">
+              {platformPlan
+                ? `${platformPlan.price} ${platformPlan.assetCode} every ${platformPlan.periodDays} days`
+                : "Loading price..."}
+            </div>
+            <Button
+              asChild
+              className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+            >
+              <Link href="/subscribe">
+                <Ticket className="mr-2 h-4 w-4" />
+                View membership
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </section>
     </div>
   );

@@ -4,6 +4,7 @@ import type {
   ConfirmPaymentInput,
   PaymentIntentRecord,
   PaymentRecord,
+  SubscriptionRecord,
 } from "@music-city/shared";
 
 import { httpClient } from "@/lib/api/http-client";
@@ -28,9 +29,9 @@ export const paymentsApi = {
     return response.intent;
   },
 
-  async createArtistSubscriptionIntent(token: string, artistId: string) {
+  async createPlatformSubscriptionIntent(token: string) {
     const response = await httpClient.post<{ intent: PaymentIntentRecord }>(
-      `/payments/intents/subscription/${artistId}`,
+      "/payments/intents/platform-subscription",
       {},
       token,
     );
@@ -42,7 +43,7 @@ export const paymentsApi = {
     return httpClient.post<{
       payment: PaymentRecord;
       entitlement?: { id: string; trackId: string };
-      subscription?: { id: string; artistId: string; endsAt: string };
+      subscription?: SubscriptionRecord;
     }>("/payments/confirm", input, token);
   },
 };

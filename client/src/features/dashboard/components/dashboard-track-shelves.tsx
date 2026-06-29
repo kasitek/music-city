@@ -373,7 +373,7 @@ export const DashboardTrackShelves = ({
     );
   };
 
-  const updateTrackAccess = async (track: TrackSummary, access: TrackAccess) => {
+  const applyTrackAccessUpdate = async (track: TrackSummary, access: TrackAccess) => {
     const token = session?.token;
 
     if (!token || track.access === access) {
@@ -391,12 +391,16 @@ export const DashboardTrackShelves = ({
     }
   };
 
+  const updateTrackAccess = async (track: TrackSummary, access: TrackAccess) => {
+    await applyTrackAccessUpdate(track, access);
+  };
+
   const clearSelectionMode = () => {
     setSelectionMode(false);
     setSelectedTrackIds([]);
   };
 
-  const updateSelectedTracksAccess = async (access: TrackAccess) => {
+  const applySelectedTracksAccessUpdate = async (access: TrackAccess) => {
     const token = session?.token;
 
     if (!token || selectedTrackIds.length === 0) {
@@ -427,6 +431,10 @@ export const DashboardTrackShelves = ({
     } finally {
       setBulkAccessUpdating(null);
     }
+  };
+
+  const updateSelectedTracksAccess = async (access: TrackAccess) => {
+    await applySelectedTracksAccessUpdate(access);
   };
 
   const deleteSelectedTracks = async () => {
@@ -563,6 +571,14 @@ export const DashboardTrackShelves = ({
         </div>
       ) : null}
 
+      {!selectionMode ? (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          <span>
+            Subscriber-only releases are now included in Music City Pass. Fans subscribe once for platform-wide access.
+          </span>
+        </div>
+      ) : null}
+
       <TrackTableSection
         title="Ready to play"
         description="Finished releases you can preview right now."
@@ -597,6 +613,7 @@ export const DashboardTrackShelves = ({
         onToggleSelectionMode={toggleSelectionMode}
         onToggleTrackSelected={toggleTrackSelected}
       />
+
     </div>
   );
 };

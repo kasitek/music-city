@@ -12,6 +12,18 @@ const pool = new Pool({
 });
 
 const createTableStatements = [
+  `CREATE TABLE IF NOT EXISTS admins (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    CONSTRAINT admins_role_check
+      CHECK (role IN ('super_admin', 'admin'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    payload JSONB NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     wallet_address TEXT NOT NULL UNIQUE,
@@ -91,7 +103,7 @@ const createTableStatements = [
     CONSTRAINT payment_intents_artist_id_fk
       FOREIGN KEY (artist_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT payment_intents_product_type_check
-      CHECK (product_type IN ('track_purchase', 'artist_subscription')),
+      CHECK (product_type IN ('track_purchase', 'artist_subscription', 'platform_subscription')),
     CONSTRAINT payment_intents_status_check
       CHECK (status IN ('pending', 'confirmed', 'expired', 'failed'))
   )`,
@@ -112,22 +124,26 @@ const createTableStatements = [
     CONSTRAINT payments_artist_id_fk
       FOREIGN KEY (artist_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT payments_product_type_check
-      CHECK (product_type IN ('track_purchase', 'artist_subscription'))
+      CHECK (product_type IN ('track_purchase', 'artist_subscription', 'platform_subscription'))
   )`,
   `CREATE TABLE IF NOT EXISTS subscriptions (
     id TEXT PRIMARY KEY,
     wallet_address TEXT NOT NULL,
-    artist_id TEXT NOT NULL,
+    artist_id TEXT,
+    scope TEXT NOT NULL DEFAULT 'artist',
     status TEXT NOT NULL,
     ends_at TIMESTAMPTZ NOT NULL,
     payload JSONB NOT NULL,
     CONSTRAINT subscriptions_artist_id_fk
       FOREIGN KEY (artist_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT subscriptions_scope_check
+      CHECK (scope IN ('artist', 'platform')),
     CONSTRAINT subscriptions_status_check
       CHECK (status IN ('active', 'expired', 'cancelled'))
   )`,
   "CREATE INDEX IF NOT EXISTS users_wallet_address_idx ON users (wallet_address)",
   "CREATE INDEX IF NOT EXISTS users_role_idx ON users (role)",
+  "CREATE INDEX IF NOT EXISTS admins_email_idx ON admins (email)",
   "CREATE INDEX IF NOT EXISTS tracks_artist_id_idx ON tracks (artist_id)",
   "CREATE INDEX IF NOT EXISTS tracks_status_idx ON tracks (status)",
   "CREATE INDEX IF NOT EXISTS upload_sessions_track_id_idx ON upload_sessions (track_id)",
@@ -141,6 +157,24 @@ const createTableStatements = [
   "CREATE INDEX IF NOT EXISTS payments_wallet_address_idx ON payments (wallet_address)",
   "CREATE INDEX IF NOT EXISTS subscriptions_wallet_address_idx ON subscriptions (wallet_address)",
   "CREATE INDEX IF NOT EXISTS subscriptions_artist_id_idx ON subscriptions (artist_id)",
+  "ALTER TABLE payment_intents DROP CONSTRAINT IF EXISTS payment_intents_product_type_check",
+  `ALTER TABLE payment_intents
+    ADD CONSTRAINT payment_intents_product_type_check
+    CHECK (product_type IN ('track_purchase', 'artist_subscription', 'platform_subscription'))`,
+  "ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_product_type_check",
+  `ALTER TABLE payments
+    ADD CONSTRAINT payments_product_type_check
+    CHECK (product_type IN ('track_purchase', 'artist_subscription', 'platform_subscription'))`,
+  "ALTER TABLE subscriptions ALTER COLUMN artist_id DROP NOT NULL",
+  "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS scope TEXT",
+  "UPDATE subscriptions SET scope = 'artist' WHERE scope IS NULL",
+  "ALTER TABLE subscriptions ALTER COLUMN scope SET DEFAULT 'artist'",
+  "ALTER TABLE subscriptions ALTER COLUMN scope SET NOT NULL",
+  "ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_scope_check",
+  `ALTER TABLE subscriptions
+    ADD CONSTRAINT subscriptions_scope_check
+    CHECK (scope IN ('artist', 'platform'))`,
+  "CREATE INDEX IF NOT EXISTS subscriptions_scope_idx ON subscriptions (scope)",
 ];
 
 const mapPayloadRows = <T>(rows: PersistedRow[]) =>
@@ -452,21 +486,23 @@ export const databaseService = {
   async upsertSubscription(
     id: string,
     walletAddress: string,
-    artistId: string,
+    artistId: string | null,
+    scope: string,
     status: string,
     endsAt: string,
     payload: unknown,
   ) {
     await pool.query(
-      `INSERT INTO subscriptions (id, wallet_address, artist_id, status, ends_at, payload)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+      `INSERT INTO subscriptions (id, wallet_address, artist_id, scope, status, ends_at, payload)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
        ON CONFLICT (id) DO UPDATE SET
          wallet_address = EXCLUDED.wallet_address,
          artist_id = EXCLUDED.artist_id,
+         scope = EXCLUDED.scope,
          status = EXCLUDED.status,
          ends_at = EXCLUDED.ends_at,
          payload = EXCLUDED.payload`,
-      [id, walletAddress, artistId, status, endsAt, JSON.stringify(payload)],
+      [id, walletAddress, artistId, scope, status, endsAt, JSON.stringify(payload)],
     );
   },
 
@@ -486,5 +522,75 @@ export const databaseService = {
     );
 
     return mapPayloadRows<T>(result.rows);
+  },
+
+  async countAdmins() {
+    const result = await pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM admins`,
+    );
+
+    return Number(result.rows[0]?.count ?? "0");
+  },
+
+  async upsertAdmin(
+    id: string,
+    email: string,
+    role: string,
+    payload: unknown,
+  ) {
+    await pool.query(
+      `INSERT INTO admins (id, email, role, payload)
+       VALUES ($1, $2, $3, $4::jsonb)
+       ON CONFLICT (id) DO UPDATE SET
+         email = EXCLUDED.email,
+         role = EXCLUDED.role,
+         payload = EXCLUDED.payload`,
+      [id, email, role, JSON.stringify(payload)],
+    );
+  },
+
+  async findAdminByEmail<T>(email: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM admins WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      [email],
+    );
+
+    return result.rows[0]?.payload as T | null;
+  },
+
+  async findAdminById<T>(id: string) {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM admins WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+
+    return result.rows[0]?.payload as T | null;
+  },
+
+  async listAdmins<T>() {
+    const result = await pool.query<PersistedRow>(
+      `SELECT id, payload FROM admins ORDER BY id`,
+    );
+
+    return mapPayloadRows<T>(result.rows);
+  },
+
+  async upsertSetting(key: string, payload: unknown) {
+    await pool.query(
+      `INSERT INTO app_settings (key, payload)
+       VALUES ($1, $2::jsonb)
+       ON CONFLICT (key) DO UPDATE SET
+         payload = EXCLUDED.payload`,
+      [key, JSON.stringify(payload)],
+    );
+  },
+
+  async findSetting<T>(key: string) {
+    const result = await pool.query<{ payload: unknown }>(
+      `SELECT payload FROM app_settings WHERE key = $1 LIMIT 1`,
+      [key],
+    );
+
+    return (result.rows[0]?.payload as T | undefined) ?? null;
   },
 };

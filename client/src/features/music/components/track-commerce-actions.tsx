@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, Lock, Play, ShoppingBag, Sparkles } from "lucide-react";
+import { LoaderCircle, Play, ShoppingBag, Ticket } from "lucide-react";
 import { toast } from "sonner";
 
 import type { ArtistPublicProfile, TrackSummary } from "@music-city/shared";
@@ -46,14 +46,6 @@ export const TrackCommerceActions = ({
     () => formatAmountLabel(track.purchasePrice, track.purchaseAssetCode),
     [track.purchaseAssetCode, track.purchasePrice],
   );
-  const subscriptionLabel = useMemo(
-    () =>
-      formatAmountLabel(
-        artistProfile?.subscriptionPrice,
-        artistProfile?.subscriptionAssetCode,
-      ),
-    [artistProfile?.subscriptionAssetCode, artistProfile?.subscriptionPrice],
-  );
 
   const ensureSession = () => {
     if (!session?.token) {
@@ -92,9 +84,7 @@ export const TrackCommerceActions = ({
   };
 
   const handleSubscribe = async () => {
-    router.push(
-      `/artists/${track.artistId}/subscribe?trackId=${encodeURIComponent(track.id)}`,
-    );
+    router.push(`/subscribe?trackId=${encodeURIComponent(track.id)}`);
   };
 
   const handlePlay = async () => {
@@ -108,7 +98,7 @@ export const TrackCommerceActions = ({
         }
 
         if (track.access === "subscribers") {
-          toast.error("Subscribe to this artist first to unlock playback.");
+          toast.error("Subscribe to Music City Pass first to unlock playback.");
           return;
         }
       }
@@ -152,16 +142,8 @@ export const TrackCommerceActions = ({
           className="bg-emerald-400 text-slate-950 hover:bg-emerald-300"
           onClick={() => void handleSubscribe()}
         >
-          {!artistProfile?.subscriptionEnabled ? (
-            <Lock className="mr-2 h-4 w-4" />
-          ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
-          )}
-          {artistProfile?.subscriptionEnabled && subscriptionLabel
-            ? `View plan ${subscriptionLabel} / ${artistProfile.subscriptionPeriodDays}d`
-            : artistProfile?.subscriptionEnabled
-              ? "View subscription plan"
-              : "View subscription options"}
+          <Ticket className="mr-2 h-4 w-4" />
+          Unlock with Music City Pass
         </Button>
       ) : null}
     </div>

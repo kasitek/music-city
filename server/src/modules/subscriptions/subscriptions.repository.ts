@@ -21,7 +21,8 @@ export const subscriptionsRepository = {
     await databaseService.upsertSubscription(
       subscription.id,
       subscription.walletAddress,
-      subscription.artistId,
+      subscription.artistId ?? null,
+      subscription.scope,
       subscription.status,
       subscription.endsAt,
       subscription,

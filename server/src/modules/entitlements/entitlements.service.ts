@@ -110,6 +110,13 @@ export const entitlementsService = {
     }
 
     if (track.access === "subscribers") {
+      const hasPlatformSubscription =
+        await subscriptionsService.hasActivePlatformSubscription(walletAddress);
+
+      if (hasPlatformSubscription) {
+        return true;
+      }
+
       const hasLocalSubscription =
         await subscriptionsService.hasActiveArtistSubscription(
           walletAddress,

@@ -37,11 +37,6 @@ const hydrateTrackUrls = <T extends { coverStorageKey?: string; coverImageUrl?: 
     : track.coverImageUrl,
 });
 
-const hasEnabledSubscriptionPlan = (profile: {
-  subscriptionEnabled?: boolean;
-  subscriptionPrice?: string;
-}) => Boolean(profile.subscriptionEnabled && profile.subscriptionPrice);
-
 export const tracksService = {
   async listTracks() {
     const tracks = await tracksRepository.list();
@@ -177,10 +172,6 @@ export const tracksService = {
       throw new Error("Create a profile before creating tracks");
     }
 
-    if (input.access === "subscribers" && !hasEnabledSubscriptionPlan(profile)) {
-      throw new Error("Set up and enable your artist subscription plan before publishing subscriber-only tracks");
-    }
-
     const timestamp = new Date().toISOString();
     const parsed = trackCreateSchema.parse(input);
     const purchaseEnabled =
@@ -255,10 +246,6 @@ export const tracksService = {
 
     const parsed = trackAccessUpdateSchema.parse(input);
 
-    if (parsed.access === "subscribers" && !hasEnabledSubscriptionPlan(profile)) {
-      throw new Error("Set up and enable your artist subscription plan before publishing subscriber-only tracks");
-    }
-
     return tracksRepository.upsert({
       ...existing,
       access: parsed.access,
@@ -291,10 +278,6 @@ export const tracksService = {
     }
 
     const parsed = trackMonetizationUpdateSchema.parse(input);
-
-    if (parsed.access === "subscribers" && !hasEnabledSubscriptionPlan(profile)) {
-      throw new Error("Set up and enable your artist subscription plan before publishing subscriber-only tracks");
-    }
 
     const purchaseEnabled =
       parsed.purchaseEnabled ?? parsed.access === "purchase_required";
