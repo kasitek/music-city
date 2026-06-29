@@ -2,17 +2,22 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import {
   CreditCard,
+  Eye,
+  EyeOff,
   LayoutDashboard,
   LogOut,
+  RefreshCw,
   ShieldCheck,
   UserPlus,
   Users,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import type {
   AdminAccount,
   AdminPlatformSubscriptionSettings,
+  AdminTreasuryOverview,
   AdminRole,
 } from "@music-city/shared";
 
@@ -43,6 +48,12 @@ const navItems = [
     description: "Access control",
     icon: Users,
   },
+  {
+    href: "/console/treasury",
+    label: "Treasury",
+    description: "Receiving wallet",
+    icon: Wallet,
+  },
 ];
 
 const formatRole = (role: AdminRole) =>
@@ -53,6 +64,45 @@ const fieldClassName =
   "h-10 rounded-md border border-white/10 bg-[#0b1220] px-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300/35 focus:ring-2 focus:ring-emerald-300/15";
 const selectClassName =
   "flex h-10 w-full rounded-md border border-white/10 bg-[#0b1220] px-3 text-sm text-white outline-none transition focus:border-emerald-300/35 focus:ring-2 focus:ring-emerald-300/15";
+
+const PasswordField = ({
+  id,
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+}: {
+  id: string;
+  value: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder: string;
+  autoComplete?: string;
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={isVisible ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className={cn(fieldClassName, "pr-10")}
+        required
+      />
+      <button
+        type="button"
+        onClick={() => setIsVisible((current) => !current)}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 transition hover:text-slate-200"
+        aria-label={isVisible ? "Hide password" : "Show password"}
+      >
+        {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+};
 
 const StatTile = ({
   label,
@@ -90,6 +140,18 @@ const SectionHeader = ({
     {action ? <div>{action}</div> : null}
   </div>
 );
+
+const formatBalanceAmount = (value: string) => {
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return value;
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 7,
+  }).format(numeric);
+};
 
 const LoadingScreen = ({ label }: { label: string }) => (
   <div className="flex min-h-screen items-center justify-center bg-[#0a1120] px-6">
@@ -309,17 +371,14 @@ const AuthPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
+                <PasswordField
                   id="password"
-                  type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Password"
                   autoComplete={
                     mode === "bootstrap" ? "new-password" : "current-password"
                   }
-                  className={fieldClassName}
-                  required
                 />
               </div>
               <Button
@@ -636,6 +695,243 @@ const SubscriptionSettingsPage = () => {
   );
 };
 
+const TreasuryPage = () => {
+  const { admin, session } = useAdminAuth();
+  const [overview, setOverview] = useState<AdminTreasuryOverview | null>(null);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const canManageTreasury = admin?.role === "super_admin";
+
+  const loadTreasury = async (refreshOnly = false) => {
+    if (!session?.token) {
+      return;
+    }
+
+    if (refreshOnly) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
+    try {
+      const next = await adminApi.getTreasury(session.token);
+      setOverview(next);
+      setWalletAddress(next.settings.walletAddress);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load treasury");
+    } finally {
+      if (refreshOnly) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    void loadTreasury();
+  }, [session?.token]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!session?.token) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const next = await adminApi.updateTreasury(
+        { walletAddress },
+        session.token,
+      );
+      setOverview(next);
+      setWalletAddress(next.settings.walletAddress);
+      toast.success("Treasury wallet updated.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update treasury");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingScreen label="Loading treasury..." />;
+  }
+
+  return (
+    <SidebarLayout>
+      <div className="space-y-6">
+        <SectionHeader
+          title="Treasury wallet"
+          description="Set the receiving Stellar account for purchases and subscriptions."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-md px-3"
+              onClick={() => void loadTreasury(true)}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              Refresh
+            </Button>
+          }
+        />
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <StatTile
+            label="Configured"
+            value={overview?.settings.walletAddress ? "Yes" : "No"}
+          />
+          <StatTile
+            label="Account state"
+            value={
+              overview?.account
+                ? overview.account.exists
+                  ? "Funded"
+                  : "Unfunded"
+                : "Unset"
+            }
+          />
+          <StatTile
+            label="Assets"
+            value={overview?.account ? String(overview.account.balances.length) : "0"}
+          />
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <section className={cn(shellPanelClassName, "p-5")}>
+            <div className="mb-4 border-b border-white/8 pb-3">
+              <h3 className="text-sm font-semibold text-white">Receiving account</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                This wallet becomes the destination for new payment intents.
+              </p>
+            </div>
+
+            {canManageTreasury ? (
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div className="space-y-2">
+                  <Label htmlFor="treasury-wallet-address">Wallet address</Label>
+                  <Input
+                    id="treasury-wallet-address"
+                    value={walletAddress}
+                    onChange={(event) => setWalletAddress(event.target.value.trim())}
+                    placeholder="G..."
+                    className={fieldClassName}
+                    required
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="submit"
+                    className="h-10 rounded-md px-4"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Save wallet"}
+                  </Button>
+                  <p className="text-sm text-slate-400">
+                    New checkouts will use this address immediately.
+                  </p>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Wallet address</Label>
+                  <div className={cn(fieldClassName, "flex items-center break-all")}>
+                    {overview?.settings.walletAddress || "No wallet configured"}
+                  </div>
+                </div>
+                <p className="text-sm text-slate-400">
+                  Only super admins can change the receiving account.
+                </p>
+              </div>
+            )}
+          </section>
+
+          <aside className="space-y-4">
+            <section className={cn(shellPanelClassName, "p-5")}>
+              <h3 className="text-sm font-semibold text-white">Wallet status</h3>
+              <div className="mt-4 space-y-3 text-sm">
+                <div>
+                  <p className="text-slate-500">Address</p>
+                  <p className="mt-1 break-all text-slate-200">
+                    {overview?.settings.walletAddress || "Not configured"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Sequence</p>
+                  <p className="mt-1 text-slate-200">
+                    {overview?.account?.sequence || "Not available"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Subentries</p>
+                  <p className="mt-1 text-slate-200">
+                    {overview?.account?.subentryCount ?? 0}
+                  </p>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <section className={cn(shellPanelClassName, "overflow-hidden")}>
+          <div className="border-b border-white/8 px-4 py-3">
+            <h3 className="text-sm font-semibold text-white">Balances</h3>
+          </div>
+          {!overview?.account ? (
+            <div className="px-4 py-8 text-sm text-slate-400">
+              Set a treasury wallet address to view balances.
+            </div>
+          ) : !overview.account.exists ? (
+            <div className="px-4 py-8 text-sm text-slate-400">
+              This Stellar account is not funded yet.
+            </div>
+          ) : overview.account.balances.length === 0 ? (
+            <div className="px-4 py-8 text-sm text-slate-400">
+              No balances found on this account.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-[120px_1fr_1fr_120px] gap-4 border-b border-white/8 px-4 py-3 text-[0.68rem] uppercase tracking-[0.18em] text-slate-500">
+                <span>Asset</span>
+                <span>Total</span>
+                <span>Available</span>
+                <span>Issuer</span>
+              </div>
+              {overview.account.balances.map((balance) => (
+                <div
+                  key={balance.assetKey}
+                  className="grid grid-cols-[120px_1fr_1fr_120px] gap-4 border-t border-white/6 px-4 py-4 text-sm"
+                >
+                  <span className="font-medium text-white">{balance.assetCode}</span>
+                  <span className="text-slate-300">
+                    {formatBalanceAmount(balance.amount)}
+                  </span>
+                  <span className="text-slate-300">
+                    {formatBalanceAmount(balance.availableAmount)}
+                  </span>
+                  <span className="truncate text-slate-500">
+                    {balance.assetIssuer
+                      ? `${balance.assetIssuer.slice(0, 6)}...${balance.assetIssuer.slice(-4)}`
+                      : "Native"}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+        </section>
+      </div>
+    </SidebarLayout>
+  );
+};
+
 const AdminManagementPage = () => {
   const { admin, session } = useAdminAuth();
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
@@ -787,13 +1083,12 @@ const AdminManagementPage = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="admin-password">Temporary password</Label>
-                    <Input
+                    <PasswordField
                       id="admin-password"
-                      type="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      className={fieldClassName}
-                      required
+                      placeholder="Temporary password"
+                      autoComplete="new-password"
                     />
                   </div>
                   <div className="space-y-2">
@@ -881,6 +1176,14 @@ export const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AdminManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/console/treasury"
+        element={
+          <ProtectedRoute>
+            <TreasuryPage />
           </ProtectedRoute>
         }
       />

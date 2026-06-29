@@ -2,6 +2,8 @@ import type {
   AdminAccount,
   AdminBootstrapStatus,
   AdminPlatformSubscriptionSettings,
+  AdminTreasuryOverview,
+  AdminTreasurySettings,
   AdminSession,
   AdminLoginInput,
   BootstrapAdminInput,
@@ -64,5 +66,13 @@ export const adminApi = {
         token,
       )
       .then((response) => response.settings);
+  },
+
+  getTreasury(token: string) {
+    return httpClient.get<AdminTreasuryOverview>("/treasury", token);
+  },
+
+  updateTreasury(input: AdminTreasurySettings, token: string) {
+    return httpClient.put<AdminTreasuryOverview>("/treasury", input, token);
   },
 };

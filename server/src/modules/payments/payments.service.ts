@@ -20,6 +20,7 @@ import { normalizePositiveAmount, normalizeStellarAsset } from "../../utils/comm
 import { HttpError } from "../../utils/http-error.js";
 import { paymentsRepository } from "./payments.repository.js";
 import { subscriptionsService } from "../subscriptions/subscriptions.service.js";
+import { adminService } from "../admin/admin.service.js";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
@@ -48,15 +49,7 @@ const settlementAsset = (): StellarAssetDescriptor => ({
   ),
 });
 
-const requireTreasuryAddress = () => {
-  if (!env.STELLAR_TREASURY_ADDRESS) {
-    throw new HttpError(500, "STELLAR_TREASURY_ADDRESS is not configured");
-  }
-
-  return env.STELLAR_TREASURY_ADDRESS;
-};
-
-const createIntentRecord = (input: {
+const createIntentRecord = async (input: {
   walletAddress: string;
   productType: PaymentProductType;
   subscriptionScope?: SubscriptionScope;
@@ -68,6 +61,7 @@ const createIntentRecord = (input: {
   const timestamp = new Date().toISOString();
   const id = createId("payi");
   const preciseAmount = withIntentPrecision(input.amount, id);
+  const destinationAddress = await adminService.getTreasuryWalletAddress();
 
   return paymentIntentSchema.parse({
     id,
@@ -79,7 +73,7 @@ const createIntentRecord = (input: {
     amount: preciseAmount,
     assetCode: input.asset.code,
     assetIssuer: input.asset.issuer,
-    destinationAddress: requireTreasuryAddress(),
+    destinationAddress,
     memo: `${input.productType}:${id}`,
     status: "pending",
     expiresAt: new Date(Date.now() + INTENT_TTL_MS).toISOString(),
@@ -274,7 +268,7 @@ export const paymentsService = {
       throw new HttpError(400, "Track is already unlocked for this wallet");
     }
 
-    const intent = createIntentRecord({
+    const intent = await createIntentRecord({
       walletAddress,
       productType: "track_purchase",
       trackId,
@@ -315,7 +309,7 @@ export const paymentsService = {
       throw new HttpError(400, "Artist subscription is already active");
     }
 
-    const intent = createIntentRecord({
+    const intent = await createIntentRecord({
       walletAddress,
       productType: "artist_subscription",
       artistId,
@@ -346,7 +340,7 @@ export const paymentsService = {
       throw new HttpError(400, "Platform subscription is already active");
     }
 
-    const intent = createIntentRecord({
+    const intent = await createIntentRecord({
       walletAddress,
       productType: "platform_subscription",
       subscriptionScope: "platform",

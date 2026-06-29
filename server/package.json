@@ -10,7 +10,8 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
-    "db:bootstrap": "tsx src/scripts/bootstrap-postgres.ts"
+    "db:bootstrap": "tsx src/scripts/bootstrap-postgres.ts",
+    "admin:reset-password": "tsx src/scripts/reset-admin-password.ts"
   },
   "dependencies": {
     "@music-city/shared": "workspace:*",

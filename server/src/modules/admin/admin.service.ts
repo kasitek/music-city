@@ -1,12 +1,16 @@
 import {
   adminAccountSchema,
   adminPlatformSubscriptionSettingsSchema,
+  adminTreasuryOverviewSchema,
+  adminTreasurySettingsSchema,
   adminSessionSchema,
   bootstrapAdminInputSchema,
   createAdminInputSchema,
   adminLoginInputSchema,
   type AdminAccount,
   type AdminPlatformSubscriptionSettings,
+  type AdminTreasuryOverview,
+  type AdminTreasurySettings,
   type AdminSession,
 } from "@music-city/shared";
 
@@ -15,12 +19,14 @@ import { databaseService } from "../../services/database.service.js";
 import { createId } from "../../services/id.service.js";
 import { passwordService } from "../../services/password.service.js";
 import { HttpError } from "../../utils/http-error.js";
+import { walletService } from "../wallet/wallet.service.js";
 
 type PersistedAdminAccount = AdminAccount & {
   passwordHash: string;
 };
 
 const PLATFORM_SUBSCRIPTION_SETTINGS_KEY = "platform_subscription_settings";
+const TREASURY_SETTINGS_KEY = "treasury_wallet_settings";
 
 const defaultPlatformSettings = (): AdminPlatformSubscriptionSettings => ({
   enabled: env.PLATFORM_SUBSCRIPTION_ENABLED,
@@ -30,6 +36,10 @@ const defaultPlatformSettings = (): AdminPlatformSubscriptionSettings => ({
   assetCode: env.PLATFORM_SUBSCRIPTION_ASSET_CODE,
   assetIssuer: env.PLATFORM_SUBSCRIPTION_ASSET_ISSUER ?? "",
   periodDays: env.PLATFORM_SUBSCRIPTION_PERIOD_DAYS,
+});
+
+const defaultTreasurySettings = (): AdminTreasurySettings => ({
+  walletAddress: env.STELLAR_TREASURY_ADDRESS?.trim() ?? "",
 });
 
 const toAdminSession = (admin: PersistedAdminAccount): Omit<AdminSession, "token"> =>
@@ -169,5 +179,46 @@ export const adminService = {
     );
 
     return normalized;
+  },
+
+  async getTreasurySettings() {
+    const stored = await databaseService.findSetting<AdminTreasurySettings>(
+      TREASURY_SETTINGS_KEY,
+    );
+
+    return adminTreasurySettingsSchema.parse(stored ?? defaultTreasurySettings());
+  },
+
+  async getTreasuryOverview(): Promise<AdminTreasuryOverview> {
+    const settings = await this.getTreasurySettings();
+    const account = settings.walletAddress
+      ? await walletService.getWalletAccount(settings.walletAddress)
+      : null;
+
+    return adminTreasuryOverviewSchema.parse({
+      settings,
+      account,
+    });
+  },
+
+  async updateTreasurySettings(input: unknown) {
+    const parsed = adminTreasurySettingsSchema.parse(input);
+    const normalized = {
+      walletAddress: parsed.walletAddress.trim(),
+    };
+
+    await databaseService.upsertSetting(TREASURY_SETTINGS_KEY, normalized);
+
+    return this.getTreasuryOverview();
+  },
+
+  async getTreasuryWalletAddress() {
+    const settings = await this.getTreasurySettings();
+
+    if (!settings.walletAddress) {
+      throw new HttpError(500, "Stellar treasury wallet is not configured");
+    }
+
+    return settings.walletAddress;
   },
 };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { positiveAmountSchema } from "./commerce.js";
+import { positiveAmountSchema, stellarWalletAddressSchema } from "./commerce.js";
+import { walletAccountSchema } from "./wallet.js";
 
 export const adminRoleSchema = z.enum(["super_admin", "admin"]);
 export type AdminRole = z.infer<typeof adminRoleSchema>;
@@ -62,3 +63,14 @@ export const adminPlatformSubscriptionSettingsSchema = z.object({
 export type AdminPlatformSubscriptionSettings = z.infer<
   typeof adminPlatformSubscriptionSettingsSchema
 >;
+
+export const adminTreasurySettingsSchema = z.object({
+  walletAddress: stellarWalletAddressSchema.or(z.literal("")),
+});
+export type AdminTreasurySettings = z.infer<typeof adminTreasurySettingsSchema>;
+
+export const adminTreasuryOverviewSchema = z.object({
+  settings: adminTreasurySettingsSchema,
+  account: walletAccountSchema.nullable(),
+});
+export type AdminTreasuryOverview = z.infer<typeof adminTreasuryOverviewSchema>;

@@ -103,4 +103,21 @@ adminRouter.put(
   }),
 );
 
+adminRouter.get(
+  "/treasury",
+  requireAdminSession,
+  asyncHandler(async (_request, response) => {
+    response.json(await adminService.getTreasuryOverview());
+  }),
+);
+
+adminRouter.put(
+  "/treasury",
+  requireAdminSession,
+  requireSuperAdmin,
+  asyncHandler(async (request, response) => {
+    response.json(await adminService.updateTreasurySettings(request.body));
+  }),
+);
+
 export { adminRouter };
