@@ -11,10 +11,18 @@ import { apiRouter } from "../routes/index.js";
 
 export const createApp = () => {
   const app = express();
+  const allowedOrigins = [env.CLIENT_ORIGIN, env.ADMIN_CLIENT_ORIGIN].filter(Boolean);
 
   app.use(
     cors({
-      origin: env.CLIENT_ORIGIN,
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error("Origin not allowed by CORS"));
+      },
       credentials: true,
     }),
   );

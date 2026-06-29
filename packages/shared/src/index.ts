@@ -1,3 +1,4 @@
+export * from "./admin.js";
 export * from "./auth.js";
 export * from "./archive.js";
 export * from "./commerce.js";
@@ -7,3 +8,4 @@ export * from "./payments.js";
 export * from "./playback.js";
 export * from "./uploads.js";
 export * from "./user.js";
+export * from "./wallet.js";

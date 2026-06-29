@@ -1,6 +1,11 @@
 import jwt from "jsonwebtoken";
 
-import { authSessionSchema, type AuthSession } from "@music-city/shared";
+import {
+  adminSessionSchema,
+  authSessionSchema,
+  type AdminSession,
+  type AuthSession,
+} from "@music-city/shared";
 
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/http-error.js";
@@ -16,6 +21,19 @@ export const tokenService = {
       return authSessionSchema.parse(decoded);
     } catch {
       throw new HttpError(401, "Invalid or expired session");
+    }
+  },
+
+  issueAdminSession(session: Omit<AdminSession, "token">) {
+    return jwt.sign(session, env.ADMIN_JWT_SECRET, { expiresIn: "12h" });
+  },
+
+  verifyAdminSession(token: string) {
+    try {
+      const decoded = jwt.verify(token, env.ADMIN_JWT_SECRET);
+      return adminSessionSchema.parse(decoded);
+    } catch {
+      throw new HttpError(401, "Invalid or expired admin session");
     }
   },
 

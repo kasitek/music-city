@@ -43,6 +43,18 @@ export const clientEnv = {
       "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE",
       "Test SDF Network ; September 2015",
     ) ?? "Test SDF Network ; September 2015",
+  stellarTestnetUsdcCode:
+    readClientEnv(
+      "VITE_STELLAR_TESTNET_USDC_CODE",
+      "NEXT_PUBLIC_STELLAR_TESTNET_USDC_CODE",
+      "USDC",
+    ) ?? "USDC",
+  stellarTestnetUsdcIssuer:
+    readClientEnv(
+      "VITE_STELLAR_TESTNET_USDC_ISSUER",
+      "NEXT_PUBLIC_STELLAR_TESTNET_USDC_ISSUER",
+      "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+    ) ?? "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
   isDynamicConfigured:
     dynamicEnvironmentId !== "dynamic-environment-id-required",
 };

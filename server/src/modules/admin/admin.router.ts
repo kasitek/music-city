@@ -1,0 +1,106 @@
+import { Router } from "express";
+
+import { requireAdminSession } from "../../middleware/require-admin-session.js";
+import { requireSuperAdmin } from "../../middleware/require-super-admin.js";
+import { tokenService } from "../../services/token.service.js";
+import { asyncHandler } from "../../utils/async-handler.js";
+import { adminService } from "./admin.service.js";
+
+const adminRouter = Router();
+
+adminRouter.get(
+  "/auth/bootstrap-status",
+  asyncHandler(async (_request, response) => {
+    response.json({
+      bootstrapRequired: await adminService.bootstrapRequired(),
+    });
+  }),
+);
+
+adminRouter.post(
+  "/auth/bootstrap",
+  asyncHandler(async (request, response) => {
+    const result = await adminService.bootstrap(request.body);
+    const token = tokenService.issueAdminSession(result.session);
+
+    response.status(201).json({
+      admin: result.admin,
+      session: {
+        ...result.session,
+        token,
+      },
+    });
+  }),
+);
+
+adminRouter.post(
+  "/auth/login",
+  asyncHandler(async (request, response) => {
+    const result = await adminService.login(request.body);
+    const token = tokenService.issueAdminSession(result.session);
+
+    response.json({
+      admin: result.admin,
+      session: {
+        ...result.session,
+        token,
+      },
+    });
+  }),
+);
+
+adminRouter.get(
+  "/auth/me",
+  requireAdminSession,
+  asyncHandler(async (request, response) => {
+    response.json({
+      admin: await adminService.getAdminById(request.adminSession!.adminId),
+      session: request.adminSession,
+    });
+  }),
+);
+
+adminRouter.get(
+  "/admins",
+  requireAdminSession,
+  asyncHandler(async (_request, response) => {
+    response.json({
+      items: await adminService.listAdmins(),
+    });
+  }),
+);
+
+adminRouter.post(
+  "/admins",
+  requireAdminSession,
+  requireSuperAdmin,
+  asyncHandler(async (request, response) => {
+    response.status(201).json({
+      admin: await adminService.createAdmin(request.body),
+    });
+  }),
+);
+
+adminRouter.get(
+  "/subscriptions/platform-plan",
+  requireAdminSession,
+  asyncHandler(async (_request, response) => {
+    response.json({
+      settings: await adminService.getPlatformSubscriptionSettings(),
+    });
+  }),
+);
+
+adminRouter.put(
+  "/subscriptions/platform-plan",
+  requireAdminSession,
+  asyncHandler(async (request, response) => {
+    response.json({
+      settings: await adminService.updatePlatformSubscriptionSettings(
+        request.body,
+      ),
+    });
+  }),
+);
+
+export { adminRouter };
