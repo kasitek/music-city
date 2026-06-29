@@ -11,6 +11,18 @@ import { tracksService } from "../tracks/tracks.service.js";
 const expiresInMinutes = (minutes: number) =>
   new Date(Date.now() + minutes * 60 * 1000).toISOString();
 
+const resolveTrackPlaybackUrl = (track: {
+  mediaProvider?: "local" | "mux";
+  streamMediaUrl?: string;
+  masterStorageKey?: string;
+}) => {
+  if (track.mediaProvider !== "mux" && track.masterStorageKey) {
+    return storageService.getDownloadUrl(track.masterStorageKey);
+  }
+
+  return track.streamMediaUrl;
+};
+
 export const playbackService = {
   async createSession(trackId: string) {
     const track = await tracksService.getTrackForPlayback(trackId);
@@ -36,11 +48,17 @@ export const playbackService = {
         expiresAt: expiresInMinutes(15),
       };
     } else {
+      const streamUrl = resolveTrackPlaybackUrl(track);
+
+      if (!streamUrl) {
+        throw new HttpError(404, "Track playback URL is not available");
+      }
+
       session = {
         id,
         trackId,
         provider: "local",
-        streamUrl: `/api/v1/playback/sessions/${id}/media?token=${encodeURIComponent(token)}`,
+        streamUrl,
         token,
         expiresAt: expiresInMinutes(5),
       };
@@ -77,9 +95,7 @@ export const playbackService = {
       throw new HttpError(404, "Track media is not available");
     }
 
-    const baseUrl =
-      track.streamMediaUrl ??
-      (track.masterStorageKey ? storageService.getDownloadUrl(track.masterStorageKey) : undefined);
+    const baseUrl = resolveTrackPlaybackUrl(track);
 
     if (!baseUrl) {
       throw new HttpError(404, "Track playback URL is not available");
@@ -114,14 +130,12 @@ export const playbackService = {
       throw new HttpError(404, "Track media is not available");
     }
 
-    if (track.streamMediaUrl) {
-      return track.streamMediaUrl;
-    }
+    const streamUrl = resolveTrackPlaybackUrl(track);
 
-    if (!track.masterStorageKey) {
+    if (!streamUrl) {
       throw new HttpError(404, "Track media is not available");
     }
 
-    return storageService.getDownloadUrl(track.masterStorageKey);
+    return streamUrl;
   },
 };

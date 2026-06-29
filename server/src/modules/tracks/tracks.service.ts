@@ -30,12 +30,27 @@ const formatRuntime = (seconds?: number) => {
 
 const hydrateTrackUrls = <T extends { coverStorageKey?: string; coverImageUrl?: string }>(
   track: T,
-) => ({
-  ...track,
-  coverImageUrl: track.coverStorageKey
-    ? storageService.getDownloadUrl(track.coverStorageKey)
-    : track.coverImageUrl,
-});
+) => {
+  const nextTrack = {
+    ...track,
+    coverImageUrl: track.coverStorageKey
+      ? storageService.getDownloadUrl(track.coverStorageKey)
+      : track.coverImageUrl,
+  } as T & {
+    masterStorageKey?: string;
+    mediaProvider?: "local" | "mux";
+    streamMediaUrl?: string;
+    playbackUrl?: string;
+  };
+
+  if (nextTrack.masterStorageKey && nextTrack.mediaProvider !== "mux") {
+    const freshMediaUrl = storageService.getDownloadUrl(nextTrack.masterStorageKey);
+    nextTrack.streamMediaUrl = freshMediaUrl;
+    nextTrack.playbackUrl = freshMediaUrl;
+  }
+
+  return nextTrack;
+};
 
 export const tracksService = {
   async listTracks() {
