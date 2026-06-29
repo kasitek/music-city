@@ -54,16 +54,18 @@ export const SiteHeader = () => {
                 {session.walletAddress.slice(0, 6)}...
                 {session.walletAddress.slice(-4)}
               </span>
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-full border-white/10 bg-white/[0.04] text-white hover:bg-white/10"
-              >
-                <Link href="/dashboard">
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Workspace
-                </Link>
-              </Button>
+              {session.role === "artist" ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="rounded-full border-white/10 bg-white/[0.04] text-white hover:bg-white/10"
+                >
+                  <Link href="/dashboard">
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Workspace
+                  </Link>
+                </Button>
+              ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
