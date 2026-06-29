@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-import { positiveAmountSchema, stellarWalletAddressSchema } from "./commerce.js";
+import {
+  optionalStellarAssetIssuerSchema,
+  positiveAmountSchema,
+  stellarAssetCodeSchema,
+  stellarWalletAddressSchema,
+} from "./commerce.js";
+import {
+  subscriptionScopeSchema,
+  subscriptionStatusSchema,
+} from "./payments.js";
 import { walletAccountSchema } from "./wallet.js";
 
 export const adminRoleSchema = z.enum(["super_admin", "admin"]);
@@ -74,3 +83,40 @@ export const adminTreasuryOverviewSchema = z.object({
   account: walletAccountSchema.nullable(),
 });
 export type AdminTreasuryOverview = z.infer<typeof adminTreasuryOverviewSchema>;
+
+export const adminSubscriptionRecordSchema = z.object({
+  id: z.string().min(1),
+  walletAddress: stellarWalletAddressSchema,
+  scope: subscriptionScopeSchema,
+  status: subscriptionStatusSchema,
+  artistId: z.string().optional(),
+  artistName: z.string().optional(),
+  paymentId: z.string().min(1),
+  amount: positiveAmountSchema.optional(),
+  assetCode: stellarAssetCodeSchema.optional(),
+  assetIssuer: optionalStellarAssetIssuerSchema,
+  startsAt: z.string(),
+  endsAt: z.string(),
+  confirmedAt: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type AdminSubscriptionRecord = z.infer<
+  typeof adminSubscriptionRecordSchema
+>;
+
+export const adminSubscriptionSummarySchema = z.object({
+  total: z.number().int().nonnegative(),
+  active: z.number().int().nonnegative(),
+  platform: z.number().int().nonnegative(),
+  artist: z.number().int().nonnegative(),
+});
+export type AdminSubscriptionSummary = z.infer<
+  typeof adminSubscriptionSummarySchema
+>;
+
+export const adminSubscriptionListSchema = z.object({
+  summary: adminSubscriptionSummarySchema,
+  items: z.array(adminSubscriptionRecordSchema),
+});
+export type AdminSubscriptionList = z.infer<typeof adminSubscriptionListSchema>;

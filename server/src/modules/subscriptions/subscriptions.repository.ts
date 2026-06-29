@@ -7,6 +7,10 @@ export const subscriptionsRepository = {
     return databaseService.findPayloadById<SubscriptionRecord>("subscriptions", id);
   },
 
+  async listAll() {
+    return databaseService.listPayloads<SubscriptionRecord>("subscriptions");
+  },
+
   async listByWallet(walletAddress: string) {
     return databaseService.listSubscriptionsByWallet<SubscriptionRecord>(
       walletAddress,

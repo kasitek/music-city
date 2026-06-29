@@ -104,6 +104,14 @@ adminRouter.put(
 );
 
 adminRouter.get(
+  "/subscriptions",
+  requireAdminSession,
+  asyncHandler(async (_request, response) => {
+    response.json(await adminService.listSubscriptions());
+  }),
+);
+
+adminRouter.get(
   "/treasury",
   requireAdminSession,
   asyncHandler(async (_request, response) => {

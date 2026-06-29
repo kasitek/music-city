@@ -38,6 +38,10 @@ export const paymentsRepository = {
     return databaseService.findPayloadById<PaymentRecord>("payments", id);
   },
 
+  async listAllPayments() {
+    return databaseService.listPayloads<PaymentRecord>("payments");
+  },
+
   async findPaymentByTxHash(txHash: string) {
     return databaseService.findPaymentByTxHash<PaymentRecord>(txHash);
   },

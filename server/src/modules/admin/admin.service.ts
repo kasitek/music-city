@@ -1,6 +1,8 @@
 import {
   adminAccountSchema,
   adminPlatformSubscriptionSettingsSchema,
+  adminSubscriptionListSchema,
+  adminSubscriptionRecordSchema,
   adminTreasuryOverviewSchema,
   adminTreasurySettingsSchema,
   adminSessionSchema,
@@ -9,9 +11,13 @@ import {
   adminLoginInputSchema,
   type AdminAccount,
   type AdminPlatformSubscriptionSettings,
+  type AdminSubscriptionList,
+  type AdminSubscriptionRecord,
   type AdminTreasuryOverview,
   type AdminTreasurySettings,
   type AdminSession,
+  type PaymentRecord,
+  type SubscriptionRecord,
 } from "@music-city/shared";
 
 import { env } from "../../config/env.js";
@@ -20,6 +26,9 @@ import { createId } from "../../services/id.service.js";
 import { passwordService } from "../../services/password.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { walletService } from "../wallet/wallet.service.js";
+import { paymentsRepository } from "../payments/payments.repository.js";
+import { subscriptionsRepository } from "../subscriptions/subscriptions.repository.js";
+import { usersService } from "../users/users.service.js";
 
 type PersistedAdminAccount = AdminAccount & {
   passwordHash: string;
@@ -41,6 +50,13 @@ const defaultPlatformSettings = (): AdminPlatformSubscriptionSettings => ({
 const defaultTreasurySettings = (): AdminTreasurySettings => ({
   walletAddress: env.STELLAR_TREASURY_ADDRESS?.trim() ?? "",
 });
+
+const nowMs = () => Date.now();
+
+const normalizeSubscriptionStatus = (subscription: SubscriptionRecord) =>
+  subscription.status === "active" && Date.parse(subscription.endsAt) <= nowMs()
+    ? "expired"
+    : subscription.status;
 
 const toAdminSession = (admin: PersistedAdminAccount): Omit<AdminSession, "token"> =>
   adminSessionSchema.omit({ token: true }).parse({
@@ -220,5 +236,63 @@ export const adminService = {
     }
 
     return settings.walletAddress;
+  },
+
+  async listSubscriptions(): Promise<AdminSubscriptionList> {
+    const [subscriptions, payments] = await Promise.all([
+      subscriptionsRepository.listAll(),
+      paymentsRepository.listAllPayments(),
+    ]);
+
+    const paymentById = new Map<string, PaymentRecord>(
+      payments.map((payment) => [payment.id, payment]),
+    );
+    const artistIds = [...new Set(subscriptions.map((item) => item.artistId).filter(Boolean))];
+    const artistProfiles = await Promise.all(
+      artistIds.map(async (artistId) => [artistId, await usersService.getProfileById(artistId!)] as const),
+    );
+    const artistNameById = new Map<string, string>(
+      artistProfiles
+        .filter((entry): entry is readonly [string, NonNullable<(typeof artistProfiles)[number][1]>] => Boolean(entry[1]))
+        .map(([artistId, profile]) => [artistId, profile.displayName]),
+    );
+
+    const items = subscriptions
+      .map((subscription) => {
+        const payment = paymentById.get(subscription.paymentId);
+
+        return adminSubscriptionRecordSchema.parse({
+          id: subscription.id,
+          walletAddress: subscription.walletAddress,
+          scope: subscription.scope,
+          status: normalizeSubscriptionStatus(subscription),
+          artistId: subscription.artistId,
+          artistName: subscription.artistId
+            ? artistNameById.get(subscription.artistId)
+            : undefined,
+          paymentId: subscription.paymentId,
+          amount: payment?.amount,
+          assetCode: payment?.assetCode,
+          assetIssuer: payment?.assetIssuer,
+          startsAt: subscription.startsAt,
+          endsAt: subscription.endsAt,
+          confirmedAt: payment?.confirmedAt,
+          createdAt: subscription.createdAt,
+          updatedAt: subscription.updatedAt,
+        });
+      })
+      .sort((left, right) => Date.parse(right.endsAt) - Date.parse(left.endsAt));
+
+    const summary = {
+      total: items.length,
+      active: items.filter((item) => item.status === "active").length,
+      platform: items.filter((item) => item.scope === "platform").length,
+      artist: items.filter((item) => item.scope === "artist").length,
+    };
+
+    return adminSubscriptionListSchema.parse({
+      summary,
+      items,
+    });
   },
 };

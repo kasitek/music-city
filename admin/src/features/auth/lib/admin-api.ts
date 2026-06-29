@@ -2,6 +2,7 @@ import type {
   AdminAccount,
   AdminBootstrapStatus,
   AdminPlatformSubscriptionSettings,
+  AdminSubscriptionList,
   AdminTreasuryOverview,
   AdminTreasurySettings,
   AdminSession,
@@ -70,6 +71,10 @@ export const adminApi = {
 
   getTreasury(token: string) {
     return httpClient.get<AdminTreasuryOverview>("/treasury", token);
+  },
+
+  listSubscriptions(token: string) {
+    return httpClient.get<AdminSubscriptionList>("/subscriptions", token);
   },
 
   updateTreasury(input: AdminTreasurySettings, token: string) {

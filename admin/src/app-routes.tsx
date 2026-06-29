@@ -8,6 +8,7 @@ import {
   LogOut,
   RefreshCw,
   ShieldCheck,
+  Ticket,
   UserPlus,
   Users,
   Wallet,
@@ -17,6 +18,7 @@ import { toast } from "sonner";
 import type {
   AdminAccount,
   AdminPlatformSubscriptionSettings,
+  AdminSubscriptionList,
   AdminTreasuryOverview,
   AdminRole,
 } from "@music-city/shared";
@@ -47,6 +49,12 @@ const navItems = [
     label: "Admins",
     description: "Access control",
     icon: Users,
+  },
+  {
+    href: "/console/subscribers",
+    label: "Subscribers",
+    description: "All subscriptions",
+    icon: Ticket,
   },
   {
     href: "/console/treasury",
@@ -151,6 +159,26 @@ const formatBalanceAmount = (value: string) => {
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 7,
   }).format(numeric);
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 };
 
 const LoadingScreen = ({ label }: { label: string }) => (
@@ -932,6 +960,129 @@ const TreasuryPage = () => {
   );
 };
 
+const SubscribersPage = () => {
+  const { session } = useAdminAuth();
+  const [data, setData] = useState<AdminSubscriptionList | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      if (!session?.token) {
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const next = await adminApi.listSubscriptions(session.token);
+
+        if (!cancelled) {
+          setData(next);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error ? error.message : "Failed to load subscribers",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.token]);
+
+  if (isLoading) {
+    return <LoadingScreen label="Loading subscribers..." />;
+  }
+
+  return (
+    <SidebarLayout>
+      <div className="space-y-6">
+        <SectionHeader
+          title="Subscribers"
+          description="See every platform and artist subscription across the app."
+        />
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <StatTile label="Total" value={String(data?.summary.total ?? 0)} />
+          <StatTile label="Active" value={String(data?.summary.active ?? 0)} />
+          <StatTile label="Platform" value={String(data?.summary.platform ?? 0)} />
+          <StatTile label="Artist" value={String(data?.summary.artist ?? 0)} />
+        </div>
+
+        {!data || data.items.length === 0 ? (
+          <EmptyState
+            title="No subscriptions yet"
+            description="As users subscribe, their records will appear here."
+          />
+        ) : (
+          <section className={cn(shellPanelClassName, "overflow-hidden")}>
+            <div className="grid grid-cols-[1.2fr_110px_110px_140px_140px_160px_160px] gap-4 border-b border-white/8 px-4 py-3 text-[0.68rem] uppercase tracking-[0.18em] text-slate-500">
+              <span>Subscriber</span>
+              <span>Scope</span>
+              <span>Status</span>
+              <span>Amount</span>
+              <span>Artist</span>
+              <span>Started</span>
+              <span>Ends</span>
+            </div>
+            {data.items.map((item) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-[1.2fr_110px_110px_140px_140px_160px_160px] gap-4 border-t border-white/6 px-4 py-4 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-white">
+                    {item.walletAddress}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-slate-500">
+                    Payment {item.paymentId}
+                  </p>
+                </div>
+                <div>
+                  <span className="inline-flex border border-white/10 px-2 py-1 text-xs text-slate-300">
+                    {item.scope}
+                  </span>
+                </div>
+                <div>
+                  <span
+                    className={cn(
+                      "inline-flex border px-2 py-1 text-xs",
+                      item.status === "active"
+                        ? "border-emerald-400/25 bg-emerald-400/8 text-emerald-200"
+                        : "border-white/10 text-slate-300",
+                    )}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+                <div className="text-slate-300">
+                  {item.amount && item.assetCode
+                    ? `${formatBalanceAmount(item.amount)} ${item.assetCode}`
+                    : "—"}
+                </div>
+                <div className="text-slate-300">{item.artistName ?? "Platform"}</div>
+                <div className="text-slate-300">{formatDateTime(item.startsAt)}</div>
+                <div className="text-slate-300">{formatDateTime(item.endsAt)}</div>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+    </SidebarLayout>
+  );
+};
+
 const AdminManagementPage = () => {
   const { admin, session } = useAdminAuth();
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
@@ -1176,6 +1327,14 @@ export const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AdminManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/console/subscribers"
+        element={
+          <ProtectedRoute>
+            <SubscribersPage />
           </ProtectedRoute>
         }
       />
