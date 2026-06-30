@@ -47,6 +47,15 @@ const defaultPlatformSettings = (): AdminPlatformSubscriptionSettings => ({
   periodDays: env.PLATFORM_SUBSCRIPTION_PERIOD_DAYS,
 });
 
+const normalizePlatformSettings = (
+  settings?: Partial<AdminPlatformSubscriptionSettings> | null,
+): AdminPlatformSubscriptionSettings => ({
+  ...defaultPlatformSettings(),
+  ...settings,
+  assetCode: env.PLATFORM_SUBSCRIPTION_ASSET_CODE,
+  assetIssuer: env.PLATFORM_SUBSCRIPTION_ASSET_ISSUER ?? "",
+});
+
 const defaultTreasurySettings = (): AdminTreasurySettings => ({
   walletAddress: env.STELLAR_TREASURY_ADDRESS?.trim() ?? "",
 });
@@ -178,16 +187,15 @@ export const adminService = {
       );
 
     return adminPlatformSubscriptionSettingsSchema.parse(
-      stored ?? defaultPlatformSettings(),
+      normalizePlatformSettings(stored),
     );
   },
 
   async updatePlatformSubscriptionSettings(input: unknown) {
     const parsed = adminPlatformSubscriptionSettingsSchema.parse(input);
-    const normalized = {
+    const normalized = normalizePlatformSettings({
       ...parsed,
-      assetIssuer: parsed.assetIssuer?.trim() || "",
-    };
+    });
 
     await databaseService.upsertSetting(
       PLATFORM_SUBSCRIPTION_SETTINGS_KEY,

@@ -1,38 +1,116 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  LoaderCircle,
-  Lock,
-  Sparkles,
-  Ticket,
-} from "lucide-react";
+import { useDynamicContext, useUserWallets } from "@dynamic-labs/sdk-react-core";
+import { ArrowLeft, CheckCircle2, LoaderCircle, Ticket } from "lucide-react";
 import { toast } from "sonner";
 
 import type {
   PlatformSubscriptionPlan,
   SubscriptionRecord,
   TrackSummary,
+  WalletAccount,
 } from "@music-city/shared";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrackThumbnail } from "@/features/music/components/track-table";
 import { tracksApi } from "@/features/music/lib/tracks-api";
 import { paymentsApi } from "@/features/payments/lib/payments-api";
 import { useStellarCheckout } from "@/features/payments/hooks/use-stellar-checkout";
 import { subscriptionsApi } from "@/features/subscriptions/lib/subscriptions-api";
+import { walletApi } from "@/features/wallet/lib/wallet-api";
+import {
+  ensureActiveStellarAccount,
+  resolveStellarWallet,
+} from "@/features/wallet/lib/resolve-stellar-wallet";
 import { useAuth } from "@/hooks/use-auth";
+import { clientEnv } from "@/lib/config/env";
 
 const formatAmountLabel = (plan: PlatformSubscriptionPlan | null) => {
   if (!plan) {
     return "Membership unavailable";
   }
 
-  return `${plan.price} ${plan.assetCode ?? "XLM"}`;
+  return `${plan.price} ${plan.assetCode}`;
+};
+
+const formatPeriodLabel = (periodDays: number) => {
+  if (periodDays === 30) {
+    return "Billed every 30 days";
+  }
+
+  if (periodDays === 7) {
+    return "Billed every 7 days";
+  }
+
+  return `Billed every ${periodDays} days`;
+};
+
+const describeWalletError = (caughtError: unknown, fallback: string) => {
+  if (!(caughtError instanceof Error)) {
+    return fallback;
+  }
+
+  const candidate = caughtError as Error & {
+    response?: {
+      data?: {
+        detail?: string;
+        extras?: {
+          result_codes?: {
+            transaction?: string;
+            operations?: string[];
+          };
+        };
+      };
+    };
+    cause?: {
+      response?: {
+        data?: {
+          detail?: string;
+          extras?: {
+            result_codes?: {
+              transaction?: string;
+              operations?: string[];
+            };
+          };
+        };
+      };
+    };
+  };
+
+  const payload = candidate.response?.data ?? candidate.cause?.response?.data;
+  const transactionCode = payload?.extras?.result_codes?.transaction;
+  const operationCode = payload?.extras?.result_codes?.operations?.[0];
+  const detail = payload?.detail?.trim();
+
+  if (operationCode === "op_low_reserve") {
+    return "Your wallet needs a little more XLM reserve before it can add USDC.";
+  }
+
+  if (operationCode === "op_already_exists") {
+    return "USDC is already enabled for this wallet. Refresh and try again.";
+  }
+
+  if (operationCode === "op_no_issuer") {
+    return "The configured USDC issuer was not found on Stellar testnet.";
+  }
+
+  if (transactionCode || operationCode) {
+    return `Stellar rejected the request: ${[transactionCode, operationCode]
+      .filter(Boolean)
+      .join(" / ")}.`;
+  }
+
+  if (detail) {
+    return detail;
+  }
+
+  if (caughtError.message.trim()) {
+    return caughtError.message;
+  }
+
+  return fallback;
 };
 
 export const PlatformSubscriptionOverview = ({
@@ -42,27 +120,43 @@ export const PlatformSubscriptionOverview = ({
 }) => {
   const router = useRouter();
   const { session } = useAuth();
+  const { primaryWallet } = useDynamicContext();
+  const userWallets = useUserWallets();
   const runCheckout = useStellarCheckout();
   const [plan, setPlan] = useState<PlatformSubscriptionPlan | null>(null);
   const [tracks, setTracks] = useState<TrackSummary[]>([]);
+  const [account, setAccount] = useState<WalletAccount | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isAddingUsdcTrustline, setIsAddingUsdcTrustline] = useState(false);
+  const [isTrustlineApprovalSlow, setIsTrustlineApprovalSlow] = useState(false);
+  const trustlineApprovalTimerRef = useRef<number | null>(null);
+
+  const stellarWallet = resolveStellarWallet(
+    session?.walletAddress,
+    primaryWallet,
+    userWallets,
+  );
 
   const load = async () => {
     setIsLoading(true);
 
     try {
-      const [nextPlan, allTracks, mySubscriptions] = await Promise.all([
+      const [nextPlan, allTracks, mySubscriptions, walletAccount] = await Promise.all([
         subscriptionsApi.getPlatformPlan(),
         tracksApi.listTracks(),
         session?.token ? subscriptionsApi.listMine(session.token) : Promise.resolve([]),
+        session?.token
+          ? walletApi.getMe(session.token).catch(() => null)
+          : Promise.resolve(null),
       ]);
 
       setPlan(nextPlan);
       setTracks(
         allTracks.filter((track) => track.access === "subscribers"),
       );
+      setAccount(walletAccount);
       setSubscription(
         mySubscriptions.find(
           (item) => item.scope === "platform" && item.status === "active",
@@ -81,10 +175,30 @@ export const PlatformSubscriptionOverview = ({
     void load();
   }, [session?.token]);
 
+  useEffect(() => {
+    return () => {
+      if (trustlineApprovalTimerRef.current) {
+        window.clearTimeout(trustlineApprovalTimerRef.current);
+      }
+    };
+  }, []);
+
   const selectedTrack = useMemo(
     () => tracks.find((track) => track.id === trackId) ?? null,
     [trackId, tracks],
   );
+
+  const hasRequiredTrustline = useMemo(() => {
+    if (!plan || !account?.balances.length) {
+      return false;
+    }
+
+    return account.balances.some(
+      (balance) =>
+        balance.assetCode === plan.assetCode &&
+        (balance.assetIssuer ?? "") === (plan.assetIssuer ?? ""),
+    );
+  }, [account?.balances, plan]);
 
   const openSelectedTrack = () => {
     if (trackId) {
@@ -127,8 +241,62 @@ export const PlatformSubscriptionOverview = ({
     }
   };
 
+  const handleEnableUsdc = async () => {
+    if (!plan) {
+      return;
+    }
+
+    if (!session?.token) {
+      toast.error("Sign in with your Stellar wallet first.");
+      router.push("/auth");
+      return;
+    }
+
+    if (!stellarWallet) {
+      toast.error("Connect a Stellar wallet first.");
+      return;
+    }
+
+    if (!account?.exists) {
+      toast.error("Fund this wallet with a little testnet XLM before enabling USDC.");
+      return;
+    }
+
+    setIsAddingUsdcTrustline(true);
+    setIsTrustlineApprovalSlow(false);
+
+    trustlineApprovalTimerRef.current = window.setTimeout(() => {
+      setIsTrustlineApprovalSlow(true);
+    }, 5000);
+
+    void stellarWallet.connector
+      .connect()
+      .then(async () => {
+        await ensureActiveStellarAccount(stellarWallet);
+        return stellarWallet.addTrustline({
+          assetCode: plan.assetCode,
+          assetIssuer: plan.assetIssuer ?? clientEnv.stellarTestnetUsdcIssuer,
+        });
+      })
+      .then(async () => {
+        toast.success("USDC is now enabled for this wallet.");
+        await load();
+      })
+      .catch((caughtError: unknown) => {
+        toast.error(describeWalletError(caughtError, "Unable to enable USDC."));
+      })
+      .finally(() => {
+        if (trustlineApprovalTimerRef.current) {
+          window.clearTimeout(trustlineApprovalTimerRef.current);
+          trustlineApprovalTimerRef.current = null;
+        }
+        setIsAddingUsdcTrustline(false);
+        setIsTrustlineApprovalSlow(false);
+      });
+  };
+
   if (isLoading) {
-    return <div className="text-sm text-slate-400">Loading subscription page...</div>;
+    return <div className="text-sm text-slate-400">Loading subscription...</div>;
   }
 
   if (!plan) {
@@ -140,9 +308,10 @@ export const PlatformSubscriptionOverview = ({
   }
 
   const amountLabel = formatAmountLabel(plan);
+  const subscriberTrackCount = tracks.length;
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-4xl space-y-8">
       <Button
         asChild
         variant="outline"
@@ -154,151 +323,133 @@ export const PlatformSubscriptionOverview = ({
         </Link>
       </Button>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
-        <Card className="border-white/10 bg-white/5 text-white shadow-none">
-          <CardHeader className="space-y-4">
-            <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">
-              Platform membership
-            </p>
+      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white sm:p-8">
+        <div className="space-y-3">
+          <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">{plan.name}</p>
+          <h2 className="text-3xl font-semibold sm:text-4xl">Subscribe</h2>
+          <p className="max-w-2xl text-base text-slate-300">
+            {selectedTrack
+              ? `Unlock ${selectedTrack.title} and every other subscriber-only track with one pass.`
+              : "One pass unlocks every subscriber-only track across Music City."}
+          </p>
+        </div>
+
+        <div className="mt-8 grid gap-6 border-t border-white/10 pt-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-6">
             <div className="space-y-2">
-              <CardTitle className="text-4xl">{plan.name}</CardTitle>
-              <p className="text-base text-slate-300">{plan.description}</p>
+              <p className="text-5xl font-semibold tracking-tight text-white sm:text-6xl">
+                {amountLabel}
+              </p>
+              <p className="text-sm text-slate-400">{formatPeriodLabel(plan.periodDays)}</p>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {selectedTrack ? (
-              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-emerald-200">
-                  Selected release
-                </p>
-                <p className="mt-2 text-xl font-semibold text-white">{selectedTrack.title}</p>
-                <p className="mt-1 text-sm text-slate-300">
-                  Activate Music City Pass once to unlock this track and every other subscriber-only release across the platform.
-                </p>
-              </div>
-            ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount</p>
-                <p className="mt-3 text-lg text-white">{amountLabel}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Payment</p>
+                <p className="mt-2 text-base text-white">USDC on Stellar</p>
               </div>
-              <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Period</p>
-                <p className="mt-3 text-lg text-white">Every {plan.periodDays} days</p>
-              </div>
-              <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Access</p>
-                <p className="mt-3 text-lg text-white">
-                  {tracks.length} subscriber-only {tracks.length === 1 ? "track" : "tracks"}
+                <p className="mt-2 text-base text-white">
+                  {subscriberTrackCount} locked {subscriberTrackCount === 1 ? "track" : "tracks"}
                 </p>
               </div>
             </div>
 
-            {!plan.enabled ? (
-              <div className="rounded-3xl border border-amber-400/20 bg-amber-500/10 p-6 text-sm text-amber-100">
-                Music City Pass is not available right now.
-              </div>
-            ) : tracks.length === 0 ? (
-              <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-6 text-sm text-slate-300">
-                Subscriber-only releases will appear here once artists publish them.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-white">Included releases</h3>
-                <div className="grid gap-4">
-                  {tracks.slice(0, 8).map((track) => (
-                    <div
-                      key={track.id}
-                      className="flex items-center gap-4 rounded-3xl border border-white/10 bg-slate-950/50 p-4"
-                    >
-                      <TrackThumbnail track={track} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-base font-semibold text-white">
-                          {track.title}
-                        </p>
-                        <p className="truncate text-sm text-slate-400">
-                          {track.artistName}
-                        </p>
-                      </div>
-                      <Link
-                        href={`/stream/${track.id}`}
-                        className="text-sm text-emerald-300 transition hover:text-emerald-200"
-                      >
-                        View track
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-white/10 bg-white/5 text-white shadow-none">
-          <CardHeader className="space-y-3">
-            <CardTitle className="text-2xl">Membership action</CardTitle>
-            <p className="text-sm text-slate-400">
-              Use your connected Stellar wallet to activate platform-wide access.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {subscription ? (
-              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-emerald-200">
-                  Active membership
-                </p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  Access ends {new Date(subscription.endsAt).toLocaleDateString()}
-                </p>
+            {selectedTrack ? (
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+                <p className="text-xs uppercase tracking-[0.24em] text-emerald-200">Selected track</p>
+                <p className="mt-2 text-lg font-semibold text-white">{selectedTrack.title}</p>
+                <p className="text-sm text-slate-200">{selectedTrack.artistName}</p>
               </div>
             ) : null}
+          </div>
 
-            {!plan.enabled ? (
-              <div className="rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5 text-sm text-amber-100">
-                Music City Pass has not been enabled yet.
-              </div>
-            ) : subscription ? (
-              <Button
-                className="w-full bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-                onClick={openSelectedTrack}
-              >
-                Open unlocked music
-              </Button>
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/50 p-5">
+            {subscription ? (
+              <>
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+                  <div className="flex items-center gap-2 text-emerald-200">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm font-medium">Active subscription</span>
+                  </div>
+                  <p className="mt-2 text-sm text-white">
+                    Access ends {new Date(subscription.endsAt).toLocaleDateString()}.
+                  </p>
+                </div>
+
+                <Button
+                  className="w-full bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                  onClick={openSelectedTrack}
+                >
+                  {trackId ? "Open track" : "Go to stream"}
+                </Button>
+              </>
+            ) : !session?.token ? (
+              <>
+                <p className="text-sm text-slate-300">
+                  Sign in with your Stellar wallet to subscribe.
+                </p>
+                <Button
+                  asChild
+                  className="w-full bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                >
+                  <Link href="/auth">Sign in to subscribe</Link>
+                </Button>
+              </>
+            ) : !plan.enabled ? (
+              <p className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                Subscriptions are not available right now.
+              </p>
+            ) : !hasRequiredTrustline ? (
+              <>
+                <div className="space-y-2">
+                  <p className="text-base font-medium text-white">Enable USDC first</p>
+                  <p className="text-sm text-slate-400">
+                    Add USDC to this wallet once, then you can subscribe.
+                  </p>
+                </div>
+                <Button
+                  className="w-full bg-white text-slate-950 hover:bg-slate-100"
+                  disabled={isAddingUsdcTrustline}
+                  onClick={() => void handleEnableUsdc()}
+                >
+                  {isAddingUsdcTrustline ? (
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Enable USDC
+                </Button>
+                <p className="text-xs text-slate-500">
+                  You need a little testnet XLM in the wallet for Stellar reserve and fees.
+                </p>
+                {isTrustlineApprovalSlow ? (
+                  <p className="text-xs text-emerald-300">Approve the trustline in your wallet.</p>
+                ) : null}
+              </>
             ) : (
-              <Button
-                className="w-full bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-                disabled={isSubscribing}
-                onClick={() => void handleSubscribe()}
-              >
-                {isSubscribing ? (
-                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Ticket className="mr-2 h-4 w-4" />
-                )}
-                Join Music City Pass
-              </Button>
+              <>
+                <div className="space-y-2">
+                  <p className="text-base font-medium text-white">Ready to subscribe</p>
+                  <p className="text-sm text-slate-400">
+                    Pay with USDC and unlock playback right after confirmation.
+                  </p>
+                </div>
+                <Button
+                  className="w-full bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                  disabled={isSubscribing}
+                  onClick={() => void handleSubscribe()}
+                >
+                  {isSubscribing ? (
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Ticket className="mr-2 h-4 w-4" />
+                  )}
+                  Subscribe
+                </Button>
+              </>
             )}
-
-            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5 text-sm text-slate-300">
-              <div className="flex items-start gap-3">
-                <Lock className="mt-0.5 h-4 w-4 text-emerald-300" />
-                <p>
-                  One active membership unlocks every subscriber-only release across Music City. Playback refreshes right after Stellar payment confirmation.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5 text-sm text-slate-300">
-              <div className="flex items-start gap-3">
-                <Sparkles className="mt-0.5 h-4 w-4 text-emerald-300" />
-                <p>
-                  New subscriber-only tracks are included automatically while your pass is active.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

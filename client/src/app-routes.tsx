@@ -117,8 +117,8 @@ const SubscribePage = () => {
   return (
     <PageSection
       eyebrow="Subscriptions"
-      title="Music City Pass"
-      description="Subscribe once to unlock every subscriber-only release across the platform."
+      title="Subscribe"
+      description="Unlock subscriber-only tracks with one Music City Pass."
     >
       <PlatformSubscriptionOverview trackId={trackId} />
     </PageSection>

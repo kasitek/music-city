@@ -26,12 +26,21 @@ const defaultPlatformPlan = (): AdminPlatformSubscriptionSettings => ({
   periodDays: env.PLATFORM_SUBSCRIPTION_PERIOD_DAYS,
 });
 
+const normalizePlatformPlan = (
+  settings?: Partial<AdminPlatformSubscriptionSettings> | null,
+): AdminPlatformSubscriptionSettings => ({
+  ...defaultPlatformPlan(),
+  ...settings,
+  assetCode: env.PLATFORM_SUBSCRIPTION_ASSET_CODE,
+  assetIssuer: env.PLATFORM_SUBSCRIPTION_ASSET_ISSUER ?? "",
+});
+
 export const subscriptionsService = {
   async getPlatformPlan(): Promise<PlatformSubscriptionPlan> {
     const stored = await databaseService.findSetting<AdminPlatformSubscriptionSettings>(
       PLATFORM_SUBSCRIPTION_SETTINGS_KEY,
     );
-    const plan = stored ?? defaultPlatformPlan();
+    const plan = normalizePlatformPlan(stored);
 
     return {
       enabled: plan.enabled,

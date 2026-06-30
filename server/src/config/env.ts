@@ -79,10 +79,12 @@ const envSchema = z
     PLATFORM_SUBSCRIPTION_NAME: z.string().default("Music City Pass"),
     PLATFORM_SUBSCRIPTION_DESCRIPTION: z
       .string()
-      .default("One subscription unlocks every subscriber-only release across Music City."),
+      .default("Subscribe once to unlock every subscriber-only release on Music City."),
     PLATFORM_SUBSCRIPTION_PRICE: z.string().default("15"),
-    PLATFORM_SUBSCRIPTION_ASSET_CODE: z.string().default("XLM"),
-    PLATFORM_SUBSCRIPTION_ASSET_ISSUER: z.string().optional(),
+    PLATFORM_SUBSCRIPTION_ASSET_CODE: z.string().default("USDC"),
+    PLATFORM_SUBSCRIPTION_ASSET_ISSUER: z
+      .string()
+      .default("GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"),
     PLATFORM_SUBSCRIPTION_PERIOD_DAYS: z.coerce.number().int().positive().default(30),
     ARCHIVE_OUTPUT_ROOT: z
       .string()
