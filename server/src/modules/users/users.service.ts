@@ -58,6 +58,10 @@ const withMediaUrls = (profile: UserProfile | null) => {
 };
 
 export const usersService = {
+  async listAllProfiles() {
+    return (await usersRepository.listAll()).map((profile) => withMediaUrls(profile)) as UserProfile[];
+  },
+
   async getPublicArtistProfile(id: string) {
     const profile = await this.getProfileById(id);
 

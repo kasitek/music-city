@@ -10,6 +10,7 @@ import {
   subscriptionScopeSchema,
   subscriptionStatusSchema,
 } from "./payments.js";
+import { userRoleSchema } from "./auth.js";
 import { walletAccountSchema } from "./wallet.js";
 
 export const adminRoleSchema = z.enum(["super_admin", "admin"]);
@@ -120,3 +121,40 @@ export const adminSubscriptionListSchema = z.object({
   items: z.array(adminSubscriptionRecordSchema),
 });
 export type AdminSubscriptionList = z.infer<typeof adminSubscriptionListSchema>;
+
+export const adminUserSubscriptionStatusSchema = z.enum([
+  "subscribed",
+  "unsubscribed",
+]);
+export type AdminUserSubscriptionStatus = z.infer<
+  typeof adminUserSubscriptionStatusSchema
+>;
+
+export const adminUserRecordSchema = z.object({
+  id: z.string().min(1),
+  walletAddress: stellarWalletAddressSchema,
+  email: z.string().email().optional().or(z.literal("")),
+  displayName: z.string().min(1),
+  role: userRoleSchema,
+  location: z.string().default(""),
+  subscriptionStatus: adminUserSubscriptionStatusSchema,
+  activeSubscriptionCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type AdminUserRecord = z.infer<typeof adminUserRecordSchema>;
+
+export const adminUserSummarySchema = z.object({
+  total: z.number().int().nonnegative(),
+  subscribed: z.number().int().nonnegative(),
+  unsubscribed: z.number().int().nonnegative(),
+  artists: z.number().int().nonnegative(),
+  fans: z.number().int().nonnegative(),
+});
+export type AdminUserSummary = z.infer<typeof adminUserSummarySchema>;
+
+export const adminUserListSchema = z.object({
+  summary: adminUserSummarySchema,
+  items: z.array(adminUserRecordSchema),
+});
+export type AdminUserList = z.infer<typeof adminUserListSchema>;

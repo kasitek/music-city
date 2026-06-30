@@ -112,6 +112,14 @@ adminRouter.get(
 );
 
 adminRouter.get(
+  "/users",
+  requireAdminSession,
+  asyncHandler(async (_request, response) => {
+    response.json(await adminService.listUsers());
+  }),
+);
+
+adminRouter.get(
   "/treasury",
   requireAdminSession,
   asyncHandler(async (_request, response) => {

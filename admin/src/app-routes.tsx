@@ -19,6 +19,7 @@ import type {
   AdminAccount,
   AdminPlatformSubscriptionSettings,
   AdminSubscriptionList,
+  AdminUserList,
   AdminTreasuryOverview,
   AdminRole,
 } from "@music-city/shared";
@@ -55,6 +56,12 @@ const navItems = [
     label: "Subscribers",
     description: "All subscriptions",
     icon: Ticket,
+  },
+  {
+    href: "/console/users",
+    label: "Users",
+    description: "Audience accounts",
+    icon: Users,
   },
   {
     href: "/console/treasury",
@@ -1083,6 +1090,120 @@ const SubscribersPage = () => {
   );
 };
 
+const UsersPage = () => {
+  const { session } = useAdminAuth();
+  const [data, setData] = useState<AdminUserList | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      if (!session?.token) {
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const next = await adminApi.listUsers(session.token);
+
+        if (!cancelled) {
+          setData(next);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "Failed to load users");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.token]);
+
+  if (isLoading) {
+    return <LoadingScreen label="Loading users..." />;
+  }
+
+  return (
+    <SidebarLayout>
+      <div className="space-y-6">
+        <SectionHeader
+          title="Users"
+          description="Browse app users and whether they currently have an active subscription."
+        />
+
+        <div className="grid gap-3 md:grid-cols-5">
+          <StatTile label="Total" value={String(data?.summary.total ?? 0)} />
+          <StatTile label="Subscribed" value={String(data?.summary.subscribed ?? 0)} />
+          <StatTile label="Unsubscribed" value={String(data?.summary.unsubscribed ?? 0)} />
+          <StatTile label="Artists" value={String(data?.summary.artists ?? 0)} />
+          <StatTile label="Fans" value={String(data?.summary.fans ?? 0)} />
+        </div>
+
+        {!data || data.items.length === 0 ? (
+          <EmptyState
+            title="No users yet"
+            description="User accounts will appear here as people onboard into Music City."
+          />
+        ) : (
+          <section className={cn(shellPanelClassName, "overflow-hidden")}>
+            <div className="grid grid-cols-[1.1fr_0.9fr_120px_130px_120px_160px] gap-4 border-b border-white/8 px-4 py-3 text-[0.68rem] uppercase tracking-[0.18em] text-slate-500">
+              <span>User</span>
+              <span>Wallet</span>
+              <span>Role</span>
+              <span>Subscription</span>
+              <span>Active subs</span>
+              <span>Updated</span>
+            </div>
+            {data.items.map((item) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-[1.1fr_0.9fr_120px_130px_120px_160px] gap-4 border-t border-white/6 px-4 py-4 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-white">{item.displayName}</p>
+                  <p className="mt-1 truncate text-xs text-slate-500">
+                    {item.email || item.id}
+                  </p>
+                </div>
+                <p className="truncate text-slate-300">{item.walletAddress}</p>
+                <div>
+                  <span className="inline-flex border border-white/10 px-2 py-1 text-xs text-slate-300">
+                    {item.role}
+                  </span>
+                </div>
+                <div>
+                  <span
+                    className={cn(
+                      "inline-flex border px-2 py-1 text-xs",
+                      item.subscriptionStatus === "subscribed"
+                        ? "border-emerald-400/25 bg-emerald-400/8 text-emerald-200"
+                        : "border-white/10 text-slate-300",
+                    )}
+                  >
+                    {item.subscriptionStatus}
+                  </span>
+                </div>
+                <div className="text-slate-300">{item.activeSubscriptionCount}</div>
+                <div className="text-slate-300">{formatDateTime(item.updatedAt)}</div>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+    </SidebarLayout>
+  );
+};
+
 const AdminManagementPage = () => {
   const { admin, session } = useAdminAuth();
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
@@ -1335,6 +1456,14 @@ export const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <SubscribersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/console/users"
+        element={
+          <ProtectedRoute>
+            <UsersPage />
           </ProtectedRoute>
         }
       />

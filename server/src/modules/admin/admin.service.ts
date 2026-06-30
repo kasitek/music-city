@@ -3,6 +3,8 @@ import {
   adminPlatformSubscriptionSettingsSchema,
   adminSubscriptionListSchema,
   adminSubscriptionRecordSchema,
+  adminUserListSchema,
+  adminUserRecordSchema,
   adminTreasuryOverviewSchema,
   adminTreasurySettingsSchema,
   adminSessionSchema,
@@ -13,11 +15,13 @@ import {
   type AdminPlatformSubscriptionSettings,
   type AdminSubscriptionList,
   type AdminSubscriptionRecord,
+  type AdminUserList,
   type AdminTreasuryOverview,
   type AdminTreasurySettings,
   type AdminSession,
   type PaymentRecord,
   type SubscriptionRecord,
+  type UserProfile,
 } from "@music-city/shared";
 
 import { env } from "../../config/env.js";
@@ -299,6 +303,64 @@ export const adminService = {
     };
 
     return adminSubscriptionListSchema.parse({
+      summary,
+      items,
+    });
+  },
+
+  async listUsers(): Promise<AdminUserList> {
+    const [users, subscriptions] = await Promise.all([
+      usersService.listAllProfiles(),
+      subscriptionsRepository.listAll(),
+    ]);
+
+    const activeSubscriptionCountByWallet = subscriptions.reduce<Map<string, number>>(
+      (map, subscription) => {
+        if (normalizeSubscriptionStatus(subscription) !== "active") {
+          return map;
+        }
+
+        map.set(
+          subscription.walletAddress,
+          (map.get(subscription.walletAddress) ?? 0) + 1,
+        );
+        return map;
+      },
+      new Map(),
+    );
+
+    const items = users
+      .map((user) => {
+        const activeSubscriptionCount =
+          activeSubscriptionCountByWallet.get(user.walletAddress) ?? 0;
+
+        return adminUserRecordSchema.parse({
+          id: user.id,
+          walletAddress: user.walletAddress,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          location: user.location,
+          subscriptionStatus:
+            activeSubscriptionCount > 0 ? "subscribed" : "unsubscribed",
+          activeSubscriptionCount,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        });
+      })
+      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+
+    const summary = {
+      total: items.length,
+      subscribed: items.filter((item) => item.subscriptionStatus === "subscribed")
+        .length,
+      unsubscribed: items.filter((item) => item.subscriptionStatus === "unsubscribed")
+        .length,
+      artists: items.filter((item) => item.role === "artist").length,
+      fans: items.filter((item) => item.role === "fan").length,
+    };
+
+    return adminUserListSchema.parse({
       summary,
       items,
     });
