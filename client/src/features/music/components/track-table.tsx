@@ -79,12 +79,11 @@ export const TrackTable = ({
 }: TrackTableProps) => {
   return (
     <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03]">
-      <div className="hidden grid-cols-[minmax(280px,2.2fr)_1fr_1fr_1fr_1fr_120px] gap-4 border-b border-white/10 px-6 py-4 text-xs uppercase tracking-[0.24em] text-slate-500 lg:grid">
+      <div className="hidden grid-cols-[minmax(280px,2.2fr)_1fr_1fr_1fr_120px] gap-4 border-b border-white/10 px-6 py-4 text-xs uppercase tracking-[0.24em] text-slate-500 lg:grid">
         <span>Track</span>
         <span>Genre</span>
         <span>Status</span>
         <span>Runtime</span>
-        <span>Access</span>
         <span className="text-right">{actionHeader}</span>
       </div>
 
@@ -107,7 +106,7 @@ export const TrackTable = ({
                 onRowClick(track);
               }}
             >
-              <div className="grid gap-4 lg:grid-cols-[minmax(280px,2.2fr)_1fr_1fr_1fr_1fr_120px] lg:items-center">
+              <div className="grid gap-4 lg:grid-cols-[minmax(280px,2.2fr)_1fr_1fr_1fr_120px] lg:items-center">
                 <div className="flex items-center gap-4">
                   {renderSelectionCell?.(track)}
                   <TrackThumbnail track={track} />
@@ -154,15 +153,6 @@ export const TrackTable = ({
                     Runtime
                   </p>
                   <p className="text-sm text-slate-200">{track.runtime}</p>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 lg:hidden">
-                    Access
-                  </p>
-                  <p className="text-sm text-emerald-300">
-                    {formatTrackAccessLabel(track)}
-                  </p>
                 </div>
 
                 <div className="flex justify-start lg:justify-end">

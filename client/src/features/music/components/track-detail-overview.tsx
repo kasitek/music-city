@@ -12,19 +12,6 @@ import { tracksApi } from "@/features/music/lib/tracks-api";
 import { usersApi } from "@/features/users/lib/users-api";
 import { useGlobalPlayback } from "@/features/playback/providers/global-playback-provider";
 
-const formatAccessLabel = (track: TrackSummary) => {
-  switch (track.access) {
-    case "public":
-      return "Public release";
-    case "subscribers":
-      return "Subscriber release";
-    case "purchase_required":
-      return "Purchase required";
-    default:
-      return "Private release";
-  }
-};
-
 export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
   const { setPlaybackQueue } = useGlobalPlayback();
   const [track, setTrack] = useState<TrackSummary | null>(null);
@@ -120,7 +107,7 @@ export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
             <p className="text-lg text-slate-300">{track.artistName}</p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
                 Genre
@@ -138,14 +125,6 @@ export const TrackDetailOverview = ({ trackId }: { trackId: string }) => {
                 Status
               </p>
               <p className="mt-2 text-base text-white">{track.status}</p>
-            </div>
-            <div>
-              <p className="text-sm uppercase tracking-[0.22em] text-slate-500">
-                Access
-              </p>
-              <p className="mt-2 text-base text-emerald-300">
-                {formatAccessLabel(track)}
-              </p>
             </div>
           </div>
 
