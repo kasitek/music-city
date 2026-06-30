@@ -10,6 +10,11 @@ import { playbackService } from "./playback.service.js";
 
 const playbackRouter = Router();
 
+playbackRouter.use((_request, response, next) => {
+  response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+});
+
 playbackRouter.post(
   "/sessions",
   requireSession,

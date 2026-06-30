@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { tracksApi } from "@/features/music/lib/tracks-api";
 import { useGlobalPlayback } from "@/features/playback/providers/global-playback-provider";
+import { useSubscriptionAccess } from "@/features/subscriptions/hooks/use-subscription-access";
 import { useAuth } from "@/hooks/use-auth";
 import { TrackTable } from "@/features/music/components/track-table";
 
@@ -23,6 +24,7 @@ export const TrackGrid = ({
   const router = useRouter();
   const { session } = useAuth();
   const { activeTrackId, playTrack, setPlaybackQueue } = useGlobalPlayback();
+  const { canAccessSubscriberTrack } = useSubscriptionAccess();
   const [syncingTrackId, setSyncingTrackId] = useState<string | null>(null);
   const safeTracks = Array.isArray(tracks) ? tracks : [];
 
@@ -36,7 +38,8 @@ export const TrackGrid = ({
   };
 
   const isGatedTrack = (track: TrackSummary) =>
-    track.access === "subscribers" || track.access === "purchase_required";
+    (track.access === "subscribers" && !canAccessSubscriberTrack(track)) ||
+    track.access === "purchase_required";
 
   const handleTrackAction = async (track: TrackSummary) => {
     if (isGatedTrack(track)) {

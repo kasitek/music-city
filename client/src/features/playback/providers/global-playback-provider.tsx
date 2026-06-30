@@ -68,6 +68,13 @@ const isHlsStream = (url: string) => {
   }
 };
 
+const describePlaybackError = (error: unknown) =>
+  error instanceof DOMException && error.name === "NotSupportedError"
+    ? "The audio source could not be loaded. Check the media URL and format."
+    : error instanceof Error
+      ? error.message
+      : "Unable to start audio playback";
+
 const TrackArt = ({ track }: { track: TrackSummary }) => {
   if (track.coverImageUrl) {
     return (
@@ -425,15 +432,20 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
     }
 
     if (track.id === activeTrack?.id && audioRef.current) {
-      if (audioRef.current.paused) {
-        await audioRef.current.play();
-        setIsPlaying(true);
-        syncProgress();
-        startAnimationLoop();
-      } else {
-        audioRef.current.pause();
+      try {
+        if (audioRef.current.paused) {
+          await audioRef.current.play();
+          setIsPlaying(true);
+          syncProgress();
+          startAnimationLoop();
+        } else {
+          audioRef.current.pause();
+          setIsPlaying(false);
+          stopAnimationLoop();
+        }
+      } catch (error) {
         setIsPlaying(false);
-        stopAnimationLoop();
+        toast.error(describePlaybackError(error));
       }
       return;
     }
@@ -503,15 +515,21 @@ export const GlobalPlaybackProvider = ({ children }: { children: ReactNode }) =>
   const togglePlayback = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (audio.paused) {
-      await audio.play();
-      setIsPlaying(true);
-      syncProgress();
-      startAnimationLoop();
-    } else {
-      audio.pause();
+
+    try {
+      if (audio.paused) {
+        await audio.play();
+        setIsPlaying(true);
+        syncProgress();
+        startAnimationLoop();
+      } else {
+        audio.pause();
+        setIsPlaying(false);
+        stopAnimationLoop();
+      }
+    } catch (error) {
       setIsPlaying(false);
-      stopAnimationLoop();
+      toast.error(describePlaybackError(error));
     }
   }, []);
 

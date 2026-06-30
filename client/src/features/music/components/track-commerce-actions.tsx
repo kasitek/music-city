@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { paymentsApi } from "@/features/payments/lib/payments-api";
 import { useStellarCheckout } from "@/features/payments/hooks/use-stellar-checkout";
 import { useGlobalPlayback } from "@/features/playback/providers/global-playback-provider";
+import { useSubscriptionAccess } from "@/features/subscriptions/hooks/use-subscription-access";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiClientError } from "@/lib/api/http-client";
 
@@ -36,10 +37,12 @@ export const TrackCommerceActions = ({
   const router = useRouter();
   const { session } = useAuth();
   const { activeTrackId, playTrack } = useGlobalPlayback();
+  const { canAccessSubscriberTrack } = useSubscriptionAccess();
   const runCheckout = useStellarCheckout();
   const [isBuying, setIsBuying] = useState(false);
   const isPurchaseLocked = track.access === "purchase_required";
-  const isSubscriptionLocked = track.access === "subscribers";
+  const isSubscriptionLocked =
+    track.access === "subscribers" && !canAccessSubscriberTrack(track);
   const isLocked = isPurchaseLocked || isSubscriptionLocked;
 
   const purchaseLabel = useMemo(

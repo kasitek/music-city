@@ -88,6 +88,8 @@ uploadsRouter.put(
 uploadsRouter.get(
   "/content/*",
   asyncHandler(async (request, response) => {
+    response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
     const storageKey = decodeURIComponent(String(request.params[0]));
     const filePath = storageService.getLocalPath(storageKey);
     const fileStats = await stat(filePath);
