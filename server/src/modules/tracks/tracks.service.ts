@@ -267,10 +267,8 @@ export const tracksService = {
       priceLabel:
         parsed.access === "public"
           ? "Public"
-          : parsed.access === "subscribers"
-            ? "Subscribers"
-            : parsed.access === "purchase_required"
-              ? existing.purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
+          : parsed.access === "purchase_required"
+            ? existing.purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
             : "Private",
       purchaseEnabled:
         parsed.access === "purchase_required"
@@ -333,11 +331,9 @@ export const tracksService = {
       priceLabel:
         parsed.access === "public"
           ? "Public"
-          : parsed.access === "subscribers"
-            ? "Subscribers"
-            : parsed.access === "purchase_required"
-              ? purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
-              : "Private",
+          : parsed.access === "purchase_required"
+            ? purchasePrice ?? env.TRACK_PURCHASE_DEFAULT_PRICE
+            : "Private",
       updatedAt: new Date().toISOString(),
     });
   },

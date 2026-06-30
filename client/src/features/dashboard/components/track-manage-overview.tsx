@@ -115,14 +115,17 @@ export const TrackManageOverview = ({ trackId }: { trackId: string }) => {
       return;
     }
 
+    const monetizationAccess: EditableTrackAccess =
+      track.access === "subscribers" ? "private" : track.access;
+
     try {
       setIsSaving(true);
       const updatedTrack = await tracksApi.updateTrackMonetization(
         session.token,
         track.id,
         {
-          access: track.access,
-          purchaseEnabled: track.access === "purchase_required",
+          access: monetizationAccess,
+          purchaseEnabled: monetizationAccess === "purchase_required",
           purchasePrice,
         },
       );

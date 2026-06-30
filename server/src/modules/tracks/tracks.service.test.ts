@@ -56,7 +56,7 @@ test("createTrack rejects subscriber-only access from creator-controlled input",
           title: "Locked track",
           genre: "Pop",
           access: "subscribers",
-        }),
+        } as never),
     );
   } finally {
     cleanup.reverse().forEach((fn) => fn());
@@ -114,7 +114,7 @@ test("updateTrackAccess rejects subscriber-only access from creator-controlled i
       () =>
         tracksService.updateTrackAccess(walletAddress, "trk-1", {
           access: "subscribers",
-        }),
+        } as never),
     );
   } finally {
     cleanup.reverse().forEach((fn) => fn());
